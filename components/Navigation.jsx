@@ -49,13 +49,10 @@ export default function Navigation({ className = "" }) {
         </li>
         <li>
           <Link
-            href="/contactUs"
+            href="/saloon"
             className="hover:text-accent-400 transition-colors"
           >
-            <span className="hidden font-playfair sm:block">Contact Us</span>
-            <span className="sm:hidden ">
-              <Phone size={24} strokeWidth={2.5} absoluteStrokeWidth />
-            </span>
+            <span className=" font-playfair">Our Saloon</span>
           </Link>
         </li>
       </ul>

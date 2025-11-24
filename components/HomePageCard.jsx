@@ -20,29 +20,25 @@ export default async function HomePageCard() {
   const hairImages = hairImageData.slice(0, 4);
 
   return (
-    <div className="w-full flex flex-col items-center mt-6">
-      {/* TOP TWO CARDS */}
-      <div className="grid grid-cols-2 gap-6 w-max-w-5xl">
-        {/* LEFT CARD */}
+    <div className="w-full flex justify-center mt-6">
+      <div className="grid grid-cols-4 gap-6 w-full max-w-6xl">
+        {/* CARD 1 – MAKEUP */}
         <div
           className="backdrop-blur-md bg-white/20 border border-white/30
-                        rounded-2xl p-2 shadow-xl transition-all duration-300
-                        hover:bg-white/30 hover:scale-[1.02]"
+        rounded-2xl p-2 shadow-xl transition-all duration-300
+        hover:bg-white/30 hover:scale-[1.02] h-52"
         >
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 h-full">
             {makeupImages.map((img, index) => (
               <div
-                className="relative w-full h-24 rounded-lg overflow-hidden"
+                className="relative w-full h-full rounded-lg overflow-hidden"
                 key={index}
               >
-                <span className="absolute top-2 left-2 bg-white/40 text-black text-sm font-bold px-2 py-1 rounded-full animate-pulse">
-                  Click me
-                </span>
                 <Image
                   src={img.images}
-                  alt="make up image"
+                  alt="makeup"
                   fill
-                  className="object-cover object-top translate-y-0.5 opacity-90 hover:opacity-100 transition"
+                  className="object-cover object-top opacity-90 hover:opacity-100 transition"
                   draggable={false}
                 />
               </div>
@@ -50,24 +46,21 @@ export default async function HomePageCard() {
           </div>
         </div>
 
-        {/* RIGHT CARD */}
+        {/* CARD 2 – HAIR */}
         <div
           className="backdrop-blur-md bg-white/20 border border-white/30
-                        rounded-2xl p-2 shadow-xl transition-all duration-300
-                        hover:bg-white/30 hover:scale-[1.02]"
+        rounded-2xl p-2 shadow-xl transition-all duration-300
+        hover:bg-white/30 hover:scale-[1.02] h-52"
         >
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 h-full">
             {hairImages.map((img, index) => (
               <div
-                className="relative w-full h-24 rounded-lg overflow-hidden"
+                className="relative w-full h-full rounded-lg overflow-hidden"
                 key={index}
               >
-                <button className="mt-4 px-6 py-3 rounded-full bg-black/70 text-white hover:bg-black">
-                  Shop Wigs Now
-                </button>
                 <Image
                   src={img.images}
-                  alt="make up image"
+                  alt="hair"
                   fill
                   className="object-cover opacity-90 hover:opacity-100 transition"
                   draggable={false}
@@ -76,75 +69,51 @@ export default async function HomePageCard() {
             ))}
           </div>
         </div>
-      </div>
 
-      {/* ACADEMY FEATURE CARD AND SALOON */}
-      <div className="grid grid-cols-2 gap-6 w-[80vw] pt-4 max-w-5xl">
-        <div>
-          <Link
-            href="/saloon"
-            className="block backdrop-blur-md bg-white/20 border border-white/30
-          rounded-2xl p-4 shadow-2xl transition-all duration-300
-          hover:bg-white/30 hover:scale-[1.03]"
-          >
-            <div className="relative w-full h-60 rounded-lg overflow-hidden">
-              <span className="absolute top-3 left-3 bg-black/45 text-white text-sm px-3 py-1 rounded-full animate-pulse">
-                Visit Qbambi’s Saloon
-              </span>
-
-              <div className="grid grid-cols-2 gap-2">
-                {saloonImages.map((img, index) => (
-                  <div
-                    className="relative w-full h-30 rounded-lg overflow-hidden"
-                    key={index}
-                  >
-                    <Image
-                      src={img.images}
-                      alt="make up image"
-                      fill
-                      className="object-cover opacity-90 hover:opacity-100 transition"
-                      draggable={false}
-                    />
-                  </div>
-                ))}
+        {/* CARD 3 – SALOON */}
+        <Link
+          href="/saloon"
+          className="backdrop-blur-md bg-white/20 border border-white/30
+        rounded-2xl p-2 shadow-xl transition-all duration-300
+        hover:bg-white/30 hover:scale-[1.03] h-52 block"
+        >
+          <div className="grid grid-cols-2 gap-2 h-full">
+            {saloonImages.map((img, index) => (
+              <div
+                className="relative w-full h-full rounded-lg overflow-hidden"
+                key={index}
+              >
+                <Image
+                  src={img.images}
+                  alt="saloon"
+                  fill
+                  className="object-cover opacity-90 hover:opacity-100 transition"
+                  draggable={false}
+                />
               </div>
-            </div>
+            ))}
+          </div>
+        </Link>
 
-            <div className="text-center mt-2">
-              <button className="px-6 py-2 text-white bg-black/70 rounded-full hover:bg-black transition">
-                Visit And Book A Session With Our Saloon →
-              </button>
-            </div>
-          </Link>
-        </div>
-        <div>
-          <Link
-            href="/academy"
-            className="block backdrop-blur-md bg-white/20 border border-white/30
-          rounded-2xl p-4 shadow-2xl transition-all duration-300
-          hover:bg-white/30 hover:scale-[1.03]"
-          >
-            <div className="relative w-full h-60 rounded-lg overflow-hidden">
-              <span className="absolute top-3 left-3 bg-black/45 text-white text-sm px-3 py-1 rounded-full animate-pulse">
-                Visit Qbambi’s Academy
-              </span>
+        {/* CARD 4 – ACADEMY */}
+        <Link
+          href="/academy"
+          className="relative backdrop-blur-md bg-white/20 border border-white/30
+        rounded-2xl p-2 shadow-xl transition-all duration-300
+        hover:bg-white/30 hover:scale-[1.03] h-52 block"
+        >
+          <Image
+            src={academyImage}
+            alt="Academy"
+            fill
+            className="object-cover opacity-90 hover:opacity-100 transition rounded-xl"
+            draggable={false}
+          />
 
-              <Image
-                src={academyImage}
-                alt="Students training at Qbambi Academy"
-                fill
-                className="object-cover opacity-90 hover:opacity-100 transition"
-                draggable={false}
-              />
-            </div>
-
-            <div className="text-center mt-2">
-              <button className="px-6 py-2 text-white bg-black/70 rounded-full hover:bg-black transition">
-                Explore Academy →
-              </button>
-            </div>
-          </Link>
-        </div>
+          <span className="absolute top-3 left-3 bg-black/40 text-white text-sm px-3 py-1 rounded-full animate-pulse z-10">
+            Visit Academy
+          </span>
+        </Link>
       </div>
     </div>
   );
