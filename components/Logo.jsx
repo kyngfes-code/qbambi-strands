@@ -12,7 +12,7 @@ function Logo({ height = "60", width = "60", src = icon, className = "" }) {
         alt="Qbambi strands logo"
       />
       <span
-        className={` hidden font-playfair text-xl font-semibold text-primary-100  ${className}`}
+        className={` hidden font-playfair text-xl font-semibold  ${className}`}
       >
         Qbambi Strands
       </span>

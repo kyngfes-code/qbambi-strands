@@ -31,7 +31,7 @@ export default function Haircard({ hair }) {
 
   return (
     <div className="w-64">
-      <div className="border rounded-xl p-3 shadow-md bg-white">
+      <div className="border rounded-xl p-3 shadow-md bg-[#fff6f9]">
         {/* CAROUSEL */}
         <div
           className="relative w-full h-48 overflow-hidden rounded-lg group"
@@ -85,9 +85,9 @@ export default function Haircard({ hair }) {
         </div>
 
         {/* TITLE / DESCRIPTION */}
-        <h2 className="mt-3 font-semibold text-md">{title}</h2>
-        <p className="text-sm text-gray-600 line-clamp-2">{description}</p>
-        <span className="mt-3 font-light text-sm">{price}</span>
+        <h2 className="mt-3 font-semibold text-[#b33863] text-md">{title}</h2>
+        <p className="text-sm text-[#7a3a4e] line-clamp-2">{description}</p>
+        <span className="mt-3 font-light  text-[#7a3a4e] text-sm">{price}</span>
       </div>
     </div>
   );

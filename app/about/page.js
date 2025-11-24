@@ -1,11 +1,11 @@
 import NavBar from "@/components/NavBar";
-import CarouselCard from "@/components/CarouselCard";
+import HomePageCard from "@/components/HomePageCard";
 
 function page() {
   return (
     <div>
       <NavBar />
-      <CarouselCard />
+      <HomePageCard />
     </div>
   );
 }
