@@ -1,20 +1,17 @@
 import Image from "next/image";
-import bg from "@/public/saloon-bg.png";
+import bg from "@/public/bg-saloon1.png";
 
 function layout({ children }) {
   return (
-    <div className="min-h-screen relative flex flex-col bg-linear-to-bl from-violet-100 to-stone-500">
-      <div className="container mx-auto">
-        <Image
-          src={bg}
-          fill
-          placeholder="blur"
-          className="absolute inset-0 w-full h-full object-cover sm:object-cover md:object-top lg:object-center opacity-70 transition-all duration-700 ease-in-out object-[left_80%] z-40"
-          alt="Qbambi strands"
-        />
-        {children}
-      </div>
-      ;
+    <div className="min-h-screen relative flex flex-col bg-gradient-to-br from-[#7a002f] via-[#e5b39c] to-[#0a0a0a]">
+      <Image
+        src={bg}
+        fill
+        placeholder="blur"
+        alt="Qbambi strands"
+        className="absolute inset-0 w-full h-full object-contain opacity-50 transition-all duration-700 ease-in-out  xl:translate-x-130 z-0"
+      />
+      <div className="relative z-50 container mx-auto">{children}</div>
     </div>
   );
 }

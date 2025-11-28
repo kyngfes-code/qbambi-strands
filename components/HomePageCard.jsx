@@ -1,22 +1,30 @@
 import {
-  getHomePageImagesAcademy,
-  getHomePageImagesHairs,
-  getHomePageImagesMakeup,
-  getHomePageImagesSaloon,
-  getMakeUpImages,
+  getHomePageImages,
 } from "@/lib/data-service";
 import Image from "next/image";
 import Link from "next/link";
 
 export default async function HomePageCard() {
-  const images = await getMakeUpImages();
-  const academyImageData = await getHomePageImagesAcademy();
+  const homePageImageData = await getHomePageImages();
+
+  const saloonImagesData = homePageImageData.filter((item) =>
+    item.title.startsWith("Saloon")
+  );
+  const saloonImages = saloonImagesData.slice(0, 4);
+
+  const academyImageData = homePageImageData.filter((item) =>
+    item.title.startsWith("Academy")
+  );
   const academyImage = academyImageData[0]?.images || null;
-  const saloonImageData = await getHomePageImagesSaloon();
-  const saloonImages = saloonImageData.slice(0, 4);
-  const makeupImageData = await getHomePageImagesMakeup();
+
+  const makeupImageData = homePageImageData.filter((item) =>
+    item.title.startsWith("Makeup")
+  );
   const makeupImages = makeupImageData.slice(0, 4);
-  const hairImageData = await getHomePageImagesHairs();
+
+  const hairImageData = homePageImageData.filter((item) =>
+    item.title.startsWith("Hair")
+  );
   const hairImages = hairImageData.slice(0, 4);
 
   return (

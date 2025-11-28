@@ -1,34 +1,3 @@
-// import { getMakeUpImages } from "@/lib/data-service";
-// import Image from "next/image";
-
-// async function MakeUpImagesCard() {
-//   const images = await getMakeUpImages();
-
-//   return (
-//     <div className="overflow-x-auto overflow-y-hidden sm:overflow-visible whitespace-nowrap snap-x snap-mandatory scroll-smooth">
-//       <div className="flex gap-6 w-max px-2 sm:gap-10 sm:w-full justify-between sm:flex-wrap animate-slideIn">
-//         {images.map((item, index) => (
-//           <div
-//             key={index}
-//             className="min-w-[250px] sm:w-64 border rounded-3xl p-3 shadow-md transition transform hover:-translate-y-2 hover:shadow-3xl"
-//           >
-//             <div className="relative w-full h-64 rounded-xl overflow-hidden">
-//               <Image
-//                 src={item.images}
-//                 alt="make-up image"
-//                 fill
-//                 className="object-cover"
-//               />
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default MakeUpImagesCard;
-
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";

@@ -55,6 +55,9 @@ export default function Navigation({ className = "" }) {
             <span className=" font-playfair">Our Saloon</span>
           </Link>
         </li>
+        <li>
+         
+        </li>
       </ul>
     </nav>
   );
