@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Playfair_Display, Inter } from "next/font/google";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} font-inter min-h-screen relative flex flex-col bg-linear-to-bl from-violet-100 to-stone-500`}
       >
         {children}
+        <Toaster richColors closeButton />
       </body>
     </html>
   );

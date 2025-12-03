@@ -3,6 +3,7 @@ import Image from "next/image";
 import bg1 from "@/public/bg1.jpg";
 import HomePageCard from "@/components/HomePageCard";
 import HeroSection from "@/components/HeroSection";
+import { Suspense } from "react";
 
 export default function Home() {
   return (
@@ -18,9 +19,11 @@ export default function Home() {
       </div>
       <NavBar />
       <HeroSection />
-      <div className="relative z-50 -mt-20 flex justify-center">
-        <HomePageCard />
-      </div>
+      <Suspense>
+        <div className="relative z-50 -mt-20 flex justify-center">
+          <HomePageCard />
+        </div>
+      </Suspense>
     </div>
   );
 }

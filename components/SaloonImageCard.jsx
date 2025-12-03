@@ -1,23 +1,47 @@
-// OPTION A — Minimal Glass Strip
-import { getSaloonData } from "@/lib/data-service";
 import Image from "next/image";
+import Link from "next/link";
 
-export default async function SaloonImageCard() {
-  const data = await getSaloonData();
-  const images = data.slice(0, 4);
-
+export default function SaloonImageCard({
+  src,
+  title,
+  description,
+  className = "",
+  noBg = false,
+  noClick = false,
+  noHref = false,
+  href,
+}) {
   return (
-    <div className="h-40 w-full flex gap-2 px-2 backdrop-blur-sm bg-white/10 rounded-xl overflow-hidden">
-      {images.map((img, index) => (
-        <div key={index} className="relative flex-1 rounded-lg overflow-hidden">
+    <div
+      className={`h-40 w-full flex flex-col gap-2 px-2 ${
+        noBg ? "" : "backdrop-blur-sm bg-white/10"
+      } rounded-xl overflow-hidden ${className}`}
+    >
+      <div className="relative h-50 rounded-lg overflow-hidden">
+        <Link href={`${noHref ? "" : href}`} className="block w-full h-full">
+          <span
+            className={`${
+              noClick
+                ? "hidden"
+                : "absolute top-2 left-2 z-20 text-white text-sm font-semibold bg-black/50 px-2 py-1 rounded animate-pulse"
+            }`}
+          >
+            click me
+          </span>
+
           <Image
-            src={img.images}
-            alt="salon"
+            src={src}
+            alt={`${title} ?? "salon image"`}
             fill
             className="object-cover opacity-90 hover:opacity-100 transition-all duration-300"
           />
-        </div>
-      ))}
+        </Link>
+      </div>
+
+      <div className="flex flex-col justify-center text-white w-40 overflow-hidden">
+        <h2 className="font-semibold text-sm">{title}</h2>
+        <p className="text-xs opacity-80">{description}</p>
+      </div>
     </div>
   );
 }

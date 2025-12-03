@@ -2,8 +2,9 @@
 
 import { useState, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
-export default function Haircard({ hair }) {
+export default function Haircard({ hair, href }) {
   const { title, price, description, main_image, extra_images } = hair;
 
   const images = [main_image, ...extra_images.map((img) => img.image)];
@@ -40,18 +41,22 @@ export default function Haircard({ hair }) {
           onTouchEnd={handleTouchEnd}
         >
           {images.map((src, index) => (
-            <Image
-              key={index}
-              src={src}
-              alt={title}
-              fill
-              draggable={false}
-              className={`
+            <Link href={`${href ? href : ""}`} key={index}>
+              (
+              <Image
+                key={index}
+                src={src}
+                alt={title}
+                fill
+                draggable={false}
+                className={`
                 absolute inset-0 object-cover transition-all duration-500
                 ${current === index ? "opacity-100" : "opacity-0"}
                 group-hover:scale-110
               `}
-            />
+              />
+              )
+            </Link>
           ))}
 
           {/* Left arrow */}

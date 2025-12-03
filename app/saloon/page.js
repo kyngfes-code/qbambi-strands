@@ -1,8 +1,12 @@
+import FloatingClickMe from "@/components/FloatingClickMe";
 import NavBar from "@/components/NavBar";
 import SaloonImageCard from "@/components/SaloonImageCard";
+import { getSaloonData } from "@/lib/data-service";
 import { CheckCheckIcon } from "lucide-react";
 
-export default function Page() {
+export default async function Page() {
+  const data = await getSaloonData();
+  const images = data.slice(0, 4);
   return (
     <div className="h-screen flex flex-col text-white">
       <NavBar className="border-0" />
@@ -42,8 +46,15 @@ export default function Page() {
       </section>
 
       <section className="h-1/3 flex">
-        <div className="w-2/3 p-4">
-          <SaloonImageCard />
+        <div className="w-2/3 flex p-4 ">
+          {images.map((item) => (
+            <SaloonImageCard
+              noBg
+              href="/saloon/images"
+              src={item.images}
+              key={item.id}
+            />
+          ))}
         </div>
 
         <div className="w-1/3 flex flex-col items-center justify-center px-6 bg-[#1a1a1a]/60 backdrop-blur-sm rounded-l-2xl">
@@ -62,6 +73,7 @@ export default function Page() {
           </p>
         </div>
       </section>
+      <FloatingClickMe className="z-50" />
     </div>
   );
 }

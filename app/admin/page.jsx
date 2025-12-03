@@ -1,15 +1,9 @@
-import ImageFetcher from "@/components/ImageFetcher";
-import {
-  getHomePageImagesAcademy,
-  getHomePageImagesHairs,
-  getHomePageImagesMakeup,
-  getHomePageImagesSaloon,
-} from "@/lib/data-service";
+import ImageFetcher from "@/components/FetchImge";
 import Image from "next/image";
 import Link from "next/link";
 
 async function page() {
-  const [saloonImages, academyImage, makeupImages, hairImages] =
+  const { saloonImages, academyImage, makeupImages, hairImages } =
     await ImageFetcher();
 
   return (

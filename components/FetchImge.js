@@ -1,7 +1,8 @@
-import { getHomePageImages } from "@/lib/data-service";
+import { getHomePageImages, getSaloonWorkImages } from "@/lib/data-service";
 
-async function ImageFetcher() {
+async function FetchImage() {
   const homePageImageData = await getHomePageImages();
+  const saloonWorkImageData = await getSaloonWorkImages();
 
   const saloonImagesData = homePageImageData.filter((item) =>
     item.title.startsWith("Saloon")
@@ -23,7 +24,13 @@ async function ImageFetcher() {
   );
   const hairImages = hairImageData.slice(0, 4);
 
-  return [saloonImages, academyImage, makeupImages, hairImages];
+  return {
+    saloonImages,
+    academyImage,
+    makeupImages,
+    hairImages,
+    saloonWorkImageData,
+  };
 }
 
-export default ImageFetcher;
+export default FetchImage;

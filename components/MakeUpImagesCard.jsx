@@ -17,7 +17,7 @@ function MakeUpImagesCard({ images }) {
 
   return (
     <div className="relative w-full mt-4 animate-slideIn">
-      {/* === Desktop Scroll Buttons === */}
+      {/* Left Button */}
       <button
         onClick={scrollLeft}
         className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full shadow-md backdrop-blur-md z-20"
@@ -25,27 +25,21 @@ function MakeUpImagesCard({ images }) {
         <ChevronLeft className="w-6 h-6" />
       </button>
 
+      {/* Right Button */}
       <button
         onClick={scrollRight}
-        className="hidden sm:block md:flex absolute right-0 top-1/2 -translate-y-1/2 
-                   bg-white/20 hover:bg-white/40 text-white p-2 rounded-full 
-                   shadow-md backdrop-blur-md z-20"
+        className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full shadow-md backdrop-blur-md z-20"
       >
         <ChevronRight className="w-6 h-6" />
       </button>
 
-      {/* === Scrollable Container === */}
+      {/* Scrollable Container (NO overflow-x visible) */}
       <div
         ref={scrollRef}
         className="
-          overflow-x-auto overflow-y-hidden 
-          whitespace-nowrap scroll-smooth 
-          snap-x snap-mandatory 
-          sm:whitespace-normal sm:flex sm:flex-wrap 
-          px-4
-        "
+          overflow-x-hidden overflow-y-hidden whitespace-nowrap scroll-smooth px-4 "
       >
-        <div className="flex gap-6 w-max  lg:justify-center">
+        <div className="flex gap-6 w-max">
           {images.map((item, index) => (
             <div
               key={index}

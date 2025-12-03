@@ -1,4 +1,6 @@
 import AddOrUpdateRow from "@/components/AddorUpdateRow";
+import { Button } from "@/components/ui/button";
+import { deleteSaloonWorkImages } from "@/lib/actions";
 import { createClient } from "@supabase/supabase-js";
 
 export default async function MakeupStudioImagePage({ params }) {
@@ -10,9 +12,9 @@ export default async function MakeupStudioImagePage({ params }) {
     process.env.SUPABASE_SERVICE_ROLE_KEY // safe on server
   );
 
-  // Fetch this specific makeuppage image row
+  // Fetch this specific  image row
   const { data, error } = await supabase
-    .from("make-up-images")
+    .from("saloon-work-images")
     .select("*")
     .eq("id", id)
     .single();
@@ -22,14 +24,25 @@ export default async function MakeupStudioImagePage({ params }) {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 flex flex-col items-center justify-between">
       <h1 className="text-2xl font-semibold mb-6">Editing Image #{id}</h1>
-
-      <AddOrUpdateRow
-        fetchUrl="/api/admin/update-makeup-studio-images"
-        imageData={data}
-        id={id}
-      />
+      <div className="flex gap-x-4">
+        <AddOrUpdateRow
+          fetchUrl="/api/admin/update-saloon-images"
+          imageData={data}
+          id={id}
+        />
+        <form
+          action={async () => {
+            "use server";
+            await deleteSaloonWorkImages(id);
+          }}
+        >
+          <Button type="submit" variant="destructive">
+            Delete card
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

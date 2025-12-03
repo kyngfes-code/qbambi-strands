@@ -4,7 +4,7 @@ import { getMakeUpImages } from "@/lib/data-service";
 async function page() {
   const images = await getMakeUpImages();
   return (
-    <div>
+    <div className="flex overflow-x-hidden">
       <MakeUpImagesCard images={images} />
     </div>
   );

@@ -1,3 +1,4 @@
+import AddOrUpdateRow from "@/components/AddorUpdateRow";
 import { getMakeUpImages } from "@/lib/data-service";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,13 +28,8 @@ async function Page() {
             </Link>
           ))}
 
-          <div
-            className="w-[250px] sm:w-64 border rounded-3xl p-3 
-                   shadow-md transition hover:-translate-y-2 hover:shadow-xl"
-          >
-            <div className="relative w-full h-64 rounded-xl flex items-center justify-center text-4xl">
-              +
-            </div>
+          <div>
+            <AddOrUpdateRow fetchUrl="/api/admin/update-makeup-studio-images" />
           </div>
         </div>
       </div>
