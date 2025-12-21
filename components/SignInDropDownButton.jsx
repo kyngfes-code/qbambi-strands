@@ -17,15 +17,18 @@ export default function SignInDropdownButton() {
           </Button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="bg-brown">
           <DropdownMenuItem
-            onClick={() => (window.location.href = "/login/client")}
+            className="text-white"
+            onClick={() => (window.location.href = "/api/auth/signin")}
           >
-            Client
+            Log In
           </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => (window.location.href = "/admin")}>
-            Admin
+          <DropdownMenuItem
+            className="text-white"
+            onClick={() => (window.location.href = "")}
+          >
+            Sign Up
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

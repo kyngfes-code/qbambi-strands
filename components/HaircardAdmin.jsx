@@ -3,11 +3,22 @@
 import Image from "next/image";
 import Link from "next/link";
 
-export default function HaircardAdmin({ hair }) {
-  const { title, price, description, main_image, extra_images } = hair;
+export default function HaircardAdmin({ items }) {
+  const {
+    title,
+    price,
+    description,
+    category,
+    wigType,
+    material,
+    style,
+    quantity,
+    main_image,
+    extra_images,
+  } = items;
 
   const images = [
-    { src: main_image, link: `/admin/shop/${hair.id}` },
+    { src: main_image, link: `/admin/shop/${items.id}` },
     ...extra_images.map((img) => ({
       src: img.image,
       link: `/admin/shop/extraimages/${img.id}`,
@@ -33,10 +44,31 @@ export default function HaircardAdmin({ hair }) {
             </Link>
           ))}
         </div>
-
-        <h2 className="mt-3 font-semibold text-[#b33863] text-md">{title}</h2>
-        <p className="text-sm text-[#7a3a4e] line-clamp-2">{description}</p>
-        <span className="mt-3 font-light text-[#7a3a4e] text-sm">{price}</span>
+        <h2 className="mt-3 font-semibold text-[#b33863] text-md">
+          name: <span className="text-gray-600">{title}</span>
+        </h2>
+        <h3 className=" font-semibold text-[#b33863] text-md">
+          category: <span className="text-gray-600">{category}</span>
+        </h3>
+        <h3 className="font-semibold text-[#b33863] text-md">
+          style:<span className="text-gray-600">{style}</span>
+        </h3>
+        <h3 className="font-semibold text-[#b33863] text-md">
+          wig-type: <span className="text-gray-600">{wigType}</span>
+        </h3>
+        <h3 className="font-semibold text-[#b33863] text-md">
+          mat: <span className="text-gray-600">{material}</span>
+        </h3>
+        <p className="text-sm font-semibold text-[#b33863]  line-clamp-2">
+          des: <span className="text-gray-600">{description}</span>
+        </p>
+        <span className="mt-3 font-semibold text-[#b33863] text-sm">
+          price: <span className="text-gray-600">{price}</span>
+        </span>
+        <br />
+        <span className="mt-3 font-semibold text-[#b33863] text-sm">
+          qty: <span className="text-gray-600">{quantity}</span>
+        </span>
       </div>
     </div>
   );

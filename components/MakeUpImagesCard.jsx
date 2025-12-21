@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRef } from "react";
 
 function MakeUpImagesCard({ images }) {
@@ -20,7 +21,7 @@ function MakeUpImagesCard({ images }) {
       {/* Left Button */}
       <button
         onClick={scrollLeft}
-        className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full shadow-md backdrop-blur-md z-20"
+        className="flex absolute left-0 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full shadow-md backdrop-blur-md z-20"
       >
         <ChevronLeft className="w-6 h-6" />
       </button>
@@ -28,7 +29,7 @@ function MakeUpImagesCard({ images }) {
       {/* Right Button */}
       <button
         onClick={scrollRight}
-        className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full shadow-md backdrop-blur-md z-20"
+        className="flex absolute right-0 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full shadow-md backdrop-blur-md z-20"
       >
         <ChevronRight className="w-6 h-6" />
       </button>
@@ -46,14 +47,23 @@ function MakeUpImagesCard({ images }) {
               className="min-w-[250px] sm:w-64 shrink-0 border rounded-3xl p-3 
                           shadow-md transition hover:-translate-y-2 hover:shadow-xl"
             >
-              <div className="relative w-full h-64 rounded-xl overflow-hidden">
-                <Image
-                  src={item.images}
-                  alt="make-up image"
-                  fill
-                  className="object-cover"
-                />
-              </div>
+              <Link href="/saloon/images">
+                <span
+                  className={
+                    "absolute top-2 left-2 z-20 text-white text-sm font-semibold bg-black/50 px-2 py-1 rounded animate-pulse"
+                  }
+                >
+                  click me
+                </span>
+                <div className="relative w-full h-64 rounded-xl overflow-hidden">
+                  <Image
+                    src={item.images}
+                    alt="make-up image"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              </Link>
             </div>
           ))}
         </div>

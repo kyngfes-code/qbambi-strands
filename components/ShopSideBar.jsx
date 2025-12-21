@@ -3,8 +3,6 @@ import {
   InfoIcon,
   LogInIcon,
   SchoolIcon,
-  SearchIcon,
-  ShoppingBagIcon,
   SparklesIcon,
 } from "lucide-react";
 import Image from "next/image";
@@ -45,14 +43,12 @@ export function ShopSideBar() {
       <nav className="flex-1 flex flex-col justify-between px-4">
         <ul className="space-y-2">
           <SidebarLink icon={<HomeIcon />} label="Home" href="/" />
-          <SidebarLink icon={<ShoppingBagIcon />} label="Shop" href="/shop" />
           <SidebarLink
             icon={<SparklesIcon />}
             label="Make-up Studio"
             href="/makeUpStudio"
           />
           <SidebarLink icon={<SchoolIcon />} label="Academy" href="/academy" />
-          <SidebarLink icon={<SearchIcon />} label="Search" href="/search" />
           <SidebarLink icon={<InfoIcon />} label="About" href="/about" />
         </ul>
         <div className="px-4 py-2 border-t border-white/20">

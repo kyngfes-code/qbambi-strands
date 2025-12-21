@@ -15,7 +15,7 @@ function NavBarMakeUpStudio() {
       />
       <Navigation className=" text-white text-sm" />
 
-      <div className="px-2 flex items-center gap-2">
+      <div className=" hidden md:px-2 md:flex md:items-center md:gap-2">
         <PhoneIcon className="w-4 h-4" />
         <p className="text-sm font-medium text-white">Call us 07036308292</p>
       </div>

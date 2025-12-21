@@ -1,6 +1,10 @@
 import FetchImage from "@/components/FetchImge";
 import SaloonImageCard from "@/components/SaloonImageCard";
 
+export const metadata = {
+  title: "saloon / images",
+};
+
 async function page() {
   const { saloonWorkImageData } = await FetchImage();
   const data = saloonWorkImageData;

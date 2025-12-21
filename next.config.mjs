@@ -1,14 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
   reactCompiler: true,
   images: {
     remotePatterns: [
+      // Supabase Storage
       {
         protocol: "https",
         hostname: "zxgyenfngezomchahikc.supabase.co",
-        port: "",
         pathname: "/storage/v1/object/public/**",
+      },
+
+      // Google profile images
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
       },
     ],
   },

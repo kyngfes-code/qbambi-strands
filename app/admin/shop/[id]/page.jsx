@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import storeItemImageEditor from "@/lib/actions";
+import storeItemImageEditor, { deleteStoreItem } from "@/lib/actions";
 
 export default async function Page({ params }) {
   const resolveParams = await params;
@@ -25,6 +25,16 @@ export default async function Page({ params }) {
               Upload
             </Button>
           </FieldGroup>
+        </form>
+        <form
+          action={async () => {
+            "use server";
+            await deleteStoreItem(id);
+          }}
+        >
+          <Button variant="destructive" type="submit" className="mt-4 w-full">
+            Delete
+          </Button>
         </form>
       </div>
     </div>

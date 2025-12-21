@@ -1,6 +1,10 @@
 import AcadamyPageCard from "@/components/AcadamyPageCard";
 import { CheckCheckIcon } from "lucide-react";
 
+export const metadata = {
+  title: "Qbambi's Academy",
+};
+
 function page() {
   return (
     <div className="grid grid-cols-[1fr_2fr_1fr] gap-4 mx-4">

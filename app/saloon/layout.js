@@ -11,7 +11,7 @@ function layout({ children }) {
         alt="Qbambi strands"
         className="absolute inset-0 w-full h-full object-contain opacity-50 transition-all duration-700 ease-in-out  xl:translate-x-130 z-0"
       />
-      <div className="relative z-50 container mx-auto">{children}</div>
+      <div className="relative z-50 container mx-auto ">{children}</div>
     </div>
   );
 }

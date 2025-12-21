@@ -1,4 +1,5 @@
 import HaircardAdmin from "@/components/HaircardAdmin";
+import { getStoreItemExtraImages } from "@/lib/data-service";
 
 export default async function Page() {
   const extraImages = await getStoreItemExtraImages();
