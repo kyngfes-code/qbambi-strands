@@ -5,6 +5,7 @@ import SignInDropdownButton from "./SignInDropDownButton";
 
 export default async function Navigation({ className = "" }) {
   const session = await auth();
+  console.log("session", session);
   const user = session?.user
     ? {
         name: session.user.name ?? null,

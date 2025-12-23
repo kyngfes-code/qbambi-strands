@@ -17,7 +17,8 @@ export async function POST(req) {
     );
   }
 
-  const { firstName, lastName, phone, email, password } = parsed.data;
+  const { firstName, lastName, phone, email, password, street, city, state } =
+    parsed.data;
   const fullName = `${firstName} ${lastName}`;
 
   const supabase = createSupabaseAdmin();
@@ -69,6 +70,27 @@ export async function POST(req) {
   if (profileError) {
     return NextResponse.json(
       { error: "User created but profile insert failed" },
+      { status: 500 }
+    );
+  }
+
+  /* ---------------------------
+   Insert default address
+---------------------------- */
+  const { error: addressError } = await supabase.from("addresses").insert({
+    user_id: data.user.id,
+    full_name: fullName,
+    phone,
+    street,
+    city,
+    state,
+    country: "Nigeria",
+    is_default: true,
+  });
+
+  if (addressError) {
+    return NextResponse.json(
+      { error: "User created but address insert failed" },
       { status: 500 }
     );
   }

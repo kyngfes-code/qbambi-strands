@@ -46,15 +46,8 @@ export default function Haircard({ item, href }) {
   };
 
   async function addToCart() {
-    console.log("🛒 [ADD_TO_CART] Clicked");
-
     try {
       setAdding(true);
-
-      if (!session?.user?.id) {
-        alert("Please sign in");
-        return;
-      }
 
       const storeId = item.id ?? item.store_id;
 
@@ -65,6 +58,7 @@ export default function Haircard({ item, href }) {
 
       const res = await fetch("/api/cart", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -74,6 +68,11 @@ export default function Haircard({ item, href }) {
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 401) {
+          alert("Please sign in to add items to your cart");
+          return;
+        }
+
         console.error("❌ [API ERROR]", data);
         throw new Error(data.error || "Failed to add to cart");
       }

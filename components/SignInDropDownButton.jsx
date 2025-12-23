@@ -26,7 +26,7 @@ export default function SignInDropdownButton() {
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-white"
-            onClick={() => (window.location.href = "")}
+            onClick={() => (window.location.href = "/user")}
           >
             Sign Up
           </DropdownMenuItem>

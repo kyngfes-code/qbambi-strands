@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { auth } from "@/lib/auth";
+import { supabaseWithAuth } from "@/lib/supabase";
 
 /* =========================
    CREATE ORDER (CHECKOUT)
 ========================= */
 export async function POST() {
   const session = await auth();
-  if (!session?.user?.id) {
+
+  if (!session?.user?.id || !session?.supabaseAccessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = createSupabaseAdmin();
+  const supabase = supabaseWithAuth(session.supabaseAccessToken);
 
   const { data: cart, error: cartError } = await supabase
     .from("carts")
-    .select("store_id, quantity, store(price)")
-    .eq("user_id", session.user.id);
+    .select("store_id, quantity, store(price)");
 
   if (cartError || !cart?.length) {
     return NextResponse.json({ error: "Cart empty" }, { status: 400 });
@@ -38,7 +38,7 @@ export async function POST() {
     .single();
 
   if (orderError) {
-    return NextResponse.json({ error: orderError }, { status: 400 });
+    return NextResponse.json({ error: orderError.message }, { status: 400 });
   }
 
   const orderItems = cart.map((item) => ({
@@ -48,8 +48,15 @@ export async function POST() {
     price: item.store.price,
   }));
 
-  await supabase.from("order_items").insert(orderItems);
-  await supabase.from("carts").delete().eq("user_id", session.user.id);
+  const { error: itemsError } = await supabase
+    .from("order_items")
+    .insert(orderItems);
+
+  if (itemsError) {
+    return NextResponse.json({ error: itemsError.message }, { status: 400 });
+  }
+
+  await supabase.from("carts").delete();
 
   return NextResponse.json(order);
 }
@@ -60,20 +67,19 @@ export async function POST() {
 export async function GET() {
   const session = await auth();
 
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !session?.supabaseAccessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = createSupabaseAdmin();
+  const supabase = supabaseWithAuth(session.supabaseAccessToken);
 
   const { data, error } = await supabase
     .from("orders")
     .select("*")
-    .eq("user_id", session.user.id)
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error }, { status: 400 });
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
   return NextResponse.json(data);

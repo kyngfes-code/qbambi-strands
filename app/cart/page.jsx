@@ -49,7 +49,10 @@ export default function Page() {
   if (loading) return <p className="text-center mt-20">Loading cart…</p>;
 
   if (cart.length === 0) {
-    return <p className="text-center mt-20">Your cart is empty</p>;
+    return <div className="min-h-screen bg-neutral-50">
+      <NavBarCart/>
+      <p className="text-center mt-20">Your cart is empty</p>;
+      </div>
   }
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);

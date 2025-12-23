@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { auth } from "@/lib/auth";
+import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req) {
   const session = await auth();
@@ -12,28 +12,53 @@ export async function POST(req) {
   const orderId = formData.get("orderId");
   const file = formData.get("receipt");
 
+  if (!orderId || !file) {
+    return NextResponse.json({ error: "Missing data" }, { status: 400 });
+  }
+
   const supabase = createSupabaseAdmin();
 
-  const filePath = `receipts/${orderId}-${Date.now()}.png`;
+  /* 1️⃣ Upload receipt */
+  const filePath = `receipts/${orderId}-${Date.now()}.jpg`;
 
   const { error: uploadError } = await supabase.storage
     .from("receipts")
-    .upload(filePath, file);
+    .upload(filePath, file, { upsert: true });
 
   if (uploadError) {
-    return NextResponse.json({ error: uploadError }, { status: 400 });
+    return NextResponse.json(
+      { error: "Failed to upload receipt" },
+      { status: 500 }
+    );
   }
 
-  const { data } = supabase.storage.from("receipts").getPublicUrl(filePath);
+  const { data: publicUrl } = supabase.storage
+    .from("receipts")
+    .getPublicUrl(filePath);
 
-  await supabase
+  /* 2️⃣ Update order */
+  const { error: updateError } = await supabase
     .from("orders")
     .update({
-      payment_method: "bank_transfer",
-      receipt_url: data.publicUrl,
       status: "awaiting_confirmation",
+      receipt_url: publicUrl.publicUrl,
     })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .eq("user_id", session.user.id);
+
+  if (updateError) {
+    return NextResponse.json(
+      { error: "Failed to update order" },
+      { status: 500 }
+    );
+  }
+
+  /* 3️⃣ Notify admin (DB-based notification) */
+  await supabase.from("admin_notifications").insert({
+    type: "receipt_uploaded",
+    order_id: orderId,
+    message: "New payment receipt uploaded",
+  });
 
   return NextResponse.json({ success: true });
 }
