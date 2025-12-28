@@ -75,12 +75,47 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("orders")
-    .select("*")
+    .select(
+      `
+      *,
+      payment_plans (
+        id,
+        status,
+        outstanding_balance,
+        instalments (
+          id,
+          amount,
+          paid,
+          due_date
+        )
+      )
+    `
+    )
     .order("created_at", { ascending: false });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json(data);
+  // Compute next instalment
+  const enriched = data.map((order) => {
+    if (!order.payment_plans?.length) return order;
+
+    const plan = order.payment_plans[0];
+    const next = plan.instalments
+      .filter((i) => !i.paid)
+      .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))[0];
+
+    return {
+      ...order,
+      payment_plan: {
+        id: plan.id,
+        status: plan.status,
+        next_instalment_id: next?.id ?? null,
+        next_instalment_amount: next?.amount ?? null,
+      },
+    };
+  });
+
+  return NextResponse.json(enriched);
 }

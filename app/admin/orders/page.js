@@ -57,6 +57,18 @@ export default function AdminOrdersPage() {
     return <p>Loading admin dashboard…</p>;
   }
 
+  // ✅ confirm instalment payment
+  const confirmInstalmentPayment = async ({ orderId, instalmentId }) => {
+    await fetch("/api/admin/confirm-instalment-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, instalmentId }),
+    });
+
+    // refresh dashboard
+    loadAdminData();
+  };
+
   return (
     <div className="space-y-8">
       {/* OVERVIEW */}
@@ -89,6 +101,7 @@ export default function AdminOrdersPage() {
         <PendingConfirmationsTable
           orders={pending}
           onConfirm={confirmPayment}
+          onConfirmInstalment={confirmInstalmentPayment}
         />
       </section>
     </div>

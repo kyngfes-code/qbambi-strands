@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 
-export default function PaymentPlan({ order }) {
+export default function PaymentPlan({ order, onPlanCreated }) {
   const [paymentPlan, setPaymentPlan] = useState("full");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const addPercentage = (amount, percent) => amount + amount * (percent / 100);
   const percentage2installments = 5;
@@ -26,12 +28,12 @@ export default function PaymentPlan({ order }) {
     },
 
     two_installments: {
-      title: "2 Installments (60 days)",
+      title: "2 Installments (30 days)",
       penaltyPercent: 5,
       finalTotal: twoInstallmentTotal,
       rules: [
         "First installment confirms the order",
-        "Second installment must be paid within 60 days",
+        "Second installment must be paid within 30 days",
       ],
       installments: [
         { label: "First payment (50%)", amount: twoInstallmentTotal * 0.5 },
@@ -40,12 +42,12 @@ export default function PaymentPlan({ order }) {
     },
 
     three_installments: {
-      title: "3 Installments (90 days)",
+      title: "3 Installments (60 days)",
       penaltyPercent: 7,
       finalTotal: threeInstallmentTotal,
       rules: [
         "First installment confirms the order",
-        "Remaining payments must be completed within 90 days",
+        "Remaining payments must be completed within 60 days",
       ],
       installments: [
         { label: "First payment (40%)", amount: threeInstallmentTotal * 0.4 },
@@ -56,6 +58,50 @@ export default function PaymentPlan({ order }) {
   };
 
   const selected = plans[paymentPlan];
+
+  const numOfMonths = {
+    full: null,
+    two_installments: 1,
+    three_installments: 2,
+  };
+
+  const createPaymentPlan = async () => {
+    setError(null);
+
+    if (paymentPlan === "full") {
+      // No payment plan needed
+      return;
+    }
+
+    setLoading(true);
+
+    const months = numOfMonths[paymentPlan];
+
+    try {
+      const res = await fetch("/api/payment-plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          months,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create payment plan");
+      }
+
+      // Optional: refresh page or refetch orders
+
+      onPlanCreated?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -128,6 +174,19 @@ export default function PaymentPlan({ order }) {
                       </p>
                     </div>
                   )}
+                  <button
+                    onClick={createPaymentPlan}
+                    disabled={loading}
+                    className="w-full py-2 bg-black text-white rounded-lg mt-4 disabled:opacity-50"
+                  >
+                    {loading
+                      ? "Setting up plan..."
+                      : paymentPlan === "full"
+                      ? "Continue with full payment"
+                      : "Continue with this payment plan"}
+                  </button>
+
+                  {error && <p className="text-sm text-red-600">{error}</p>}
                 </div>
               )}
             </label>
