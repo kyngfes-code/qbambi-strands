@@ -1,11 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function PaymentPlan({ order, onPlanCreated }) {
   const [paymentPlan, setPaymentPlan] = useState("full");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+
+  const router = useRouter();
 
   const addPercentage = (amount, percent) => amount + amount * (percent / 100);
   const percentage2installments = 5;
@@ -70,6 +75,7 @@ export default function PaymentPlan({ order, onPlanCreated }) {
 
     if (paymentPlan === "full") {
       // No payment plan needed
+      onPlanCreated?.(); //redirect to payment page
       return;
     }
 
@@ -93,15 +99,63 @@ export default function PaymentPlan({ order, onPlanCreated }) {
         throw new Error(data.error || "Failed to create payment plan");
       }
 
-      // Optional: refresh page or refetch orders
+      const firstInstalment = selected.installments[0].amount;
+      const totalPayable = selected.finalTotal;
 
-      onPlanCreated?.();
+      const payload = {
+        first: Math.round(firstInstalment),
+        next: data.next_instalment_amount,
+        total: Math.round(totalPayable),
+        nextInstalmentId: data.next_instalment_id,
+      };
+
+      setSuccessMessage(payload);
+
+      // 🔒 persist per-order
+      localStorage.setItem(
+        `payment_plan_success_${order.id}`,
+        JSON.stringify(payload)
+      );
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!order?.id) return;
+
+    const stored = localStorage.getItem(`payment_plan_success_${order.id}`);
+
+    // restore if plan exists AND first instalment not yet paid
+    if (stored && order.payment_plan?.next_instalment_id) {
+      try {
+        setSuccessMessage(JSON.parse(stored));
+      } catch {
+        localStorage.removeItem(`payment_plan_success_${order.id}`);
+      }
+    }
+  }, [order?.id, order?.payment_plan?.next_instalment_id]);
+
+  useEffect(() => {
+    // once there is no next instalment, first payment is done
+    if (!order.payment_plan?.next_instalment_id) {
+      localStorage.removeItem(`payment_plan_success_${order.id}`);
+      setSuccessMessage(null);
+    }
+  }, [order.payment_plan?.next_instalment_id, order.id]);
+
+  function getTimeRemaining(dueDate) {
+    const diff = new Date(dueDate) - new Date();
+
+    if (diff <= 0) return "Overdue";
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+
+    return `${days} days ${hours} hours`;
+  }
 
   return (
     <>
@@ -118,7 +172,11 @@ export default function PaymentPlan({ order, onPlanCreated }) {
                   name="paymentPlan"
                   value={key}
                   checked={paymentPlan === key}
-                  onChange={() => setPaymentPlan(key)}
+                  onChange={() => {
+                    setPaymentPlan(key);
+                    setSuccessMessage(null);
+                    setError(null);
+                  }}
                 />
                 <span className="font-medium">{plan.title}</span>
                 {plan.penaltyPercent > 0 && (
@@ -176,21 +234,60 @@ export default function PaymentPlan({ order, onPlanCreated }) {
                   )}
                   <button
                     onClick={createPaymentPlan}
-                    disabled={loading}
+                    disabled={loading || successMessage}
                     className="w-full py-2 bg-black text-white rounded-lg mt-4 disabled:opacity-50"
                   >
                     {loading
                       ? "Setting up plan..."
+                      : paymentPlan !== "full" && successMessage
+                      ? "Payment plan created"
                       : paymentPlan === "full"
                       ? "Continue with full payment"
                       : "Continue with this payment plan"}
                   </button>
+                  {paymentPlan === key && successMessage && (
+                    <div className="mt-4 p-4 rounded-lg bg-green-50 border border-green-200">
+                      <p className="text-green-800 font-medium">
+                        Kindly proceed to make your first instalment of{" "}
+                        <span className="font-bold">
+                          ₦{successMessage.first.toLocaleString()}
+                        </span>{" "}
+                        out of{" "}
+                        <span className="font-bold">
+                          ₦{successMessage.total.toLocaleString()}
+                        </span>{" "}
+                        total amount payable. next instalment{" "}
+                        <span className="font-bold">
+                          ₦{successMessage.next}
+                        </span>{" "}
+                      </p>
+                      <button
+                        disabled={!successMessage?.nextInstalmentId}
+                        onClick={() =>
+                          router.push(
+                            `/payments/instalment/${successMessage.nextInstalmentId}`
+                          )
+                        }
+                        className="w-full py-2 bg-green-700 text-white rounded-lg hover:bg-green-800"
+                      >
+                        Pay first instalment now
+                      </button>
+                    </div>
+                  )}
 
                   {error && <p className="text-sm text-red-600">{error}</p>}
                 </div>
               )}
             </label>
           ))}
+          {order.payment_plan?.next_instalment_due_date && (
+            <p className="text-sm text-orange-600">
+              Next instalment due on{" "}
+              {new Date(
+                order.payment_plan.next_instalment_due_date
+              ).toLocaleDateString()}
+            </p>
+          )}
         </div>
       )}
     </>

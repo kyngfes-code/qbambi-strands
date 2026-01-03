@@ -135,7 +135,6 @@ import { supabaseWithAuth } from "@/lib/supabase";
 /* ---------------- GET CART ---------------- */
 export async function GET() {
   const session = await auth();
-  console.log("SESSION IN CART", session);
 
   if (!session?.user?.id || !session?.supabaseAccessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

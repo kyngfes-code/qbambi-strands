@@ -24,7 +24,7 @@ export async function GET(req, { params }) {
       penalty_applied_count
     `
     )
-    .eq("payment_plan_id", params.planId)
+    .eq("payment_plan_id", resolvedParams.planId)
     .order("due_date");
 
   if (error) {

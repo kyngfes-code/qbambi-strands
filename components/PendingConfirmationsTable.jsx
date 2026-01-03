@@ -23,7 +23,7 @@ export default function PendingConfirmationsTable({
 
       <tbody>
         {orders.map((o) => {
-          const isInstalment = Boolean(o.instalment_id);
+          const isInstalment = o.type === "instalment";
 
           return (
             <tr key={`${o.id}-${o.instalment_id ?? "full"}`}>

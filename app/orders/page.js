@@ -1,37 +1,75 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import NavBarCart from "@/components/NavBarCart";
 import PaymentPlan from "@/components/PaymentPlan";
-import { useEffect, useState } from "react";
+import OfflineNotice from "@/components/OfflineNotice";
+import { useOnlineStatus } from "../OnlineStatusProvider";
 
 export default function OrdersPage() {
+  const isOnline = useOnlineStatus();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [error, setError] = useState(null);
+  const [uploadingOrderId, setUploadingOrderId] = useState(null);
 
   async function loadOrders() {
-    setLoading(true);
-    const res = await fetch("/api/orders");
+    try {
+      setError(null);
+      const res = await fetch("/api/orders");
 
-    if (!res.ok) {
-      setError("Failed to load orders");
+      if (!res.ok) {
+        throw new Error("Failed to load orders");
+      }
+
+      const data = await res.json();
+      setOrders(data || []);
+    } catch (err) {
+      console.error(err);
       setOrders([]);
+      setError("Failed to load orders");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!isOnline) {
       setLoading(false);
       return;
     }
 
-    const data = await res.json();
-    setOrders(data || []);
-    setLoading(false);
+    setLoading(true);
+    loadOrders();
+  }, [isOnline]);
+
+  if (!isOnline) {
+    return <OfflineNotice />;
   }
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  if (loading) {
+    return <p className="text-center mt-20">Loading orders…</p>;
+  }
+
+  if (error) {
+    return <p className="text-center mt-20 text-red-500">{error}</p>;
+  }
+
+  if (!orders.length) {
+    return (
+      <div className="min-h-screen bg-neutral-50">
+        <NavBarCart />
+        <p className="text-center mt-20">No orders found.</p>
+      </div>
+    );
+  }
 
   async function handlePaystack(order) {
+    if (!isOnline) return;
+
     const amount =
       order.payment_plan?.next_instalment_amount ?? order.total_amount;
 
@@ -50,36 +88,44 @@ export default function OrdersPage() {
   }
 
   async function submitReceipt(order) {
+    if (!isOnline) return;
     if (!receipt) return alert("Please upload receipt");
 
-    const formData = new FormData();
-    formData.append("orderId", order.id);
+    try {
+      setUploadingOrderId(order.id);
 
-    if (order.payment_plan?.next_instalment_id) {
-      formData.append("instalmentId", order.payment_plan.next_instalment_id);
-    }
+      const formData = new FormData();
+      formData.append("orderId", order.id);
 
-    formData.append("receipt", receipt);
+      if (order.payment_plan?.next_instalment_id) {
+        formData.append("instalmentId", order.payment_plan.next_instalment_id);
+      }
 
-    const res = await fetch("/api/orders/receipt", {
-      method: "POST",
-      body: formData,
-    });
+      formData.append("receipt", receipt);
 
-    if (res.ok) {
+      const res = await fetch("/api/orders/receipt", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Upload failed");
+      }
+
       alert("Receipt uploaded. Awaiting confirmation.");
       setSelectedOrder(null);
       setReceipt(null);
       loadOrders();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload receipt. Please try again.");
+    } finally {
+      setUploadingOrderId(null);
     }
   }
 
-  if (loading) return <p>Loading orders...</p>;
-  if (error) return <p className="text-red-500">{error}</p>;
-  if (!orders.length) return <p>No orders found.</p>;
-
   return (
-    <div>
+    <div className="min-h-screen bg-neutral-50">
       <NavBarCart />
 
       <main className="max-w-4xl mx-auto px-4 py-10 space-y-6">
@@ -120,7 +166,7 @@ export default function OrdersPage() {
                 <PaymentPlan order={order} onPlanCreated={loadOrders} />
               )}
 
-              {/* Payment Buttons */}
+              {/* Payment Actions */}
               {canPay && (
                 <div className="space-y-3">
                   <button
@@ -168,9 +214,16 @@ export default function OrdersPage() {
 
                   <button
                     onClick={() => submitReceipt(order)}
-                    className="w-full py-2 bg-black text-white rounded-lg"
+                    disabled={uploadingOrderId === order.id}
+                    className={`w-full py-2 rounded-lg text-white transition ${
+                      uploadingOrderId === order.id
+                        ? "bg-neutral-400 cursor-not-allowed"
+                        : "bg-black"
+                    } `}
                   >
-                    Upload Receipt
+                    {uploadingOrderId === order.id
+                      ? "Uploading…"
+                      : "Upload Receipt"}
                   </button>
                 </div>
               )}

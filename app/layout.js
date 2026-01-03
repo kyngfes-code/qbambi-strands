@@ -3,6 +3,7 @@ import "@/app/styles/globals.css";
 import { Playfair_Display, Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import Providers from "./providers";
+import { OnlineStatusProvider } from "./OnlineStatusProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +38,9 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-inter min-h-screen relative flex flex-col bg-linear-to-bl from-violet-100 to-stone-500`}
       >
-        <Providers>{children}</Providers>
+        <OnlineStatusProvider>
+          <Providers>{children}</Providers>
+        </OnlineStatusProvider>
         <Toaster richColors closeButton />
       </body>
     </html>

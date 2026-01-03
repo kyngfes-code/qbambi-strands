@@ -14,14 +14,16 @@ export async function GET() {
     .from("payment_plans")
     .select(
       `
-      id,
-      user_id,
-      total_amount,
-      duration_months,
-      status,
-      created_at
-    `
+  id,
+  user_id,
+  total_amount,
+  instalment_count,
+  plan_type,
+  status,
+  created_at
+`
     )
+
     .order("created_at", { ascending: false });
 
   if (error) {

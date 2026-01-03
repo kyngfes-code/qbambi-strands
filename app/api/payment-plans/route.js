@@ -33,12 +33,19 @@ export async function POST(req) {
     ====================== */
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, total_amount")
+      .select("id, total_amount, user_id, payment_plan_id")
       .eq("id", orderId)
       .single();
 
     if (orderError || !order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (order.payment_plan_id) {
+      return NextResponse.json(
+        { error: "Payment plan already exists for this order" },
+        { status: 400 }
+      );
     }
 
     /* =====================
@@ -87,11 +94,24 @@ export async function POST(req) {
     const instalmentCount = months + 1;
     const instalmentAmount = totalAmount / instalmentCount;
 
-    const start = new Date();
+    const baseDate = new Date();
 
-    const dueDates = Array.from({ length: instalmentCount }).map((_, i) => {
-      const d = new Date(start);
-      d.setMonth(d.getMonth() + i + 1);
+    const dueDates = Array.from({ length: instalmentCount }).map((_, index) => {
+      const d = new Date(baseDate);
+
+      if (index === 0) {
+        // First instalment: now
+        return d.toISOString().split("T")[0];
+      }
+
+      if (index === 1) {
+        // Second instalment: 30 days from now
+        d.setDate(d.getDate() + 30);
+        return d.toISOString().split("T")[0];
+      }
+
+      // Third (and beyond): +1 month from previous
+      d.setDate(d.getDate() + 30 * index);
       return d.toISOString().split("T")[0];
     });
 
@@ -128,41 +148,48 @@ export async function POST(req) {
     /* =====================
        CREATE INSTALMENTS
     ====================== */
-    const instalments = Array.from({ length: instalmentCount }).map(
-      (_, index) => {
-        const due = new Date(start);
+    const instalmentRatios =
+      instalmentCount === 2 ? [0.5, 0.5] : [0.4, 0.3, 0.3];
 
-        if (index > 0) {
-          due.setDate(due.getDate() + index * 30);
-        }
+    if (instalmentRatios.length !== instalmentCount) {
+      return NextResponse.json(
+        { error: "Instalment configuration mismatch" },
+        { status: 500 }
+      );
+    }
+    const instalments = instalmentRatios.map((ratio, index) => {
+      return {
+        payment_plan_id: plan.id,
+        order_id: order.id,
+        instalment_number: index + 1,
+        due_date: dueDates[index],
+        amount: Math.round(totalAmount * ratio),
+        paid: false,
+      };
+    });
 
-        return {
-          payment_plan_id: plan.id,
-          due_date: due.toISOString().split("T")[0],
-          amount: instalmentAmount,
-          status: "pending",
-        };
-      }
-    );
-
-    const { error: instalmentsError } = await supabase
+    const { data: createdInstalments, error: instalmentsError } = await supabase
       .from("instalments")
-      .insert(instalments);
+      .insert(instalments)
+      .select();
 
-    if (instalmentsError) {
-      console.error("Instalments creation failed:", instalmentsError);
+    if (instalmentsError || !createdInstalments?.length) {
       return NextResponse.json(
         { error: "Failed to create instalments" },
         { status: 500 }
       );
     }
 
+    const nextInstalment = createdInstalments.sort(
+      (a, b) => new Date(a.due_date) - new Date(b.due_date)
+    )[0];
+
     /* =====================
        UPDATE ORDER STATUS
     ====================== */
     const { error: orderUpdateError } = await supabase
       .from("orders")
-      .update({ status: "payment_plan_active" })
+      .update({ payment_plan_id: plan.id, status: "payment_plan_active" })
       .eq("id", orderId);
 
     if (orderUpdateError) {
@@ -176,7 +203,13 @@ export async function POST(req) {
     /* =====================
        SUCCESS
     ====================== */
-    return NextResponse.json({ success: true, plan });
+    return NextResponse.json({
+      success: true,
+      payment_plan_id: plan.id,
+      next_instalment_id: nextInstalment.id,
+      next_instalment_due_date: nextInstalment.due_date,
+      next_instalment_amount: nextInstalment.amount,
+    });
   } catch (err) {
     console.error("Unhandled error:", err);
     return NextResponse.json(

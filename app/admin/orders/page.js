@@ -7,6 +7,7 @@ import PaymentHistoryTable from "@/components/PaymentHistoryTable";
 import OverdueInstalmentsTable from "@/components/OverdueInstalmentsTable";
 import AdminOverviewStats from "@/components/AdminOverviewStats";
 import PendingConfirmationsTable from "@/components/PendingConfirmationsTable";
+import NavBarAdmin from "@/components/NavBarAdmin";
 
 export default function AdminOrdersPage() {
   const [overview, setOverview] = useState(null);
@@ -28,6 +29,10 @@ export default function AdminOrdersPage() {
       fetch("/api/admin/pending-confirmations").then((r) => r.json()),
     ]);
 
+    // console.table(pend);
+    // console.log("Full object:", pend);
+    // console.groupEnd();
+
     setOverview(o);
     setPlans(p);
     setHistory(h);
@@ -48,6 +53,7 @@ export default function AdminOrdersPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId }),
     });
+    console.log("Sending confirm payment request", orderId);
 
     // refresh pending + stats
     loadAdminData();

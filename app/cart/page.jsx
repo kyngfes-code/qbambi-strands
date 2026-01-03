@@ -5,9 +5,13 @@ import { getUserCart } from "@/lib/data-service";
 import { supabase } from "@/lib/supabase";
 import NavBarCart from "@/components/NavBarCart";
 
+import OfflineNotice from "@/components/OfflineNotice";
+import { useOnlineStatus } from "../OnlineStatusProvider";
+
 export default function Page() {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+  const isOnline = useOnlineStatus();
 
   async function loadCart() {
     try {
@@ -21,11 +25,34 @@ export default function Page() {
   }
 
   useEffect(() => {
+    if (!isOnline) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     loadCart();
-  }, []);
+  }, [isOnline]);
+
+  if (!isOnline) {
+    return <OfflineNotice />;
+  }
+
+  if (loading) return <p className="text-center mt-20">Loading cart…</p>;
+
+  if (cart.length === 0) {
+    return (
+      <div className="min-h-screen bg-neutral-50">
+        <NavBarCart />
+        <p className="text-center mt-20">Your cart is empty</p>;
+      </div>
+    );
+  }
+
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   async function updateQty(id, qty) {
-    if (qty < 1) return;
+    if (qty < 1 || !isOnline) return;
 
     await fetch("/api/cart", {
       method: "PATCH",
@@ -37,6 +64,7 @@ export default function Page() {
   }
 
   async function removeItem(id) {
+    if (!isOnline) return;
     await fetch("/api/cart", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -45,17 +73,6 @@ export default function Page() {
 
     loadCart();
   }
-
-  if (loading) return <p className="text-center mt-20">Loading cart…</p>;
-
-  if (cart.length === 0) {
-    return <div className="min-h-screen bg-neutral-50">
-      <NavBarCart/>
-      <p className="text-center mt-20">Your cart is empty</p>;
-      </div>
-  }
-
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
     <div className="min-h-screen bg-neutral-50">

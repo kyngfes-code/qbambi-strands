@@ -3,62 +3,120 @@ import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    console.time("receipt");
 
-  const formData = await req.formData();
-  const orderId = formData.get("orderId");
-  const file = formData.get("receipt");
+    /* 1️⃣ Auth */
+    const session = await auth();
+    if (!session?.user?.id) {
+      console.timeEnd("receipt");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  if (!orderId || !file) {
-    return NextResponse.json({ error: "Missing data" }, { status: 400 });
-  }
+    /* 2️⃣ Form data */
+    const formData = await req.formData();
+    const orderId = formData.get("orderId");
+    const instalmentId = formData.get("instalmentId"); // optional
+    const file = formData.get("receipt");
 
-  const supabase = createSupabaseAdmin();
+    if (!orderId || !file) {
+      console.timeEnd("receipt");
+      return NextResponse.json(
+        { error: "Missing orderId or receipt" },
+        { status: 400 }
+      );
+    }
 
-  /* 1️⃣ Upload receipt */
-  const filePath = `receipts/${orderId}-${Date.now()}.jpg`;
+    const supabase = createSupabaseAdmin();
 
-  const { error: uploadError } = await supabase.storage
-    .from("receipts")
-    .upload(filePath, file, { upsert: true });
+    /* 3️⃣ Upload file */
+    const filePath = instalmentId
+      ? `receipts/instalments/${orderId}-${instalmentId}-${Date.now()}`
+      : `receipts/orders/${orderId}-${Date.now()}`;
 
-  if (uploadError) {
+    const { error: uploadError } = await supabase.storage
+      .from("receipts")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      console.error(uploadError);
+      console.timeEnd("receipt");
+      return NextResponse.json(
+        { error: "Receipt upload failed" },
+        { status: 500 }
+      );
+    }
+
+    /* 4️⃣ Signed URL (PRIVATE BUCKET SAFE) */
+    const { data: signed, error: signedError } = await supabase.storage
+      .from("receipts")
+      .createSignedUrl(filePath, 60 * 60 * 24 * 30);
+
+    if (signedError || !signed?.signedUrl) {
+      console.error(signedError);
+      console.timeEnd("receipt");
+      return NextResponse.json(
+        { error: "Failed to generate receipt URL" },
+        { status: 500 }
+      );
+    }
+
+    /* 5️⃣ Update order */
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update({
+        status: "awaiting_confirmation",
+        receipt_url: signed.signedUrl,
+      })
+      .eq("id", orderId)
+      .eq("user_id", session.user.id);
+
+    if (orderError) {
+      console.error(orderError);
+      console.timeEnd("receipt");
+      return NextResponse.json(
+        { error: "Failed to update order" },
+        { status: 500 }
+      );
+    }
+
+    /* 6️⃣ Update instalment (if applicable) */
+    if (instalmentId) {
+      const { error: instalmentError } = await supabase
+        .from("instalments")
+        .update({
+          receipt_url: signed.signedUrl,
+          status: "awaiting_confirmation",
+        })
+        .eq("id", instalmentId);
+
+      if (instalmentError) {
+        console.error(instalmentError);
+        console.timeEnd("receipt");
+        return NextResponse.json(
+          { error: "Failed to update instalment" },
+          { status: 500 }
+        );
+      }
+    }
+
+    /* 7️⃣ Admin notification */
+    await supabase.from("admin_notifications").insert({
+      type: "receipt_uploaded",
+      order_id: orderId,
+      instalment_id: instalmentId ?? null,
+      message: instalmentId
+        ? "Instalment receipt uploaded"
+        : "Order receipt uploaded",
+    });
+
+    console.timeEnd("receipt");
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Receipt handler crashed:", err);
     return NextResponse.json(
-      { error: "Failed to upload receipt" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
-
-  const { data: publicUrl } = supabase.storage
-    .from("receipts")
-    .getPublicUrl(filePath);
-
-  /* 2️⃣ Update order */
-  const { error: updateError } = await supabase
-    .from("orders")
-    .update({
-      status: "awaiting_confirmation",
-      receipt_url: publicUrl.publicUrl,
-    })
-    .eq("id", orderId)
-    .eq("user_id", session.user.id);
-
-  if (updateError) {
-    return NextResponse.json(
-      { error: "Failed to update order" },
-      { status: 500 }
-    );
-  }
-
-  /* 3️⃣ Notify admin (DB-based notification) */
-  await supabase.from("admin_notifications").insert({
-    type: "receipt_uploaded",
-    order_id: orderId,
-    message: "New payment receipt uploaded",
-  });
-
-  return NextResponse.json({ success: true });
 }
