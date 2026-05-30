@@ -23,17 +23,18 @@ export async function GET() {
       receipt_url,
       created_at,
       
-      payment_plan_id
-    `
+      payment_plan_id,
+      status
+    `,
     )
-    .eq("status", "awaiting_confirmation")
+    .in("status", ["awaiting_confirmation", "paid"])
     .is("payment_plan_id", null);
 
   if (orderErr) {
     console.error(orderErr);
     return NextResponse.json(
       { error: "Failed to load order confirmations" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -53,7 +54,7 @@ export async function GET() {
       orders (
         user_id
       )
-    `
+    `,
     )
     .eq("paid", false)
     .not("receipt_url", "is", null);
@@ -62,7 +63,7 @@ export async function GET() {
     console.error(instError);
     return NextResponse.json(
       { error: "Failed to load instalment confirmations" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -76,6 +77,7 @@ export async function GET() {
       receipt_url: o.receipt_url,
       created_at: o.created_at,
       total_amount: o.total_amount,
+      status: o.status,
       instalment_id: null,
       instalment_number: null,
       instalment_amount: null,
@@ -88,6 +90,7 @@ export async function GET() {
       receipt_url: i.receipt_url,
       created_at: i.created_at,
       total_amount: null,
+      status: "payment_plan_active",
       instalment_id: i.id,
       instalment_number: i.instalment_number,
       instalment_amount: i.amount,

@@ -4,6 +4,8 @@ export default function PendingConfirmationsTable({
   orders,
   onConfirm,
   onConfirmInstalment,
+  onConfirmDelivery,
+  onViewOrder,
 }) {
   if (!orders.length) {
     return <p className="text-sm text-neutral-500">No pending confirmations</p>;
@@ -28,7 +30,13 @@ export default function PendingConfirmationsTable({
           return (
             <tr key={`${o.id}-${o.instalment_id ?? "full"}`}>
               <td className="p-2 border">
-                {o.id.slice(0, 8)}
+                <button
+                  onClick={() => onViewOrder(o.id)}
+                  className="text-blue-600 underline"
+                >
+                  {o.id.slice(0, 8)}
+                </button>
+
                 {isInstalment && (
                   <span className="block text-xs text-neutral-500">
                     Instalment #{o.instalment_number}
@@ -55,9 +63,15 @@ export default function PendingConfirmationsTable({
                   View
                 </a>
               </td>
-
               <td className="p-2 border">
-                {isInstalment ? (
+                {o.status === "paid" ? (
+                  <button
+                    onClick={() => onConfirmDelivery(o.id)}
+                    className="px-3 py-1 bg-blue-600 text-white rounded"
+                  >
+                    Confirm Delivered
+                  </button>
+                ) : isInstalment ? (
                   <button
                     onClick={() =>
                       onConfirmInstalment({
@@ -71,7 +85,7 @@ export default function PendingConfirmationsTable({
                   </button>
                 ) : (
                   <button
-                    onClick={() => onConfirm(o.id)}
+                    onClick={() => onConfirm(o.id, "bank_transfer")}
                     className="px-3 py-1 bg-green-600 text-white rounded"
                   >
                     Confirm full payment

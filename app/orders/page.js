@@ -155,15 +155,33 @@ export default function OrdersPage() {
                   <p className="text-lg font-bold">
                     ₦{order.total_amount.toLocaleString()}
                   </p>
+
+                  <p className="text-sm font-semibold text-red-600 mt-1">
+                    Delivery (waybill) fee is not included in this total.
+                  </p>
                   <span className="text-sm px-3 py-1 rounded-full bg-yellow-100">
                     {order.status}
                   </span>
                 </div>
               </div>
 
-              {/* Payment Plan */}
+              {/*  Payment Plan disabled temporarily
               {order.status === "pending" && !order.payment_plan && (
                 <PaymentPlan order={order} onPlanCreated={loadOrders} />
+              )} 
+              */}
+
+              {/* Payment Plan Coming Soon */}
+              {order.status === "pending" && !order.payment_plan && (
+                <div className="border rounded-xl p-4 bg-neutral-50 text-center">
+                  <p className="font-medium">
+                    Flexible payment plans coming soon ✨
+                  </p>
+
+                  <p className="text-sm text-neutral-500 mt-1">
+                    We're working on making split payments available.
+                  </p>
+                </div>
               )}
 
               {/* Payment Actions */}
@@ -179,7 +197,7 @@ export default function OrdersPage() {
                   <button
                     onClick={() =>
                       setSelectedOrder(
-                        selectedOrder === order.id ? null : order.id
+                        selectedOrder === order.id ? null : order.id,
                       )
                     }
                     className="w-full py-2 border rounded-lg"
@@ -196,13 +214,13 @@ export default function OrdersPage() {
 
                   <div className="text-sm bg-neutral-100 p-3 rounded-lg">
                     <p>
-                      <b>Bank:</b> Access Bank
+                      <b>Bank:</b> First Bank Nigeria Ltd
                     </p>
                     <p>
-                      <b>Account Name:</b> QBambi Strands
+                      <b>Account Name:</b> QBambi Strands Limited
                     </p>
                     <p>
-                      <b>Account Number:</b> 1234567890
+                      <b>Account Number:</b> 2048036410
                     </p>
                   </div>
 
@@ -229,9 +247,24 @@ export default function OrdersPage() {
               )}
 
               {order.status === "paid" && (
-                <p className="text-green-600 font-semibold">
-                  Thank you for your payment
+                <p className="text-green-600 font-semibold leading-relaxed">
+                  Payment received successfully. Our team will contact you
+                  shortly regarding pickup or delivery arrangements.
+                  <br />
+                  Customer Support: 07036308292
                 </p>
+              )}
+              {order.status === "delivered" && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="font-semibold text-green-700">
+                    Order Delivered Successfully
+                  </p>
+
+                  <p className="text-sm text-green-600 mt-1">
+                    Your order has been delivered successfully. Thank you for
+                    shopping with us.
+                  </p>
+                </div>
               )}
             </div>
           );

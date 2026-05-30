@@ -47,7 +47,7 @@ export async function POST(req) {
       );
     }
 
-    /* 4️⃣ Signed URL (PRIVATE BUCKET SAFE) */
+    /* 4️⃣ Signed URL */
     const { data: signed, error: signedError } = await supabase.storage
       .from("receipts")
       .createSignedUrl(filePath, 60 * 60 * 24 * 30);
@@ -61,26 +61,42 @@ export async function POST(req) {
       );
     }
 
-    /* 5️⃣ Update order */
-    const { error: orderError } = await supabase
-      .from("orders")
-      .update({
-        status: "awaiting_confirmation",
-        receipt_url: signed.signedUrl,
-      })
-      .eq("id", orderId)
-      .eq("user_id", session.user.id);
+    /* ============================
+       5️⃣ CHECK IF ORDER HAS PLAN
+    ============================ */
+    const { data: paymentPlan } = await supabase
+      .from("payment_plans")
+      .select("id")
+      .eq("order_id", orderId)
+      .maybeSingle();
 
-    if (orderError) {
-      console.error(orderError);
-      console.timeEnd("receipt");
-      return NextResponse.json(
-        { error: "Failed to update order" },
-        { status: 500 }
-      );
+    /* ============================
+       6️⃣ UPDATE ORDER (FULL ONLY)
+    ============================ */
+    if (!paymentPlan && !instalmentId) {
+      // ✅ FULL PAYMENT ONLY
+      const { error: orderError } = await supabase
+        .from("orders")
+        .update({
+          status: "awaiting_confirmation",
+          receipt_url: signed.signedUrl,
+        })
+        .eq("id", orderId)
+        .eq("user_id", session.user.id);
+
+      if (orderError) {
+        console.error(orderError);
+        console.timeEnd("receipt");
+        return NextResponse.json(
+          { error: "Failed to update order" },
+          { status: 500 }
+        );
+      }
     }
 
-    /* 6️⃣ Update instalment (if applicable) */
+    /* ============================
+       7️⃣ UPDATE INSTALMENT
+    ============================ */
     if (instalmentId) {
       const { error: instalmentError } = await supabase
         .from("instalments")
@@ -100,7 +116,9 @@ export async function POST(req) {
       }
     }
 
-    /* 7️⃣ Admin notification */
+    /* ============================
+       8️⃣ ADMIN NOTIFICATION
+    ============================ */
     await supabase.from("admin_notifications").insert({
       type: "receipt_uploaded",
       order_id: orderId,

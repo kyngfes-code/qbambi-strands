@@ -12,27 +12,21 @@ export async function GET() {
   const supabase = createSupabaseAdmin();
 
   const { data, error } = await supabase
-    .from("payment_history")
+    .from("orders")
     .select(
       `
-    *,
-    confirmer:confirmed_by (
       id,
-      name,
-      email
+      user_id,
+      total_amount,
+      delivered_at,
+      payment_method
+    `,
     )
-  `,
-    )
-    .order("created_at", { ascending: false })
-    .limit(100);
+    .eq("status", "delivered")
+    .order("delivered_at", { ascending: false });
 
   if (error) {
-    console.error(error);
-
-    return NextResponse.json(
-      { error: "Failed to fetch payment history" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json(data);

@@ -13,7 +13,7 @@ export async function POST(req) {
     if (!instalmentId) {
       return NextResponse.json(
         { error: "Missing instalmentId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,14 +29,14 @@ export async function POST(req) {
     if (instErr || !instalment) {
       return NextResponse.json(
         { error: "Instalment not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (instalment.paid) {
       return NextResponse.json(
         { error: "Instalment already confirmed" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -53,21 +53,21 @@ export async function POST(req) {
       console.error(updateErr);
       return NextResponse.json(
         { error: "Failed to confirm instalment" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     /* 3️⃣ Fetch payment plan (SAFE) */
     const { data: plan, error: planErr } = await supabase
       .from("payment_plans")
-      .select("id, order_id, total_amount, outstanding_balance")
+      .select("id, order_id, user_id, total_amount, outstanding_balance")
       .eq("id", instalment.payment_plan_id)
       .single();
 
     if (planErr || !plan) {
       return NextResponse.json(
         { error: "Payment plan not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -80,7 +80,7 @@ export async function POST(req) {
 
     const paidTotal = (paidInstalments ?? []).reduce(
       (sum, i) => sum + i.amount,
-      0
+      0,
     );
 
     const outstanding = plan.total_amount - paidTotal;
@@ -92,6 +92,31 @@ export async function POST(req) {
         status: outstanding <= 0 ? "completed" : "active",
       })
       .eq("id", plan.id);
+
+    /* 5️⃣ Create payment history record */
+    const { error: historyError } = await supabase
+      .from("payment_history")
+      .insert({
+        user_id: plan.user_id, // customer
+        order_id: plan.order_id,
+        payment_plan_id: plan.id,
+        amount: instalment.amount,
+        payment_method: "bank_transfer",
+        payment_type: "instalment",
+        status: "confirmed",
+        confirmed_by: session.user.id, // admin
+        confirmed_at: new Date().toISOString(),
+        note: "Instalment payment confirmed by admin",
+      });
+
+    if (historyError) {
+      console.error("Payment history insert failed:", historyError);
+
+      return NextResponse.json(
+        { error: "Failed to create payment history" },
+        { status: 500 },
+      );
+    }
 
     /* 5️⃣ Update order status (CORRECT LOGIC) */
     // if (outstanding <= 0) {
@@ -120,7 +145,7 @@ export async function POST(req) {
     console.error("Confirm instalment error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -46,7 +46,27 @@ export default async function Page() {
   // 2️⃣ Fetch recent orders
   const { data: userOrders } = await supabase
     .from("orders")
-    .select("id, total_amount, created_at, status")
+    .select(
+      `
+  id,
+  total_amount,
+  created_at,
+  status,
+
+  order_items (
+    id,
+    quantity,
+    price,
+
+    store (
+      id,
+      title,
+      image,
+      price
+    )
+  )
+`,
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(5);
@@ -54,8 +74,20 @@ export default async function Page() {
   return (
     <>
       <NavBar />
-      <UserProfile user={userProfile} />
-      <UserOrders orders={userOrders} />
+
+      <main className="max-w-7xl mx-auto px-4 py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column */}
+          <div className="lg:col-span-1">
+            <UserProfile user={userProfile} />
+          </div>
+
+          {/* Right Column */}
+          <div className="lg:col-span-2">
+            <UserOrders orders={userOrders} />
+          </div>
+        </div>
+      </main>
     </>
   );
 }

@@ -21,7 +21,7 @@ export default function PaymentPlansTable({ plans }) {
             <td className="p-2 border">{p.id}</td>
             <td className="p-2 border">{p.user_id}</td>
             <td className="p-2 border">₦{p.total_amount.toLocaleString()}</td>
-            <td className="p-2 border">{p.duration_months} months</td>
+            <td className="p-2 border">{p.instalment_count - 1} months</td>
             <td className="p-2 border">{p.status}</td>
             <td className="p-2 border">
               {new Date(p.created_at).toLocaleDateString()}

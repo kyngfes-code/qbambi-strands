@@ -14,7 +14,15 @@ export async function POST(req) {
     /* 2️⃣ Parse body */
     const body = await req.json();
 
-    const { orderId } = body;
+    const { orderId, paymentMethod } = body;
+
+    if (!["bank_transfer", "paystack"].includes(paymentMethod)) {
+      return NextResponse.json(
+        { error: "Invalid payment method" },
+        { status: 400 },
+      );
+    }
+
     if (!orderId) {
       return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
     }
@@ -25,7 +33,16 @@ export async function POST(req) {
     console.log("➡️ Fetching order:", orderId);
     const { data: order, error } = await supabase
       .from("orders")
-      .select("id, status, payment_plan_id")
+      .select(
+        `
+    id,
+    user_id,
+    total_amount,
+    receipt_url,
+    status,
+    payment_plan_id
+  `,
+      )
       .eq("id", orderId)
       .single();
 
@@ -43,7 +60,7 @@ export async function POST(req) {
       console.log("⛔ Instalment order blocked");
       return NextResponse.json(
         { error: "Instalment orders must be confirmed per instalment." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -51,16 +68,17 @@ export async function POST(req) {
       console.log("⛔ Invalid order status:", order.status);
       return NextResponse.json(
         { error: "Order not awaiting confirmation" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     /* 4️⃣ Update order */
-    console.log("➡️ Confirming order...");
+
     const { data: updated, error: updateErr } = await supabase
       .from("orders")
       .update({
         status: "paid",
+        payment_method: "bank_transfer",
         confirmed_at: new Date().toISOString(),
         confirmed_by: session.user.id,
       })
@@ -68,32 +86,47 @@ export async function POST(req) {
       .select()
       .single();
 
-    console.log("UPDATED ORDER:", updated);
-    console.log("UPDATE ERROR:", updateErr);
-
     if (updateErr || !updated) {
       console.log("⛔ Failed to confirm order");
       return NextResponse.json(
         { error: "Failed to confirm order" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
+    const { error: historyError } = await supabase
+      .from("payment_history")
+      .insert({
+        user_id: updated.user_id, // customer
+        order_id: updated.id,
+        payment_plan_id: null,
+        amount: updated.total_amount,
+        payment_method: updated.payment_method,
+        payment_type: "deposit",
+        status: "confirmed",
+        confirmed_by: session.user.id, // admin
+        confirmed_at: new Date().toISOString(),
+        note: "Full payment confirmed by admin",
+      });
+
+    if (historyError) {
+      console.error("Payment history insert failed:", historyError);
+    }
+
     /* 5️⃣ Mark notification read */
-    console.log("➡️ Marking admin notification as read...");
+
     await supabase
       .from("admin_notifications")
       .update({ is_read: true })
       .eq("order_id", orderId)
       .eq("type", "receipt_uploaded");
 
-    console.log("✅ Order confirmed successfully");
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("🔥 Confirm payment error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
