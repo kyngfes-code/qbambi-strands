@@ -36,6 +36,14 @@ function NavBarAdmin({ className = "" }) {
               Orders
             </Link>
           </li>
+          <li>
+            <Link
+              href="/admin/appointments"
+              className="hover:text-accent-800 font-playfair transition-colors"
+            >
+              Appointments
+            </Link>
+          </li>
           <li className="sm:mr-4">
             <Link
               href="/admin/shop"

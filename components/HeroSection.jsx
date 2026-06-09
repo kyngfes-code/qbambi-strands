@@ -24,9 +24,12 @@ export default function HeroSection() {
             Shop Now
           </Link>
 
-          <button className="px-6 py-3 rounded-xl border border-white text-white font-bold hover:bg-white/20 transition">
+          <Link
+            href="/appointments"
+            className="px-6 py-3 rounded-xl border border-white text-white font-bold hover:bg-white/20 transition"
+          >
             Book Appointment
-          </button>
+          </Link>
         </div>
       </div>
     </section>

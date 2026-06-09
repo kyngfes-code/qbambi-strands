@@ -25,7 +25,7 @@ export async function POST() {
 
   const total = cart.reduce(
     (sum, item) => sum + item.store.price * item.quantity,
-    0
+    0,
   );
 
   const { data: order, error: orderError } = await supabase
@@ -97,16 +97,30 @@ export async function GET() {
           paid,
           due_date
         )
-      )
-    `
+      ),
+       rejection:payment_rejections!orders_rejection_id_fkey (
+        id,
+        rejection_reason,
+        customer_message,
+        created_at
+      ),
+      cancellation:order_cancellations!orders_cancellation_id_fkey (
+  id,
+  cancellation_reason,
+  customer_message,
+  created_at
+)
+  
+    `,
     )
+    .eq("user_id", session.user.id)
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("GET /api/orders error:", error);
     return NextResponse.json(
       { error: error.message, details: error },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

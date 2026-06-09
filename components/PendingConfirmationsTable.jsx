@@ -6,6 +6,8 @@ export default function PendingConfirmationsTable({
   onConfirmInstalment,
   onConfirmDelivery,
   onViewOrder,
+  onReject,
+  onCancel,
 }) {
   if (!orders.length) {
     return <p className="text-sm text-neutral-500">No pending confirmations</p>;
@@ -84,12 +86,26 @@ export default function PendingConfirmationsTable({
                     Confirm instalment
                   </button>
                 ) : (
-                  <button
-                    onClick={() => onConfirm(o.id, "bank_transfer")}
-                    className="px-3 py-1 bg-green-600 text-white rounded"
-                  >
-                    Confirm full payment
-                  </button>
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => onConfirm(o.id, "bank_transfer")}
+                      className="px-3 py-1 bg-green-600 text-white rounded"
+                    >
+                      Confirm full payment
+                    </button>
+                    <button
+                      onClick={() => onReject(o.id)}
+                      className="px-3 py-1 bg-red-600 text-white rounded"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => onCancel(o.id)}
+                      className="px-3 py-1 bg-gray-700 text-white rounded"
+                    >
+                      Cancel Order
+                    </button>
+                  </div>
                 )}
               </td>
             </tr>

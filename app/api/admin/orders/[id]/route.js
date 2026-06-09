@@ -12,10 +12,27 @@ export async function GET(req, { params }) {
     .select(
       `
       *,
-        users (
+      customer:users!orders_user_id_fkey (
+  id,
+  name,
+  email
+),
+    delivered_admin:users!orders_delivered_by_fkey (
+    id,
+    name,
+    email
+  ),
+  confirmed_admin:users!orders_confirmed_by_fkey (
+  id,
+  name,
+  email
+),
+    payment_rejections:payment_rejections!payment_rejections_order_id_fkey (
       id,
-      name,
-      email
+      rejection_reason,
+      customer_message,
+      created_at,
+      rejected_by
     ),
       order_items (
         id,

@@ -26,6 +26,7 @@ export default function OrdersPage() {
       }
 
       const data = await res.json();
+      console.log("Orders:", data);
       setOrders(data || []);
     } catch (err) {
       console.error(err);
@@ -134,6 +135,7 @@ export default function OrdersPage() {
         {orders.map((order) => {
           const canPay =
             order.status === "pending" ||
+            order.status === "rejected" ||
             (order.status === "payment_plan_active" &&
               order.payment_plan?.status === "active");
 
@@ -263,6 +265,53 @@ export default function OrdersPage() {
                   <p className="text-sm text-green-600 mt-1">
                     Your order has been delivered successfully. Thank you for
                     shopping with us.
+                  </p>
+                </div>
+              )}
+              {order.status === "rejected" && (
+                <div className="bg-red-50 border border-red-300 rounded-xl p-4">
+                  <p className="font-semibold text-red-700">Payment Rejected</p>
+
+                  <p className="mt-2 text-red-600">
+                    Payment was rejected. Please review the reason below and
+                    submit a new payment.
+                  </p>
+
+                  {order.rejection?.customer_message && (
+                    <p className="mt-3">{order.rejection.customer_message}</p>
+                  )}
+
+                  {order.rejection?.rejection_reason && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      <strong>Reason:</strong>{" "}
+                      {order.rejection.rejection_reason.replaceAll("_", " ")}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-3">
+                    Rejected on:{" "}
+                    {order.rejection?.created_at
+                      ? new Date(order.rejection.created_at).toLocaleString()
+                      : "-"}
+                  </p>
+                </div>
+              )}
+              {order.status === "cancelled" && (
+                <div className="bg-gray-100 border border-gray-300 rounded-xl p-4">
+                  <p className="font-semibold text-gray-700">Order Cancelled</p>
+
+                  <p className="mt-2">
+                    Unfortunately, this order has been cancelled.
+                  </p>
+
+                  <p className="mt-2">{order.cancellation?.customer_message}</p>
+
+                  <p className="text-sm text-gray-500 mt-2">
+                    Reason: {order.cancellation?.cancellation_reason}
+                  </p>
+
+                  <p className="text-xs text-gray-400 mt-2">
+                    {order.cancellation?.created_at &&
+                      new Date(order.cancellation.created_at).toLocaleString()}
                   </p>
                 </div>
               )}
