@@ -114,7 +114,45 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("appointments")
-      .select("*")
+      .select(
+        `
+    *,
+     user:users!appointments_user_id_fkey (
+    id,
+    name,
+    email
+  ),
+    appointment_payments (
+      id,
+      amount,
+      payment_method,
+      receipt_url,
+      status,
+      rejection_reason,
+      customer_message,
+      confirmed_at,
+      created_at
+    ),
+     appointment_offline_payments (
+      id,
+      amount,
+      payment_method,
+      created_at
+    ),
+  appointment_payment_adjustments (
+  appointment_id,
+  adjustment_type,
+  amount,
+  payment_method,
+  refund_method,
+  reason,
+  created_at,
+  recorder:users!appointment_payment_adjustments_recorded_by_fkey (
+    name
+  )
+)
+  `,
+      )
       .eq("user_id", session.user.id)
       .order("appointment_date", {
         ascending: true,
@@ -131,6 +169,18 @@ export async function GET() {
         { status: 400 },
       );
     }
+
+    // const appointments = data.map((appointment) => ({
+    //   ...appointment,
+
+    //   appointment_payment_adjustments: (
+    //     appointment.appointment_payment_adjustments || []
+    //   ).filter((adjustment) =>
+    //     ["refund", "overpayment_refund", "write_off"].includes(
+    //       adjustment.adjustment_type,
+    //     ),
+    //   ),
+    // }));
 
     return NextResponse.json(data);
   } catch (error) {

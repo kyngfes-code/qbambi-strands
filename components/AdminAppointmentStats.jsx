@@ -27,6 +27,18 @@ export default function AdminAppointmentStats({
     0,
   );
 
+  const totalTips = appointments.reduce((sum, appointment) => {
+    const tips =
+      appointment.appointment_payment_adjustments
+        ?.filter((adjustment) => adjustment.adjustment_type === "tip")
+        .reduce(
+          (tipSum, adjustment) => tipSum + Number(adjustment.amount || 0),
+          0,
+        ) || 0;
+
+    return sum + tips;
+  }, 0);
+
   const stats = [
     {
       label: "Total Appointments",
@@ -69,6 +81,12 @@ export default function AdminAppointmentStats({
       value: `₦${totalRevenue.toLocaleString()}`,
       color: "bg-emerald-100",
       text: "text-emerald-700",
+    },
+    {
+      label: "Tips Collected",
+      value: `₦${totalTips.toLocaleString()}`,
+      color: "bg-purple-100",
+      text: "text-purple-700",
     },
   ];
 

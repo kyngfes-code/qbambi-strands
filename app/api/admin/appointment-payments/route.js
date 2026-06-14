@@ -22,25 +22,25 @@ export async function GET() {
       .from("appointment_payments")
       .select(
         `
-        *,
-       appointments (
-  id,
-  service_name,
-  appointment_date,
-  appointment_time,
-  service_amount,
-  deposit_required,
-  amount_paid,
-  balance_due,
-  user_id,
+    *,
+    appointment:appointments (
+      id,
+      service_name,
+      appointment_date,
+      appointment_time,
+      service_amount,
+      deposit_required,
+      amount_paid,
+      balance_due,
+      user_id,
 
-  user:users!appointments_user_id_fkey (
-    id,
-    name,
-    email
-  )
-)
-      `,
+      user:users!appointments_user_id_fkey (
+        id,
+        name,
+        email
+      )
+    )
+  `,
       )
       .eq("status", "pending")
       .order("created_at", { ascending: false });

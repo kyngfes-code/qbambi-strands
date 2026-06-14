@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import NavBarCart from "@/components/NavBarCart";
+import PaymentStatusCard from "@/components/payments/PaymentStatusCard";
+import ReceiptUploader from "@/components/payments/ReceiptUploader";
+import BankTransferPayment from "@/components/payments/BankTransferPayment";
+import PaystackButton from "@/components/payments/PaystackButton";
 
 const SERVICES = [
   "Hair Installation",

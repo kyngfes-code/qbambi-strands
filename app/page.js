@@ -4,7 +4,7 @@ import bg1 from "@/public/bg1.jpg";
 import HomePageCard from "@/components/HomePageCard";
 import HeroSection from "@/components/HeroSection";
 import { Suspense } from "react";
-import SpinnerMini from "@/components/SpinnerMini";
+import SpinnerMini from "@/components/PageSpinner";
 
 export default function Home({ searchParams }) {
   return (

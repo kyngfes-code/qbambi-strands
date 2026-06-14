@@ -24,7 +24,16 @@ export async function POST(request) {
     Parse Request Body
     ─────────────────────────────────────────────
     */
-    const { appointmentId } = await request.json();
+    const {
+      appointmentId,
+      completionType,
+      amountReceivedToday,
+      paymentMethod,
+      adminNote,
+      tipAmount,
+      refundAmount,
+      refundReason,
+    } = await request.json();
 
     if (!appointmentId) {
       return NextResponse.json(
@@ -35,68 +44,32 @@ export async function POST(request) {
 
     const supabase = createSupabaseAdmin();
 
-    /*
-    ─────────────────────────────────────────────
-    Ensure Appointment Exists
-    ─────────────────────────────────────────────
-    */
-    const { data: appointment, error: fetchError } = await supabase
-      .from("appointments")
-      .select("*")
-      .eq("id", appointmentId)
-      .single();
+    const { data, error } = await supabase.rpc("complete_appointment", {
+      p_appointment_id: appointmentId,
+      p_completed_by: session.user.id,
 
-    if (fetchError || !appointment) {
-      return NextResponse.json(
-        { error: "Appointment not found" },
-        { status: 404 },
-      );
-    }
+      p_amount_received_today: Number(amountReceivedToday || 0),
 
-    /*
-    ─────────────────────────────────────────────
-    Only Confirmed Appointments
-    Can Be Completed
-    ─────────────────────────────────────────────
-    */
-    if (appointment.status !== "confirmed") {
+      p_payment_method:
+        paymentMethod && paymentMethod.trim() ? paymentMethod : null,
+
+      p_tip_amount: Number(tipAmount || 0),
+
+      p_refund_amount: Number(refundAmount || 0),
+
+      p_refund_reason:
+        refundReason && refundReason.trim() ? refundReason.trim() : null,
+    });
+
+    if (error) {
+      console.error("complete_appointment RPC:", error);
+
       return NextResponse.json(
         {
-          error: "Only confirmed appointments can be marked as completed",
+          error: error.message,
         },
         { status: 400 },
       );
-    }
-
-    /*
-    ─────────────────────────────────────────────
-    Mark Appointment As Completed
-    ─────────────────────────────────────────────
-    */
-    const { data, error } = await supabase
-      .from("appointments")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        completed_by: session.user.id,
-      })
-      .eq("id", appointmentId)
-      .select(
-        `
-        *,
-        customer:users!appointments_user_id_fkey (
-          id,
-          name,
-          email
-        )
-      `,
-      )
-      .single();
-
-    if (error) {
-      console.error("Completion error:", error);
-
-      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     /*
@@ -105,8 +78,15 @@ export async function POST(request) {
     ─────────────────────────────────────────────
     */
     return NextResponse.json({
-      message: "Appointment marked as completed",
-      appointment: data,
+      success: true,
+      message: "Appointment marked as completed.",
+      appointment: data.appointment,
+
+      offlinePayment: data.offline_payment,
+
+      tipAdjustment: data.tip_adjustment,
+
+      refundAdjustment: data.refund_adjustment,
     });
   } catch (error) {
     console.error("POST /api/admin/appointments/complete:", error);

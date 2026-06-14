@@ -51,10 +51,10 @@ export default function UserMenu({ user }) {
           </Link>
 
           <Link
-            href="/wishlist"
+            href="/my-appointments"
             className="block px-3 py-2 rounded-lg hover:bg-gray-500"
           >
-            Wish List
+            My Appointments
           </Link>
 
           <Link

@@ -36,6 +36,7 @@ export async function GET() {
       .select(
         `
         *,
+        admin_notes,
         user:users!appointments_user_id_fkey (
           id,
           name,
@@ -59,7 +60,39 @@ export async function GET() {
           customer_message,
           confirmed_at,
           created_at
-        )
+        ),
+        appointment_offline_payments (
+  id,
+  amount,
+  payment_method,
+  note,
+  created_at,
+  recorded_by,
+  recorder:users!appointment_offline_payments_recorded_by_fkey (
+    id,
+    name
+  )
+),
+    appointment_payment_adjustments (
+  id,
+  adjustment_type,
+  amount,
+  payment_method,
+  impact_direction,
+  reason,
+  refund_method,
+  refunded_at,
+  created_at,
+  recorded_by,
+  recorder:users!appointment_payment_adjustments_recorded_by_fkey (
+    id,
+    name
+  )
+),
+      completer:users!appointments_completed_by_fkey (
+      id,
+      name
+      )
       `,
       )
       .order("appointment_date", { ascending: true })
@@ -70,6 +103,20 @@ export async function GET() {
 
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    data.forEach((appointment) => {
+      appointment.appointment_payment_adjustments?.sort(
+        (a, b) => new Date(a.created_at) - new Date(b.created_at),
+      );
+
+      appointment.appointment_offline_payments?.sort(
+        (a, b) => new Date(a.created_at) - new Date(b.created_at),
+      );
+
+      appointment.appointment_payments?.sort(
+        (a, b) => new Date(a.created_at) - new Date(b.created_at),
+      );
+    });
 
     /*
     ──────────────────────────────────────────────

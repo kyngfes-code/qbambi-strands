@@ -1,142 +1,276 @@
 "use client";
 
 export default function AppointmentRequestsTable({
-  appointments,
+  appointments = [],
   onView,
   onSetPricing,
   onCancel,
 }) {
-  if (!appointments?.length) {
+  if (!appointments.length) {
     return (
-      <p className="text-sm text-neutral-500">No appointment requests found.</p>
+      <div className="bg-white rounded-xl border p-6 text-center text-neutral-500">
+        No appointment requests found.
+      </div>
     );
   }
 
   return (
-    <table className="w-full border text-sm mt-4">
-      <thead className="bg-neutral-100">
-        <tr>
-          <th className="p-2 border">Booking ID</th>
-          <th className="p-2 border">Customer</th>
-          <th className="p-2 border">Service</th>
-          <th className="p-2 border">Appointment Date</th>
-          <th className="p-2 border">Status</th>
-          <th className="p-2 border">Pricing</th>
-          <th className="p-2 border">Actions</th>
-        </tr>
-      </thead>
+    <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+      {/* Desktop / Tablet Table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-neutral-100">
+            <tr>
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Booking ID
+              </th>
 
-      <tbody>
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Customer
+              </th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">Service</th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Appointment
+              </th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">Pricing</th>
+
+              <th className="px-4 py-3 text-center whitespace-nowrap">
+                Actions
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {appointments.map((appointment) => (
+              <tr key={appointment.id} className="border-t hover:bg-neutral-50">
+                {/* Booking ID */}
+                <td className="px-4 py-4 whitespace-nowrap">
+                  <button
+                    onClick={() => onView?.(appointment)}
+                    className="text-blue-600 underline font-medium"
+                  >
+                    #{appointment.id.slice(0, 8)}
+                  </button>
+                </td>
+
+                {/* Customer */}
+                <td className="px-4 py-4">
+                  <div className="min-w-[180px]">
+                    <p className="font-medium">
+                      {appointment.user?.name || "Unknown"}
+                    </p>
+
+                    <p className="text-xs text-neutral-500 break-all">
+                      {appointment.user?.email || "-"}
+                    </p>
+                  </div>
+                </td>
+
+                {/* Service */}
+                <td className="px-4 py-4">
+                  <div className="min-w-[150px]">
+                    {appointment.service_name}
+                  </div>
+                </td>
+
+                {/* Appointment */}
+                <td className="px-4 py-4 whitespace-nowrap">
+                  <div>
+                    <p>
+                      {new Date(
+                        appointment.appointment_date,
+                      ).toLocaleDateString()}
+                    </p>
+
+                    <p className="text-xs text-neutral-500">
+                      {appointment.appointment_time}
+                    </p>
+                  </div>
+                </td>
+
+                {/* Status */}
+                <td className="px-4 py-4 whitespace-nowrap">
+                  <span
+                    className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                      appointment.status === "pending"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : appointment.status === "confirmed"
+                          ? "bg-blue-100 text-blue-700"
+                          : appointment.status === "completed"
+                            ? "bg-green-100 text-green-700"
+                            : appointment.status === "cancelled"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-neutral-100 text-neutral-700"
+                    }`}
+                  >
+                    {appointment.status}
+                  </span>
+                </td>
+
+                {/* Pricing */}
+                <td className="px-4 py-4 whitespace-nowrap">
+                  {appointment.service_amount ? (
+                    <div>
+                      <p className="font-medium">
+                        ₦{Number(appointment.service_amount).toLocaleString()}
+                      </p>
+
+                      <p className="text-xs text-neutral-500">
+                        Deposit: ₦
+                        {Number(
+                          appointment.deposit_required || 0,
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-yellow-600 text-xs font-medium">
+                      Not Set
+                    </span>
+                  )}
+                </td>
+
+                {/* Actions */}
+                <td className="px-4 py-4">
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button
+                      onClick={() => onView?.(appointment)}
+                      className="px-3 py-2 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition"
+                    >
+                      View
+                    </button>
+
+                    {!appointment.service_amount && (
+                      <button
+                        onClick={() => onSetPricing?.(appointment)}
+                        className="px-3 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition"
+                      >
+                        Set Pricing
+                      </button>
+                    )}
+
+                    {appointment.status !== "cancelled" && (
+                      <button
+                        onClick={() => onCancel?.(appointment)}
+                        className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden divide-y">
         {appointments.map((appointment) => (
-          <tr key={appointment.id}>
-            {/* Booking ID */}
-            <td className="p-2 border">
-              <button
-                onClick={() => onView(appointment)}
-                className="text-blue-600 underline"
-              >
-                {appointment.id.slice(0, 8)}
-              </button>
-            </td>
-
-            {/* Customer */}
-            <td className="p-2 border">
+          <div key={appointment.id} className="p-4 space-y-4">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-medium">
-                  {appointment.user?.name || "Unknown"}
-                </p>
+                <button
+                  onClick={() => onView?.(appointment)}
+                  className="font-semibold text-blue-600 underline"
+                >
+                  #{appointment.id.slice(0, 8)}
+                </button>
 
-                <p className="text-xs text-neutral-500">
-                  {appointment.user?.email || "-"}
+                <p className="text-sm text-neutral-500 mt-1">
+                  {appointment.service_name}
                 </p>
               </div>
-            </td>
 
-            {/* Service */}
-            <td className="p-2 border">{appointment.service_name}</td>
-
-            {/* Appointment Date */}
-            <td className="p-2 border">
-              <div>
-                <p>
-                  {new Date(appointment.appointment_date).toLocaleDateString()}
-                </p>
-
-                <p className="text-xs text-neutral-500">
-                  {appointment.appointment_time}
-                </p>
-              </div>
-            </td>
-
-            {/* Status */}
-            <td className="p-2 border">
               <span
-                className={`px-2 py-1 rounded text-white text-xs ${
+                className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
                   appointment.status === "pending"
-                    ? "bg-yellow-600"
+                    ? "bg-yellow-100 text-yellow-700"
                     : appointment.status === "confirmed"
-                      ? "bg-blue-600"
+                      ? "bg-blue-100 text-blue-700"
                       : appointment.status === "completed"
-                        ? "bg-green-600"
+                        ? "bg-green-100 text-green-700"
                         : appointment.status === "cancelled"
-                          ? "bg-red-600"
-                          : "bg-neutral-600"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-neutral-100 text-neutral-700"
                 }`}
               >
                 {appointment.status}
               </span>
-            </td>
+            </div>
 
-            {/* Pricing */}
-            <td className="p-2 border">
-              {appointment.service_amount ? (
-                <div>
-                  <p>₦{Number(appointment.service_amount).toLocaleString()}</p>
+            {/* Details */}
+            <div className="space-y-2 text-sm">
+              <p>
+                <strong>Customer:</strong> {appointment.user?.name || "Unknown"}
+              </p>
 
-                  <p className="text-xs text-neutral-500">
-                    Deposit: ₦
-                    {Number(appointment.deposit_required || 0).toLocaleString()}
-                  </p>
-                </div>
-              ) : (
-                <span className="text-yellow-600 text-xs font-medium">
-                  Not Set
-                </span>
+              <p className="break-all text-neutral-600">
+                {appointment.user?.email || "-"}
+              </p>
+
+              <p>
+                <strong>Date:</strong>{" "}
+                {new Date(appointment.appointment_date).toLocaleDateString()}
+              </p>
+
+              <p>
+                <strong>Time:</strong> {appointment.appointment_time}
+              </p>
+
+              <p>
+                <strong>Pricing:</strong>{" "}
+                {appointment.service_amount ? (
+                  <>₦{Number(appointment.service_amount).toLocaleString()}</>
+                ) : (
+                  <span className="text-yellow-600">Not Set</span>
+                )}
+              </p>
+
+              {appointment.service_amount && (
+                <p>
+                  <strong>Deposit:</strong> ₦
+                  {Number(appointment.deposit_required || 0).toLocaleString()}
+                </p>
               )}
-            </td>
+            </div>
 
             {/* Actions */}
-            <td className="p-2 border">
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pt-2">
+              <button
+                onClick={() => onView?.(appointment)}
+                className="flex-1 min-w-[90px] px-4 py-2 rounded-lg bg-neutral-800 text-white"
+              >
+                View
+              </button>
+
+              {!appointment.service_amount && (
                 <button
-                  onClick={() => onView(appointment)}
-                  className="px-3 py-1 bg-gray-600 text-white rounded"
+                  onClick={() => onSetPricing?.(appointment)}
+                  className="flex-1 min-w-[120px] px-4 py-2 rounded-lg bg-purple-600 text-white"
                 >
-                  View
+                  Set Pricing
                 </button>
+              )}
 
-                {!appointment.service_amount && (
-                  <button
-                    onClick={() => onSetPricing(appointment)}
-                    className="px-3 py-1 bg-purple-600 text-white rounded"
-                  >
-                    Set Pricing
-                  </button>
-                )}
-
-                {appointment.status !== "cancelled" && (
-                  <button
-                    onClick={() => onCancel(appointment)}
-                    className="px-3 py-1 bg-red-600 text-white rounded"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </td>
-          </tr>
+              {appointment.status !== "cancelled" && (
+                <button
+                  onClick={() => onCancel?.(appointment)}
+                  className="flex-1 min-w-[90px] px-4 py-2 rounded-lg bg-red-600 text-white"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
         ))}
-      </tbody>
-    </table>
+      </div>
+    </div>
   );
 }

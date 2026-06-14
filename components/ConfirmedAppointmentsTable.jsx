@@ -1,32 +1,196 @@
 "use client";
 
 export default function ConfirmedAppointmentsTable({
-  appointments,
+  appointments = [],
   onView,
   onComplete,
   onCancel,
 }) {
-  if (!appointments?.length) {
+  if (!appointments.length) {
     return (
-      <p className="text-sm text-neutral-500">No confirmed appointments.</p>
+      <div className="bg-white rounded-xl border p-6 text-center text-neutral-500">
+        No confirmed appointments.
+      </div>
     );
   }
 
   return (
-    <table className="w-full border text-sm mt-4">
-      <thead className="bg-neutral-100">
-        <tr>
-          <th className="p-2 border">Appointment</th>
-          <th className="p-2 border">Customer</th>
-          <th className="p-2 border">Service</th>
-          <th className="p-2 border">Date & Time</th>
-          <th className="p-2 border">Payment</th>
-          <th className="p-2 border">Confirmed</th>
-          <th className="p-2 border">Actions</th>
-        </tr>
-      </thead>
+    <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+      {/* ===========================
+          TABLET / LAPTOP / DESKTOP
+      ============================ */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-neutral-100">
+            <tr>
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Appointment
+              </th>
 
-      <tbody>
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Customer
+              </th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">Service</th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Date & Time
+              </th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">Payment</th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Confirmed
+              </th>
+
+              <th className="px-4 py-3 text-center whitespace-nowrap">
+                Actions
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {appointments.map((appointment) => {
+              const amountPaid = Number(appointment.amount_paid || 0);
+
+              const serviceAmount = Number(appointment.service_amount || 0);
+
+              const balanceDue = Number(appointment.balance_due || 0);
+
+              return (
+                <tr
+                  key={appointment.id}
+                  className="border-t hover:bg-neutral-50"
+                >
+                  {/* Appointment */}
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => onView?.(appointment)}
+                      className="font-medium text-blue-600 hover:underline"
+                    >
+                      #{appointment.id.slice(0, 8)}
+                    </button>
+                  </td>
+
+                  {/* Customer */}
+                  <td className="px-4 py-4">
+                    <div className="min-w-[180px]">
+                      <p className="font-medium">
+                        {appointment.customer?.name ||
+                          appointment.user?.name ||
+                          "-"}
+                      </p>
+
+                      <p className="text-xs text-neutral-500 break-all">
+                        {appointment.customer?.email ||
+                          appointment.user?.email ||
+                          "-"}
+                      </p>
+                    </div>
+                  </td>
+
+                  {/* Service */}
+                  <td className="px-4 py-4">
+                    <div className="min-w-[160px]">
+                      <p>{appointment.service_name}</p>
+
+                      {appointment.notes && (
+                        <p className="text-xs text-neutral-500 mt-1">
+                          {appointment.notes}
+                        </p>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Date */}
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <p>
+                      {new Date(
+                        appointment.appointment_date,
+                      ).toLocaleDateString()}
+                    </p>
+
+                    <p className="text-xs text-neutral-500">
+                      {appointment.appointment_time}
+                    </p>
+                  </td>
+
+                  {/* Payment */}
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <p>Paid: ₦{amountPaid.toLocaleString()}</p>
+
+                    <p className="text-xs text-neutral-500">
+                      Total: ₦{serviceAmount.toLocaleString()}
+                    </p>
+
+                    {balanceDue > 0 ? (
+                      <p className="text-xs text-orange-600 font-medium mt-1">
+                        Balance: ₦{balanceDue.toLocaleString()}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-green-600 font-medium mt-1">
+                        Fully Paid
+                      </p>
+                    )}
+                  </td>
+
+                  {/* Confirmed */}
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    {appointment.confirmed_at ? (
+                      <>
+                        <p className="text-xs">
+                          {new Date(
+                            appointment.confirmed_at,
+                          ).toLocaleDateString()}
+                        </p>
+
+                        <p className="text-xs text-neutral-500">
+                          {new Date(
+                            appointment.confirmed_at,
+                          ).toLocaleTimeString()}
+                        </p>
+                      </>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-4 py-4">
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <button
+                        onClick={() => onView?.(appointment)}
+                        className="px-3 py-2 rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition"
+                      >
+                        View
+                      </button>
+
+                      <button
+                        onClick={() => onComplete?.(appointment)}
+                        className="px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+                      >
+                        Complete
+                      </button>
+
+                      <button
+                        onClick={() => onCancel?.(appointment)}
+                        className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ===========================
+          MOBILE CARDS
+      ============================ */}
+      <div className="md:hidden divide-y">
         {appointments.map((appointment) => {
           const amountPaid = Number(appointment.amount_paid || 0);
 
@@ -35,127 +199,100 @@ export default function ConfirmedAppointmentsTable({
           const balanceDue = Number(appointment.balance_due || 0);
 
           return (
-            <tr key={appointment.id}>
-              {/* Appointment */}
-              <td className="p-2 border">
+            <div key={appointment.id} className="p-4 space-y-4">
+              <div className="flex justify-between items-start gap-3">
+                <div>
+                  <p className="font-semibold">#{appointment.id.slice(0, 8)}</p>
+
+                  <p className="text-sm text-neutral-500">
+                    {appointment.service_name}
+                  </p>
+                </div>
+
                 <button
-                  onClick={() => onView(appointment.id)}
-                  className="text-blue-600 underline"
+                  onClick={() => onView?.(appointment)}
+                  className="px-3 py-2 rounded-lg bg-gray-700 text-white text-sm"
                 >
-                  #{appointment.id.slice(0, 8)}
+                  View
                 </button>
-              </td>
+              </div>
 
-              {/* Customer */}
-              <td className="p-2 border">
-                <div>
-                  <p className="font-medium">
-                    {appointment.customer?.name ||
-                      appointment.user?.name ||
-                      "-"}
-                  </p>
-
-                  <p className="text-xs text-neutral-500">
-                    {appointment.customer?.email ||
-                      appointment.user?.email ||
-                      "-"}
-                  </p>
-                </div>
-              </td>
-
-              {/* Service */}
-              <td className="p-2 border">
-                <div>
-                  <p>{appointment.service_name}</p>
-
-                  {appointment.notes && (
-                    <p className="text-xs text-neutral-500 mt-1">
-                      {appointment.notes}
-                    </p>
-                  )}
-                </div>
-              </td>
-
-              {/* Date & Time */}
-              <td className="p-2 border">
-                <div>
-                  <p>
-                    {new Date(
-                      appointment.appointment_date,
-                    ).toLocaleDateString()}
-                  </p>
-
-                  <p className="text-xs text-neutral-500">
-                    {appointment.appointment_time}
-                  </p>
-                </div>
-              </td>
-
-              {/* Payment */}
-              <td className="p-2 border">
-                <p>Paid: ₦{amountPaid.toLocaleString()}</p>
-
-                <p className="text-xs text-neutral-500">
-                  Total: ₦{serviceAmount.toLocaleString()}
+              <div className="text-sm space-y-2">
+                <p>
+                  <strong>Customer:</strong>{" "}
+                  {appointment.customer?.name || appointment.user?.name || "-"}
                 </p>
 
-                {balanceDue > 0 ? (
-                  <p className="text-xs text-orange-600 font-medium mt-1">
-                    Balance: ₦{balanceDue.toLocaleString()}
-                  </p>
-                ) : (
-                  <p className="text-xs text-green-600 font-medium mt-1">
-                    Fully Paid
-                  </p>
-                )}
-              </td>
+                <p className="break-all text-neutral-500">
+                  {appointment.customer?.email ||
+                    appointment.user?.email ||
+                    "-"}
+                </p>
 
-              {/* Confirmation */}
-              <td className="p-2 border">
-                {appointment.confirmed_at ? (
-                  <div>
-                    <p className="text-xs">
-                      {new Date(appointment.confirmed_at).toLocaleDateString()}
-                    </p>
+                <p>
+                  <strong>Date:</strong>{" "}
+                  {new Date(appointment.appointment_date).toLocaleDateString()}
+                </p>
 
-                    <p className="text-xs text-neutral-500">
-                      {new Date(appointment.confirmed_at).toLocaleTimeString()}
-                    </p>
-                  </div>
-                ) : (
-                  "-"
-                )}
-              </td>
+                <p>
+                  <strong>Time:</strong> {appointment.appointment_time}
+                </p>
 
-              {/* Actions */}
-              <td className="p-2 border">
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => onView(appointment.id)}
-                    className="px-3 py-1 bg-gray-600 text-white rounded"
-                  >
-                    View
-                  </button>
+                <p>
+                  <strong>Paid:</strong> ₦{amountPaid.toLocaleString()}
+                </p>
 
-                  <button
-                    onClick={() => onComplete(appointment.id)}
-                    className="px-3 py-1 bg-green-600 text-white rounded"
-                  >
-                    Complete
-                  </button>
+                <p>
+                  <strong>Total:</strong> ₦{serviceAmount.toLocaleString()}
+                </p>
 
-                  <button
-                    onClick={() => onCancel(appointment.id)}
-                    className="px-3 py-1 bg-red-600 text-white rounded"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </td>
-            </tr>
+                <p>
+                  <strong>Status:</strong>{" "}
+                  {balanceDue > 0 ? (
+                    <span className="text-orange-600 font-medium">
+                      Balance ₦{balanceDue.toLocaleString()}
+                    </span>
+                  ) : (
+                    <span className="text-green-600 font-medium">
+                      Fully Paid
+                    </span>
+                  )}
+                </p>
+
+                <p>
+                  <strong>Confirmed:</strong>{" "}
+                  {appointment.confirmed_at
+                    ? new Date(appointment.confirmed_at).toLocaleString()
+                    : "-"}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => onView?.(appointment)}
+                  className="px-3 py-2 rounded-lg bg-gray-600 text-white text-sm"
+                >
+                  View
+                </button>
+
+                <button
+                  onClick={() => onComplete?.(appointment)}
+                  className="px-3 py-2 rounded-lg bg-green-600 text-white text-sm"
+                >
+                  Complete
+                </button>
+
+                <button
+                  onClick={() => onCancel?.(appointment)}
+                  className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           );
         })}
-      </tbody>
-    </table>
+      </div>
+    </div>
   );
 }

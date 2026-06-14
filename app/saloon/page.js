@@ -1,7 +1,7 @@
 import FloatingClickMe from "@/components/FloatingClickMe";
 import NavBar from "@/components/NavBar";
 import SaloonImageCard from "@/components/SaloonImageCard";
-import SpinnerMini from "@/components/SpinnerMini";
+import SpinnerMini from "@/components/PageSpinner";
 import { getSaloonData } from "@/lib/data-service";
 import { CheckCheckIcon } from "lucide-react";
 

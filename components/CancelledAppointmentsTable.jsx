@@ -11,6 +11,7 @@ export default function CancelledAppointmentsTable({
       </div>
     );
   }
+  console.log(appointments[0]);
 
   return (
     <>
@@ -39,11 +40,11 @@ export default function CancelledAppointmentsTable({
 
             <div className="mt-4 space-y-2 text-sm">
               <p>
-                <strong>Customer:</strong> {appointment.customer?.name || "-"}
+                <strong>Customer:</strong> {appointment.user?.name || "-"}
               </p>
 
               <p>
-                <strong>Email:</strong> {appointment.customer?.email || "-"}
+                <strong>Email:</strong> {appointment.user?.email || "-"}
               </p>
 
               <p>
@@ -124,10 +125,10 @@ export default function CancelledAppointmentsTable({
 
                 <td className="px-4 py-4">
                   <div>
-                    <p>{appointment.customer?.name || "-"}</p>
+                    <p>{appointment.user?.name || "-"}</p>
 
                     <p className="text-xs text-neutral-500">
-                      {appointment.customer?.email || "-"}
+                      {appointment.user?.email || "-"}
                     </p>
                   </div>
                 </td>

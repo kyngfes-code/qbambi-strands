@@ -1,5 +1,5 @@
 import MakeUpImagesCard from "@/components/MakeUpImagesCard";
-import SpinnerMini from "@/components/SpinnerMini";
+import SpinnerMini from "@/components/PageSpinner";
 import { getMakeUpImages } from "@/lib/data-service";
 
 export const metadata = {
