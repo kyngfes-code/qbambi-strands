@@ -32,11 +32,16 @@ export default function CancellationModal({
     //return;
     //}
 
-    onSubmit({
-      appointmentId: appointment.id,
-      cancellationReason: cancellationReason.trim(),
-      adminNote: adminNote.trim(),
-    });
+    onSubmit(
+      {
+        appointmentId: appointment.id,
+        cancellationReason: cancellationReason.trim(),
+        adminNote: adminNote.trim(),
+      },
+      () => {
+        onClose?.();
+      },
+    );
   }
 
   return (

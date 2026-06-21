@@ -14,6 +14,13 @@ export default function ConfirmedAppointmentsTable({
     );
   }
 
+  const sortedAppointments = [...appointments].sort((a, b) => {
+    const aDate = a.confirmed_at || a.created_at;
+    const bDate = b.confirmed_at || b.created_at;
+
+    return new Date(bDate).getTime() - new Date(aDate).getTime();
+  });
+
   return (
     <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
       {/* ===========================
@@ -50,7 +57,7 @@ export default function ConfirmedAppointmentsTable({
           </thead>
 
           <tbody>
-            {appointments.map((appointment) => {
+            {sortedAppointments.map((appointment) => {
               const amountPaid = Number(appointment.amount_paid || 0);
 
               const serviceAmount = Number(appointment.service_amount || 0);
@@ -191,7 +198,7 @@ export default function ConfirmedAppointmentsTable({
           MOBILE CARDS
       ============================ */}
       <div className="md:hidden divide-y">
-        {appointments.map((appointment) => {
+        {sortedAppointments.map((appointment) => {
           const amountPaid = Number(appointment.amount_paid || 0);
 
           const serviceAmount = Number(appointment.service_amount || 0);

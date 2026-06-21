@@ -77,6 +77,7 @@ export async function GET() {
   id,
   adjustment_type,
   amount,
+  tip_amount,
   payment_method,
   impact_direction,
   reason,

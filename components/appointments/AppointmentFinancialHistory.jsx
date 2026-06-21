@@ -52,6 +52,7 @@ export default function AppointmentFinancialHistory({
       ) : (
         <div className="space-y-4">
           {customerLedger.map((entry, index) => {
+            const isRejected = entry.status === "rejected";
             const isNegative =
               entry.label === "Refund" ||
               entry.label === "Overpayment Refund" ||
@@ -60,10 +61,31 @@ export default function AppointmentFinancialHistory({
             return (
               <div
                 key={index}
-                className="border rounded-xl p-4 flex justify-between"
+                className={`border rounded-xl p-4 flex justify-between ${
+                  isRejected ? "bg-red-50 border-red-300" : ""
+                }`}
               >
                 <div>
-                  <p className="font-medium">{entry.label}</p>
+                  <p
+                    className={`font-medium ${
+                      isRejected ? "text-red-700" : ""
+                    }`}
+                  >
+                    {entry.label}
+                    {entry.status && (
+                      <span
+                        className={`ml-2 text-xs px-2 py-1 rounded-full ${
+                          entry.status === "confirmed"
+                            ? "bg-green-100 text-green-700"
+                            : entry.status === "rejected"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {entry.status}
+                      </span>
+                    )}
+                  </p>
 
                   <p className="text-sm text-gray-500">
                     {new Date(entry.createdAt).toLocaleString()}
@@ -75,7 +97,7 @@ export default function AppointmentFinancialHistory({
                       {entry.paymentMethod.replaceAll("_", " ").toUpperCase()}
                     </p>
                   )}
-                  {variant === "admin" && entry.adminNote && (
+                  {variant === "admin" && (
                     <p className="text-sm text-blue-600 mt-1">
                       Admin Note: {entry.adminNote}
                     </p>
@@ -84,7 +106,11 @@ export default function AppointmentFinancialHistory({
 
                 <p
                   className={`font-semibold ${
-                    isNegative ? "text-red-600" : "text-green-700"
+                    isRejected
+                      ? "text-red-700"
+                      : isNegative
+                        ? "text-red-600"
+                        : "text-green-700"
                   }`}
                 >
                   {isNegative ? "-" : "+"}₦

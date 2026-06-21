@@ -13,6 +13,8 @@ export default function useAppointmentModals() {
 
   const [outstandingAppointment, setOutstandingAppointment] = useState(null);
 
+  const [refundAppointment, setRefundAppointment] = useState(null);
+
   return {
     selectedAppointment,
     setSelectedAppointment,
@@ -28,5 +30,8 @@ export default function useAppointmentModals() {
 
     outstandingAppointment,
     setOutstandingAppointment,
+
+    refundAppointment,
+    setRefundAppointment,
   };
 }

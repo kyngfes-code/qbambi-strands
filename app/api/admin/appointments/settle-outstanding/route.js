@@ -63,6 +63,20 @@ Convert everything to kobo to avoid floating point errors
       );
     }
 
+    const currentBalanceKobo = Math.round(
+      Number(appointment.balance_due || 0) * 100,
+    );
+
+    const outstandingPaymentKobo = Math.min(
+      settlementAmountKobo,
+      currentBalanceKobo,
+    );
+
+    const tipAmountKobo = Math.max(
+      settlementAmountKobo - currentBalanceKobo,
+      0,
+    );
+
     if (appointment.status !== "completed") {
       return NextResponse.json(
         {
@@ -71,10 +85,6 @@ Convert everything to kobo to avoid floating point errors
         { status: 400 },
       );
     }
-
-    const currentBalanceKobo = Math.round(
-      Number(appointment.balance_due || 0) * 100,
-    );
 
     const currentPaidKobo = Math.round(
       Number(appointment.amount_paid || 0) * 100,
@@ -89,19 +99,9 @@ Convert everything to kobo to avoid floating point errors
       );
     }
 
-    if (settlementAmountKobo > currentBalanceKobo) {
-      return NextResponse.json(
-        {
-          error: "Settlement amount exceeds outstanding balance.",
-        },
-        { status: 400 },
-      );
-    }
+    const newAmountPaidKobo = currentPaidKobo + outstandingPaymentKobo;
 
-    const newAmountPaidKobo = currentPaidKobo + settlementAmountKobo;
-
-    const newBalanceKobo = currentBalanceKobo - settlementAmountKobo;
-
+    const newBalanceKobo = currentBalanceKobo - outstandingPaymentKobo;
     /*
     Record adjustment
     */
@@ -111,7 +111,8 @@ Convert everything to kobo to avoid floating point errors
       .insert({
         appointment_id: appointmentId,
         adjustment_type: "outstanding_payment",
-        amount: settlementAmountKobo / 100,
+        amount: outstandingPaymentKobo / 100,
+        tip_amount: tipAmountKobo / 100,
         payment_method: paymentMethod,
         reason: adminNote || null,
         recorded_by: session.user.id,
@@ -156,6 +157,8 @@ Convert everything to kobo to avoid floating point errors
     return NextResponse.json({
       success: true,
       fullySettled: newBalanceKobo === 0,
+      outstandingPayment: outstandingPaymentKobo / 100,
+      tipAmount: tipAmountKobo / 100,
       updatedAppointment,
     });
   } catch (error) {

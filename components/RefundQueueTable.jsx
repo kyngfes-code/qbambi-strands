@@ -37,16 +37,15 @@ export default function RefundQueueTable({
                 </div>
 
                 <span
-                  className="
-                    shrink-0
-                    inline-flex items-center
-                    rounded-full
-                    px-3 py-1
-                    text-xs font-semibold
-                    bg-yellow-100 text-yellow-700
-                  "
+                  className={`shrink-0 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                    refund.refund_status === "completed"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-yellow-100 text-yellow-700"
+                  }`}
                 >
-                  Pending
+                  {refund.refund_status === "completed"
+                    ? "Completed"
+                    : "Pending"}
                 </span>
               </div>
 
@@ -146,20 +145,14 @@ export default function RefundQueueTable({
                   View Appointment
                 </button>
 
-                <button
-                  onClick={() => onProcessRefund?.(refund)}
-                  className="
-                    flex-1
-                    px-4 py-3
-                    rounded-xl
-                    bg-green-600
-                    text-white
-                    hover:bg-green-700
-                    transition
-                  "
-                >
-                  Process Refund
-                </button>
+                {refund.refund_status === "pending" && (
+                  <button
+                    onClick={() => onProcessRefund?.(refund)}
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white"
+                  >
+                    Process
+                  </button>
+                )}
               </div>
             </div>
           ))
@@ -186,6 +179,8 @@ export default function RefundQueueTable({
               <th className="px-6 py-4 font-semibold">Requested At</th>
 
               <th className="px-6 py-4 font-semibold">Reason</th>
+
+              <th className="px-6 py-4 font-semibold">Status</th>
 
               <th className="px-6 py-4 font-semibold text-right">Actions</th>
             </tr>
@@ -294,19 +289,34 @@ export default function RefundQueueTable({
                         View
                       </button>
 
-                      <button
-                        onClick={() => onProcessRefund?.(refund)}
-                        className="
+                      {refund.refund_status === "pending" && (
+                        <button
+                          onClick={() => onProcessRefund?.(refund)}
+                          className="
                           px-4 py-2
                           rounded-lg
                           bg-green-600
                           text-white
                           hover:bg-green-700
                         "
-                      >
-                        Process
-                      </button>
+                        >
+                          Process
+                        </button>
+                      )}
                     </div>
+                  </td>
+                  <td className="px-6 py-5">
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                        refund.refund_status === "completed"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {refund.refund_status === "completed"
+                        ? "Completed"
+                        : "Pending"}
+                    </span>
                   </td>
                 </tr>
               ))

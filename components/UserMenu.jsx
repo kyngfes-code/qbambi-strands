@@ -56,6 +56,12 @@ export default function UserMenu({ user }) {
           >
             My Appointments
           </Link>
+          <Link
+            href="/my-refunds"
+            className="block px-3 py-2 rounded-lg hover:bg-gray-500"
+          >
+            Refunds
+          </Link>
 
           <Link
             href="/cart"

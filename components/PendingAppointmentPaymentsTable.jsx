@@ -14,6 +14,11 @@ export default function PendingAppointmentPaymentsTable({
     );
   }
 
+  const sortedPayments = [...payments].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
   return (
     <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
       {/* ======================================
@@ -50,7 +55,7 @@ export default function PendingAppointmentPaymentsTable({
           </thead>
 
           <tbody>
-            {payments.map((payment) => (
+            {sortedPayments.map((payment) => (
               <tr key={payment.id} className="border-t hover:bg-neutral-50">
                 {/* Appointment */}
                 <td className="px-4 py-4 whitespace-nowrap">
@@ -165,7 +170,7 @@ export default function PendingAppointmentPaymentsTable({
           MOBILE CARDS
       ====================================== */}
       <div className="md:hidden divide-y">
-        {payments.map((payment) => (
+        {sortedPayments.map((payment) => (
           <div key={payment.id} className="p-4 space-y-4">
             <div className="flex justify-between items-start gap-3">
               <div>

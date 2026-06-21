@@ -82,15 +82,9 @@ export default function CompletedAppointmentWithOutstandingModal({
 
   const projectedBalance = Math.max(balanceDue - enteredAmount, 0);
 
-  const totalTips = useMemo(() => {
-    return (
-      appointment.appointment_payment_adjustments
-        ?.filter((adjustment) => adjustment.adjustment_type === "tip")
-        .reduce((sum, adjustment) => sum + Number(adjustment.amount || 0), 0) ||
-      0
-    );
-  }, [appointment]);
+  const calculatedTip = Math.max(enteredAmount - balanceDue, 0);
 
+  const totalTips = appointment.total_tip_amount || 0;
   function validate() {
     const newErrors = {};
 
@@ -99,10 +93,6 @@ export default function CompletedAppointmentWithOutstandingModal({
     if (hasOutstandingBalance) {
       if (paymentAmount <= 0) {
         newErrors.amount = "Enter a valid amount.";
-      }
-
-      if (paymentAmount > balanceDue) {
-        newErrors.amount = "Amount cannot exceed outstanding balance.";
       }
 
       if (!paymentMethod) {
@@ -259,7 +249,7 @@ export default function CompletedAppointmentWithOutstandingModal({
                 <p className="text-gray-500">Tips Received</p>
 
                 <p className="font-semibold text-purple-700">
-                  ₦{totalTips.toLocaleString()}
+                  ₦ ₦{Number(totalTips).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -289,7 +279,6 @@ export default function CompletedAppointmentWithOutstandingModal({
                 <input
                   type="number"
                   min="0.01"
-                  max={balanceDue}
                   step="0.01"
                   inputMode="decimal"
                   placeholder={`Outstanding: ₦${balanceDue.toLocaleString()}`}
@@ -314,6 +303,17 @@ export default function CompletedAppointmentWithOutstandingModal({
                     <span className="font-semibold">
                       ₦{balanceDue.toLocaleString()}
                     </span>
+                  </div>
+                  <div>
+                    {calculatedTip > 0 && (
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-sm text-gray-600">Tip</span>
+
+                        <span className="font-semibold text-purple-700">
+                          ₦{calculatedTip.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between mt-2">

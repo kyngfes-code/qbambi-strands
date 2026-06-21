@@ -27,17 +27,30 @@ export async function POST(request) {
     const {
       appointmentId,
       completionType,
-      amountReceivedToday,
+      totalAmountReceived,
       paymentMethod,
-      adminNote,
-      tipAmount,
       refundAmount,
       refundReason,
+      adminNote,
     } = await request.json();
 
     if (!appointmentId) {
       return NextResponse.json(
         { error: "Appointment ID is required" },
+        { status: 400 },
+      );
+    }
+
+    if (Number(totalAmountReceived || 0) < 0) {
+      return NextResponse.json(
+        { error: "Amount received cannot be negative." },
+        { status: 400 },
+      );
+    }
+
+    if (Number(refundAmount || 0) < 0) {
+      return NextResponse.json(
+        { error: "Refund amount cannot be negative." },
         { status: 400 },
       );
     }
@@ -48,17 +61,17 @@ export async function POST(request) {
       p_appointment_id: appointmentId,
       p_completed_by: session.user.id,
 
-      p_amount_received_today: Number(amountReceivedToday || 0),
+      p_total_amount_received: Number(totalAmountReceived || 0),
 
       p_payment_method:
         paymentMethod && paymentMethod.trim() ? paymentMethod : null,
-
-      p_tip_amount: Number(tipAmount || 0),
 
       p_refund_amount: Number(refundAmount || 0),
 
       p_refund_reason:
         refundReason && refundReason.trim() ? refundReason.trim() : null,
+
+      p_admin_note: adminNote && adminNote.trim() ? adminNote.trim() : null,
     });
 
     if (error) {

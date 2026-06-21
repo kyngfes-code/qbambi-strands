@@ -36,7 +36,7 @@ export default function AppointmentDetailsContent({
       {showFinancialHistory && (
         <AppointmentFinancialHistory
           appointment={appointment}
-          variant={variant}
+          variant={isAdmin ? "admin" : "customer"}
         />
       )}
 

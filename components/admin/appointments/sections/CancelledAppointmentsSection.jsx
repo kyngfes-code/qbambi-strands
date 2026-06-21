@@ -17,6 +17,7 @@ export default function CancelledAppointmentsSection({
       <CancelledAppointmentsTable
         appointments={appointments}
         onView={actions.handleViewAppointment}
+        onRefund={actions.handleOpenRefund}
       />
     </DashboardSection>
   );

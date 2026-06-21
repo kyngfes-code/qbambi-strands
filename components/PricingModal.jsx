@@ -44,6 +44,7 @@ export default function PricingModal({
       serviceAmount: Number(serviceAmount),
       depositRequired: Number(depositRequired),
       adminNotes,
+      onSuccess: onClose,
     });
   }
 

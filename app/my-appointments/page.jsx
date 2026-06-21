@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import NavBarCart from "@/components/NavBarCart";
 import OfflineNotice from "@/components/OfflineNotice";
 import { useOnlineStatus } from "../OnlineStatusProvider";
 import AppointmentDetailsModal from "@/components/appointments/AppointmentDetailsModal";
 import AppointmentCard from "@/components/appointments/AppointmentCard";
+import PageSpinner from "@/components/PageSpinner";
 
 export default function MyAppointmentsPage() {
   const isOnline = useOnlineStatus();
@@ -51,12 +52,19 @@ export default function MyAppointmentsPage() {
     loadAppointments();
   }, [isOnline]);
 
+  const sortedAppointments = useMemo(() => {
+    return [...appointments].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [appointments]);
+
   if (!isOnline) {
     return <OfflineNotice />;
   }
 
   if (loading) {
-    return <p className="text-center mt-20">Loading appointments...</p>;
+    return <PageSpinner text="Loading appointment dashboard..." />;
   }
 
   if (error) {
@@ -77,7 +85,7 @@ export default function MyAppointmentsPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {appointments.map((appointment) => (
+            {sortedAppointments.map((appointment) => (
               <AppointmentCard
                 key={appointment.id}
                 appointment={appointment}

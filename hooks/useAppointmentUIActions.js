@@ -25,10 +25,15 @@ export default function useAppointmentUIActions(modals) {
     modals.setCompleteAppointment(appointment);
   }
 
+  function handleOpenRefund(appointment) {
+    modals.setRefundAppointment(appointment);
+  }
+
   return {
     handleViewAppointment,
     handleOpenPricing,
     handleOpenCancellation,
     handleOpenComplete,
+    handleOpenRefund,
   };
 }

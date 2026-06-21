@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import RefundQueueTable from "@/components/RefundQueueTable";
 import ProcessRefundModal from "@/components/ProcessRefundModal";
 import AppointmentDetailsModal from "@/components/appointments/AppointmentDetailsModal";
+import useRefundActions from "@/hooks/useRefundActions";
+import PageSpinner from "@/components/PageSpinner";
 
 export default function RefundsPage() {
   const [refunds, setRefunds] = useState([]);
@@ -13,8 +15,10 @@ export default function RefundsPage() {
 
   const [selectedRefund, setSelectedRefund] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [activeTab, setActiveTab] = useState("pending");
+  const [period, setPeriod] = useState("all");
 
-  const [processingLoading, setProcessingLoading] = useState(false);
+  const actions = useRefundActions(refreshRefunds);
 
   /*
   ==========================================
@@ -57,31 +61,81 @@ export default function RefundsPage() {
 
   /*
   ==========================================
+  filtered refunds
+  ==========================================
+  */
+  const filteredRefunds = useMemo(() => {
+    const now = new Date();
+
+    return refunds.filter((refund) => {
+      const refundDate = new Date(refund.created_at);
+
+      switch (period) {
+        case "today":
+          return refundDate.toDateString() === now.toDateString();
+
+        case "week": {
+          const weekAgo = new Date();
+          weekAgo.setDate(now.getDate() - 7);
+
+          return refundDate >= weekAgo;
+        }
+
+        case "month":
+          return (
+            refundDate.getMonth() === now.getMonth() &&
+            refundDate.getFullYear() === now.getFullYear()
+          );
+
+        case "year":
+          return refundDate.getFullYear() === now.getFullYear();
+
+        default:
+          return true;
+      }
+    });
+  }, [refunds, period]);
+
+  /*
+  ==========================================
+  Filtered data set
+  ==========================================
+  */
+  const visibleRefunds = useMemo(() => {
+    return filteredRefunds.filter((refund) => {
+      if (activeTab === "pending") {
+        return refund.refund_status === "pending";
+      }
+
+      if (activeTab === "completed") {
+        return refund.refund_status === "completed";
+      }
+
+      return true;
+    });
+  }, [filteredRefunds, activeTab]);
+
+  /*
+  ==========================================
   Dashboard Statistics
   ==========================================
   */
-
   const pendingCount = useMemo(
-    () => refunds.filter((r) => r.refund_status === "pending").length,
-    [refunds],
-  );
-
-  const processingCount = useMemo(
-    () => refunds.filter((r) => r.refund_status === "processing").length,
-    [refunds],
+    () => filteredRefunds.filter((r) => r.refund_status === "pending").length,
+    [filteredRefunds],
   );
 
   const completedCount = useMemo(
-    () => refunds.filter((r) => r.refund_status === "completed").length,
-    [refunds],
+    () => filteredRefunds.filter((r) => r.refund_status === "completed").length,
+    [filteredRefunds],
   );
 
   const totalRefunded = useMemo(
     () =>
-      refunds
+      filteredRefunds
         .filter((r) => r.refund_status === "completed")
         .reduce((sum, r) => sum + Number(r.amount || 0), 0),
-    [refunds],
+    [filteredRefunds],
   );
 
   /*
@@ -102,48 +156,6 @@ export default function RefundsPage() {
 
   function handleOpenProcess(refund) {
     setSelectedRefund(refund);
-  }
-
-  /*
-  ==========================================
-  Process Refund
-  ==========================================
-  */
-
-  async function handleProcessRefund({ refundId, refundMethod, adminNote }) {
-    try {
-      setProcessingLoading(true);
-
-      const res = await fetch("/api/admin/refunds/process", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          refundId,
-          refundMethod,
-          adminNote,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to process refund");
-      }
-
-      alert("Refund processed successfully.");
-
-      setSelectedRefund(null);
-
-      refreshRefunds();
-    } catch (error) {
-      console.error(error);
-
-      alert(error.message || "Failed to process refund.");
-    } finally {
-      setProcessingLoading(false);
-    }
   }
 
   return (
@@ -191,24 +203,35 @@ export default function RefundsPage() {
         {/* Loading */}
 
         {loading ? (
-          <div className="bg-white rounded-2xl border shadow-sm p-10 text-center">
-            Loading refunds...
-          </div>
+          <PageSpinner />
         ) : (
           <>
             {/* Stats */}
+            <div className="bg-white rounded-2xl border p-4 flex flex-wrap gap-2">
+              {[
+                { value: "today", label: "Today" },
+                { value: "week", label: "This Week" },
+                { value: "month", label: "This Month" },
+                { value: "year", label: "This Year" },
+                { value: "all", label: "All Time" },
+              ].map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => setPeriod(item.value)}
+                  className={`px-4 py-2 rounded-xl border ${
+                    period === item.value ? "bg-black text-white" : "bg-white"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <div className="bg-white rounded-2xl border shadow-sm p-5">
                 <p className="text-sm text-gray-500">Pending Refunds</p>
 
                 <p className="text-3xl font-bold mt-2">{pendingCount}</p>
-              </div>
-
-              <div className="bg-white rounded-2xl border shadow-sm p-5">
-                <p className="text-sm text-gray-500">Processing</p>
-
-                <p className="text-3xl font-bold mt-2">{processingCount}</p>
               </div>
 
               <div className="bg-white rounded-2xl border shadow-sm p-5">
@@ -230,16 +253,45 @@ export default function RefundsPage() {
 
             <section className="bg-white rounded-2xl border shadow-sm overflow-hidden">
               <div className="p-5 border-b">
-                <h2 className="text-xl font-bold">Refund Queue</h2>
+                <h2 className="text-xl font-bold">
+                  {activeTab === "completed"
+                    ? "Completed Refunds"
+                    : "Pending Refund Queue"}
+                </h2>
 
                 <p className="text-sm text-gray-500 mt-1">
-                  Review and process pending customer refunds.
+                  {activeTab === "completed"
+                    ? "View processed refund history."
+                    : "Review and process pending customer refunds."}
                 </p>
+                <div className="bg-white rounded-2xl border shadow-sm p-2 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setActiveTab("pending")}
+                    className={`px-4 py-2 rounded-xl ${
+                      activeTab === "pending"
+                        ? "bg-black text-white"
+                        : "bg-gray-100"
+                    }`}
+                  >
+                    Pending ({pendingCount})
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("completed")}
+                    className={`px-4 py-2 rounded-xl ${
+                      activeTab === "completed"
+                        ? "bg-black text-white"
+                        : "bg-gray-100"
+                    }`}
+                  >
+                    Completed ({completedCount})
+                  </button>
+                </div>
               </div>
 
               <RefundQueueTable
-                refunds={refunds}
-                onProcess={handleOpenProcess}
+                refunds={visibleRefunds}
+                onProcessRefund={handleOpenProcess}
                 onViewAppointment={handleViewAppointment}
               />
             </section>
@@ -251,9 +303,13 @@ export default function RefundsPage() {
         {selectedRefund && (
           <ProcessRefundModal
             refund={selectedRefund}
-            loading={processingLoading}
+            loading={actions.processingRefund}
             onClose={() => setSelectedRefund(null)}
-            onSubmit={handleProcessRefund}
+            onSubmit={(payload) =>
+              actions.handleProcessRefund(payload, () => {
+                setSelectedRefund(null);
+              })
+            }
           />
         )}
 

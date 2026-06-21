@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import RefundSection from "../RefundSection";
-import TipSection from "../TipSection";
 import AdditionalPaymentSection from "../AdditionalPaymentSection";
 import AdminNoteField from "../AdminNoteField";
 import AppointmentDetailsContent from "./AppointmentDetailsContent";
@@ -18,41 +17,16 @@ export default function CompleteAppointmentModal({
   const [amountReceivedToday, setAmountReceivedToday] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [adminNote, setAdminNote] = useState("");
-  const [tipAmount, setTipAmount] = useState("");
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
   const [errors, setErrors] = useState({});
 
-  const PAYMENT_METHODS = [
-    {
-      value: "bank_transfer",
-      label: "Bank Transfer",
-    },
-    {
-      value: "cash",
-      label: "Cash",
-    },
-    {
-      value: "pos",
-      label: "POS",
-    },
-    {
-      value: "other",
-      label: "Other",
-    },
-  ];
-  /*
-  ==========================================
-  Reset form whenever modal opens
-  ==========================================
-  */
   useEffect(() => {
     if (isOpen && appointment) {
       setCompletionType("normal");
       setAmountReceivedToday("");
       setPaymentMethod("");
       setAdminNote("");
-      setTipAmount("");
       setRefundAmount("");
       setRefundReason("");
       setErrors({});
@@ -101,6 +75,10 @@ export default function CompleteAppointmentModal({
       ? Number(amountReceivedToday || 0)
       : 0;
 
+  const outstandingCollected = Math.min(receivedToday, currentBalanceDue);
+
+  const calculatedTip = Math.max(receivedToday - currentBalanceDue, 0);
+
   /*
   ==========================================
   Validation
@@ -112,11 +90,6 @@ export default function CompleteAppointmentModal({
 
     if (receivedToday < 0) {
       newErrors.amountReceivedToday = "Amount received cannot be negative.";
-    }
-
-    if (receivedToday > currentBalanceDue) {
-      newErrors.amountReceivedToday =
-        "Amount received cannot exceed outstanding balance.";
     }
 
     if (completionType === "additional_payment" && receivedToday <= 0) {
@@ -135,17 +108,9 @@ export default function CompleteAppointmentModal({
       newErrors.paymentMethod = "Please select a payment method.";
     }
 
-    if (completionType === "tip_received" && Number(tipAmount) <= 0) {
-      newErrors.tipAmount = "Enter tip amount.";
-    }
-
-    if (completionType === "tip_received" && !paymentMethod) {
-      newErrors.paymentMethod = "Select payment method.";
-    }
-
     if (
       completionType === "refund_pending" &&
-      Number(refundAmount) > currentAmountPaid + Number(tipAmount || 0)
+      Number(refundAmount) > currentAmountPaid
     ) {
       newErrors.refundAmount = "Refund cannot exceed amounts collected.";
     }
@@ -178,15 +143,18 @@ export default function CompleteAppointmentModal({
 
         completionType,
 
-        amountReceivedToday: receivedToday,
+        /*
+    Total cash received from customer.
+    Backend will split this into:
+    outstanding payment + tip.
+    */
+        totalAmountReceived:
+          completionType === "additional_payment"
+            ? Number(amountReceivedToday || 0)
+            : 0,
 
         paymentMethod:
-          completionType === "additional_payment" ||
-          completionType === "tip_received"
-            ? paymentMethod
-            : null,
-
-        tipAmount: completionType === "tip_received" ? Number(tipAmount) : 0,
+          completionType === "additional_payment" ? paymentMethod : null,
 
         refundAmount:
           completionType === "refund_pending" ? Number(refundAmount) : 0,
@@ -287,30 +255,16 @@ export default function CompleteAppointmentModal({
                 />
 
                 <div>
-                  <p className="font-medium">Additional payment received</p>
+                  <p className="font-medium">Payment received</p>
 
                   <p className="text-sm text-gray-500">
-                    Customer paid some or all of the outstanding balance.
+                    Enter the total amount received from the customer. Any
+                    excess above the outstanding balance will automatically be
+                    recorded as a tip.
                   </p>
                 </div>
               </label>
-              {/* Tip */}
-              <label className="flex gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  value="tip_received"
-                  checked={completionType === "tip_received"}
-                  onChange={(e) => setCompletionType(e.target.value)}
-                />
 
-                <div>
-                  <p className="font-medium">Tip received</p>
-
-                  <p className="text-sm text-gray-500">
-                    Customer voluntarily paid extra.
-                  </p>
-                </div>
-              </label>
               {/* Refund */}
               <label className="flex gap-3 cursor-pointer">
                 <input
@@ -337,17 +291,8 @@ export default function CompleteAppointmentModal({
               setAmountReceivedToday={setAmountReceivedToday}
               paymentMethod={paymentMethod}
               setPaymentMethod={setPaymentMethod}
-              errors={errors}
-              loading={loading}
-            />
-          )}
-
-          {completionType === "tip_received" && (
-            <TipSection
-              tipAmount={tipAmount}
-              setTipAmount={setTipAmount}
-              paymentMethod={paymentMethod}
-              setPaymentMethod={setPaymentMethod}
+              outstandingCollected={outstandingCollected}
+              calculatedTip={calculatedTip}
               errors={errors}
               loading={loading}
             />

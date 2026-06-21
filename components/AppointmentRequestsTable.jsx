@@ -14,6 +14,11 @@ export default function AppointmentRequestsTable({
     );
   }
 
+  const sortedAppointments = [...appointments].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
   return (
     <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
       {/* Desktop / Tablet Table */}
@@ -46,7 +51,7 @@ export default function AppointmentRequestsTable({
           </thead>
 
           <tbody>
-            {appointments.map((appointment) => (
+            {sortedAppointments.map((appointment) => (
               <tr key={appointment.id} className="border-t hover:bg-neutral-50">
                 {/* Booking ID */}
                 <td className="px-4 py-4 whitespace-nowrap">
@@ -171,7 +176,7 @@ export default function AppointmentRequestsTable({
 
       {/* Mobile Cards */}
       <div className="md:hidden divide-y">
-        {appointments.map((appointment) => (
+        {sortedAppointments.map((appointment) => (
           <div key={appointment.id} className="p-4 space-y-4">
             {/* Header */}
             <div className="flex items-start justify-between gap-3">

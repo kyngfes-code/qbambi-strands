@@ -4,29 +4,15 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(request) {
   try {
-    /*
-    ─────────────────────────────────────────────
-    Authenticate Admin
-    ─────────────────────────────────────────────
-    */
     const session = await auth();
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const { refundId, refundMethod, adminNote } = await request.json();
 
-    /*
-    ─────────────────────────────────────────────
-    Parse Request
-    ─────────────────────────────────────────────
-    */
-    const { adjustmentId, refundMethod, adminNote } = await request.json();
-
-    if (!adjustmentId) {
+    if (!refundId) {
       return NextResponse.json(
         { error: "Refund ID is required." },
         { status: 400 },
@@ -40,134 +26,207 @@ export async function POST(request) {
       );
     }
 
-    const allowedMethods = ["bank_transfer", "cash", "pos", "other"];
-
-    if (!allowedMethods.includes(refundMethod)) {
-      return NextResponse.json(
-        { error: "Invalid refund method." },
-        { status: 400 },
-      );
-    }
-
     const supabase = createSupabaseAdmin();
 
     /*
-    ─────────────────────────────────────────────
-    Fetch Refund
-    ─────────────────────────────────────────────
+    ==========================================
+    Load Refund Request
+    ==========================================
     */
-    const { data: refund, error: fetchError } = await supabase
-      .from("appointment_payment_adjustments")
-      .select(
-        `
-        *,
-        appointment:appointments!appointment_payment_adjustments_appointment_id_fkey (
-          id,
-          service_name,
-          appointment_date,
-          appointment_time,
 
-          user:users!appointments_user_id_fkey (
-            id,
-            name,
-            email
-          )
-        )
-      `,
-      )
-      .eq("id", adjustmentId)
+    const { data: refundRequest, error: refundError } = await supabase
+      .from("appointment_payment_adjustments")
+      .select("*")
+      .eq("id", refundId)
+      .eq("adjustment_type", "refund_pending")
       .single();
 
-    if (fetchError || !refund) {
-      return NextResponse.json({ error: "Refund not found." }, { status: 404 });
-    }
-
-    /*
-    ─────────────────────────────────────────────
-    Validate Refund
-    ─────────────────────────────────────────────
-    */
-    if (refund.adjustment_type !== "refund") {
+    if (refundError || !refundRequest) {
       return NextResponse.json(
-        { error: "Adjustment is not a refund." },
-        { status: 400 },
+        { error: "Refund request not found." },
+        { status: 404 },
       );
     }
 
-    if (refund.refund_status !== "pending") {
+    if (refundRequest.refund_status !== "pending") {
       return NextResponse.json(
         {
-          error: `Refund is already ${refund.refund_status}.`,
+          error: "This refund request has already been processed.",
         },
         { status: 409 },
       );
     }
 
     /*
-    ─────────────────────────────────────────────
-    Process Refund
-    ─────────────────────────────────────────────
+    ==========================================
+    Load Appointment
+    ==========================================
     */
-    const { data: processedRefund, error: updateError } = await supabase
-      .from("appointment_payment_adjustments")
-      .update({
-        refund_status: "completed",
-        refund_method: refundMethod,
-        refunded_at: new Date().toISOString(),
-        refund_processed_by: session.user.id,
 
-        /*
-          Optional:
-          Append admin processing note.
-          */
-        note: adminNote?.trim()
-          ? refund.note
-            ? `${refund.note}\n\nProcessed: ${adminNote.trim()}`
-            : adminNote.trim()
-          : refund.note,
-      })
-      .eq("id", adjustmentId)
+    const { data: appointment, error: appointmentError } = await supabase
+      .from("appointments")
       .select(
         `
-          *,
-          appointment:appointments!appointment_payment_adjustments_appointment_id_fkey (
-            id,
-            service_name,
-            appointment_date,
-            appointment_time,
-
-            user:users!appointments_user_id_fkey (
-              id,
-              name,
-              email
-            )
-          ),
-
-          processor:users!appointment_payment_adjustments_refund_processed_by_fkey (
-            id,
-            name
-          )
+          id,
+          service_amount,
+          amount_paid,
+          balance_due,
+          payment_completion_status
         `,
       )
+      .eq("id", refundRequest.appointment_id)
       .single();
 
-    if (updateError) {
-      console.error("Refund processing error:", updateError);
+    if (appointmentError || !appointment) {
+      return NextResponse.json(
+        { error: "Appointment not found." },
+        { status: 404 },
+      );
+    }
 
-      return NextResponse.json({ error: updateError.message }, { status: 400 });
+    const refundAmount = Number(refundRequest.amount);
+
+    if (refundAmount > Number(appointment.amount_paid || 0)) {
+      return NextResponse.json(
+        {
+          error: "Refund exceeds the amount currently paid.",
+        },
+        { status: 400 },
+      );
     }
 
     /*
-    ─────────────────────────────────────────────
-    Success
-    ─────────────────────────────────────────────
+    ==========================================
+    Calculate New Totals
+    ==========================================
     */
+
+    const newAmountPaid = Number(appointment.amount_paid || 0) - refundAmount;
+
+    const newBalanceDue = Math.max(
+      Number(appointment.service_amount || 0) - newAmountPaid,
+      0,
+    );
+
+    let paymentCompletionStatus = "partially_paid";
+
+    if (newAmountPaid <= 0) {
+      paymentCompletionStatus = "refund_pending";
+    } else if (newAmountPaid >= Number(appointment.service_amount || 0)) {
+      paymentCompletionStatus = "fully_paid";
+    }
+
+    /*
+    ==========================================
+    Create Refund Adjustment
+    ==========================================
+    */
+
+    const { error: insertRefundError } = await supabase
+      .from("appointment_payment_adjustments")
+      .insert({
+        appointment_id: refundRequest.appointment_id,
+
+        adjustment_type: "refund",
+
+        amount: refundAmount,
+
+        reason: refundRequest.reason,
+
+        refund_note: adminNote || refundRequest.refund_note || null,
+
+        refund_method: refundMethod,
+
+        refund_status: "completed",
+
+        refunded_at: new Date().toISOString(),
+
+        refund_processed_by: session.user.id,
+
+        impact_direction: "decrease",
+
+        affects_balance: false,
+
+        recorded_by: session.user.id,
+
+        created_by: session.user.id,
+      });
+
+    if (insertRefundError) {
+      console.error(insertRefundError);
+
+      return NextResponse.json(
+        { error: "Failed to create refund record." },
+        { status: 500 },
+      );
+    }
+
+    /*
+    ==========================================
+    Mark Request Completed
+    ==========================================
+    */
+
+    const { error: requestUpdateError } = await supabase
+      .from("appointment_payment_adjustments")
+      .update({
+        refund_status: "completed",
+
+        refund_method: refundMethod,
+
+        refund_note: adminNote || refundRequest.refund_note || null,
+
+        refunded_at: new Date().toISOString(),
+
+        refund_processed_by: session.user.id,
+
+        approved_by: session.user.id,
+
+        approved_at: new Date().toISOString(),
+      })
+      .eq("id", refundId);
+
+    if (requestUpdateError) {
+      console.error(requestUpdateError);
+
+      return NextResponse.json(
+        { error: "Failed to update refund request." },
+        { status: 500 },
+      );
+    }
+
+    /*
+    ==========================================
+    Update Appointment Totals
+    ==========================================
+    */
+
+    const { error: appointmentUpdateError } = await supabase
+      .from("appointments")
+      .update({
+        amount_paid: newAmountPaid,
+        balance_due: newBalanceDue,
+        payment_completion_status: paymentCompletionStatus,
+      })
+      .eq("id", appointment.id);
+
+    if (appointmentUpdateError) {
+      console.error(appointmentUpdateError);
+
+      return NextResponse.json(
+        { error: "Failed to update appointment." },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json({
-      message: "Refund processed successfully.",
-      refund: processedRefund,
+      success: true,
+      refundAmount,
+      amountPaid: newAmountPaid,
+      balanceDue: newBalanceDue,
     });
   } catch (error) {
-    console.error("POST /api/admin/refunds/process:", error);
+    console.error(error);
 
     return NextResponse.json(
       { error: "Internal server error." },

@@ -3,6 +3,7 @@
 export default function CompletedAppointmentsTable({
   appointments = [],
   onView,
+  onRefund,
 }) {
   if (!appointments.length) {
     return (
@@ -11,6 +12,12 @@ export default function CompletedAppointmentsTable({
       </div>
     );
   }
+  const sortedAppointments = [...appointments].sort((a, b) => {
+    const aDate = a.completed_at || a.created_at;
+    const bDate = b.completed_at || b.created_at;
+
+    return new Date(bDate).getTime() - new Date(aDate).getTime();
+  });
 
   return (
     <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
@@ -38,7 +45,6 @@ export default function CompletedAppointmentsTable({
               <th className="px-4 py-3 text-left whitespace-nowrap">
                 Outstanding
               </th>
-              <th className="px-4 py-3 text-left">Admin Note</th>
 
               <th className="px-4 py-3 text-center whitespace-nowrap">
                 Action
@@ -47,14 +53,12 @@ export default function CompletedAppointmentsTable({
           </thead>
 
           <tbody>
-            {appointments.map((appointment) => {
+            {sortedAppointments.map((appointment) => {
               const totalTips =
-                appointment.appointment_payment_adjustments
-                  ?.filter((adjustment) => adjustment.adjustment_type === "tip")
-                  .reduce(
-                    (sum, adjustment) => sum + Number(adjustment.amount || 0),
-                    0,
-                  ) || 0;
+                appointment.appointment_payment_adjustments?.reduce(
+                  (sum, adjustment) => sum + Number(adjustment.tip_amount || 0),
+                  0,
+                ) || 0;
 
               const outstandingBalance = Number(appointment.balance_due || 0);
               const hasOutstandingBalance = outstandingBalance > 0;
@@ -138,7 +142,7 @@ export default function CompletedAppointmentsTable({
                         ₦{totalTips.toLocaleString()}
                       </span>
                     ) : (
-                      <span className="text-neutral-400">₦0</span>
+                      <span className="text-neutral-400"></span>
                     )}
                   </td>
 
@@ -153,20 +157,6 @@ export default function CompletedAppointmentsTable({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-4">
-                    <div className="max-w-[220px]">
-                      {appointment.admin_note ? (
-                        <p
-                          className="text-sm text-neutral-700 truncate"
-                          title={appointment.admin_note}
-                        >
-                          {appointment.admin_note}
-                        </p>
-                      ) : (
-                        <span className="text-neutral-400">—</span>
-                      )}
-                    </div>
-                  </td>
 
                   <td className="px-4 py-4 text-center">
                     <button
@@ -175,6 +165,16 @@ export default function CompletedAppointmentsTable({
                     >
                       View Details
                     </button>
+
+                    {appointment.status === "completed" &&
+                      Number(appointment.amount_paid || 0) > 0 && (
+                        <button
+                          onClick={() => onRefund?.(appointment)}
+                          className="px-4 py-2 rounded-lg bg-orange-600 text-white"
+                        >
+                          Request Refund
+                        </button>
+                      )}
                   </td>
                 </tr>
               );
@@ -185,15 +185,12 @@ export default function CompletedAppointmentsTable({
 
       {/* Mobile Cards */}
       <div className="md:hidden divide-y">
-        {appointments.map((appointment) => {
+        {sortedAppointments.map((appointment) => {
           const totalTips =
-            appointment.appointment_payment_adjustments
-              ?.filter((adjustment) => adjustment.adjustment_type === "tip")
-              .reduce(
-                (sum, adjustment) => sum + Number(adjustment.amount || 0),
-                0,
-              ) || 0;
-
+            appointment.appointment_payment_adjustments?.reduce(
+              (sum, adjustment) => sum + Number(adjustment.tip_amount || 0),
+              0,
+            ) || 0;
           const outstandingBalance = Number(appointment.balance_due || 0);
           const hasOutstandingBalance = outstandingBalance > 0;
 
@@ -221,6 +218,15 @@ export default function CompletedAppointmentsTable({
                 >
                   View
                 </button>
+                {appointment.status === "completed" &&
+                  Number(appointment.amount_paid || 0) > 0 && (
+                    <button
+                      onClick={() => onRefund?.(appointment)}
+                      className="px-4 py-2 rounded-lg bg-orange-600 text-white"
+                    >
+                      Request Refund
+                    </button>
+                  )}
               </div>
 
               <div className="text-sm space-y-1">
@@ -262,12 +268,6 @@ export default function CompletedAppointmentsTable({
                     </span>
                   ) : (
                     <span className="text-green-600">Cleared</span>
-                  )}
-                </p>
-                <p>
-                  <strong>Admin Note:</strong>{" "}
-                  {appointment.admin_note || (
-                    <span className="text-neutral-400">—</span>
                   )}
                 </p>
               </div>

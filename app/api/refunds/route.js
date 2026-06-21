@@ -21,22 +21,12 @@ export async function GET() {
           id,
           service_name,
           appointment_date,
-          appointment_time,
-          amount_paid,
-          service_amount,
-          balance_due,
-          payment_completion_status,
-          status,
-          created_at,
-          user:users!appointments_user_id_fkey(
-            id,
-            name,
-            email
-          )
+          appointment_time
         )
       `,
       )
       .in("adjustment_type", ["refund_pending", "refund"])
+      .eq("appointment.user_id", session.user.id)
       .order("created_at", { ascending: false });
 
     if (error) {

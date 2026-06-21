@@ -12,6 +12,8 @@ export default function AdditionalPaymentSection({
   setAmountReceivedToday,
   paymentMethod,
   setPaymentMethod,
+  outstandingCollected = 0,
+  calculatedTip = 0,
   errors = {},
   loading = false,
 }) {
@@ -42,6 +44,43 @@ export default function AdditionalPaymentSection({
           </p>
         )}
       </div>
+
+      {Number(amountReceivedToday || 0) > 0 && (
+        <div className="rounded-xl border bg-neutral-50 p-4 space-y-3">
+          <h4 className="font-medium text-sm text-neutral-700">
+            Payment Breakdown
+          </h4>
+
+          <div className="flex justify-between text-sm">
+            <span>Outstanding Payment</span>
+
+            <span className="font-semibold text-green-700">
+              ₦{outstandingCollected.toLocaleString()}
+            </span>
+          </div>
+
+          <div className="flex justify-between text-sm">
+            <span>Tip</span>
+
+            <span className="font-semibold text-purple-700">
+              ₦{calculatedTip.toLocaleString()}
+            </span>
+          </div>
+
+          <div className="border-t pt-3 flex justify-between font-semibold">
+            <span>Total Received</span>
+
+            <span>₦{Number(amountReceivedToday || 0).toLocaleString()}</span>
+          </div>
+
+          {calculatedTip > 0 && (
+            <p className="text-xs text-neutral-500">
+              Any amount above the outstanding balance will automatically be
+              recorded as a tip.
+            </p>
+          )}
+        </div>
+      )}
 
       {Number(amountReceivedToday || 0) > 0 && (
         <div>

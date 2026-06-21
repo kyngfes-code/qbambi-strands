@@ -33,8 +33,6 @@ export default function useAdminAppointmentsDashboard() {
 
       const paymentsRes = await fetch("/api/admin/appointment-payments");
 
-      console.log(paymentsRes);
-
       if (!paymentsRes.ok) {
         throw new Error("Failed to load appointment payments");
       }

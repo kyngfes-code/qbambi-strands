@@ -17,6 +17,7 @@ export default function CompletedAppointmentsSection({
       <CompletedAppointmentsTable
         appointments={appointments}
         onView={actions.handleViewAppointment}
+        onRefund={actions.handleOpenRefund}
       />
     </DashboardSection>
   );

@@ -11,6 +11,7 @@ export default function ProcessRefundModal({
 }) {
   const [refundMethod, setRefundMethod] = useState("");
   const [adminNote, setAdminNote] = useState("");
+  const [refundReference, setRefundReference] = useState("");
   const [errors, setErrors] = useState({});
 
   /*
@@ -22,6 +23,7 @@ export default function ProcessRefundModal({
     if (isOpen && refund) {
       setRefundMethod("");
       setAdminNote("");
+      setRefundReference("");
       setErrors({});
     }
   }, [isOpen, refund]);
@@ -60,8 +62,9 @@ export default function ProcessRefundModal({
     }
 
     onSubmit({
-      adjustmentId: refund.id,
+      refundId: refund.id,
       refundMethod,
+      refundReference: refundReference.trim(),
       adminNote: adminNote.trim(),
     });
   }
@@ -164,11 +167,11 @@ export default function ProcessRefundModal({
               </div>
             </div>
 
-            {refund.note && (
+            {refund.reason && (
               <div className="mt-4 bg-gray-50 rounded-xl p-3">
                 <p className="text-sm text-gray-500 mb-1">Refund Reason</p>
 
-                <p className="text-sm whitespace-pre-wrap">{refund.note}</p>
+                <p className="text-sm whitespace-pre-wrap">{refund.reason}</p>
               </div>
             )}
           </div>
@@ -221,6 +224,26 @@ export default function ProcessRefundModal({
             {errors.refundMethod && (
               <p className="mt-2 text-sm text-red-600">{errors.refundMethod}</p>
             )}
+          </div>
+          <div>
+            <label className="block font-medium mb-2">
+              Refund Reference
+              <span className="text-sm text-gray-500 ml-2">(Optional)</span>
+            </label>
+
+            <input
+              type="text"
+              value={refundReference}
+              onChange={(e) => setRefundReference(e.target.value)}
+              disabled={loading}
+              placeholder="Bank transfer reference, receipt number, etc."
+              className="
+      w-full rounded-xl border
+      px-4 py-3
+      focus:outline-none
+      focus:ring-2 focus:ring-red-500
+    "
+            />
           </div>
 
           {/* Admin Note */}

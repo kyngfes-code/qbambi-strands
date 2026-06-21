@@ -5,6 +5,7 @@ import CompleteAppointmentModal from "@/components/appointments/CompleteAppointm
 import CancellationModal from "@/components/CancellationModal";
 import CompletedAppointmentWithOutstandingModal from "@/components/CompletedAppointmentWithOutstandingModal";
 import PricingModal from "@/components/PricingModal";
+import RefundRequestModal from "@/components/refunds/RefundRequestModal";
 
 export default function AdminAppointmentModals({
   selectedAppointment,
@@ -22,15 +23,17 @@ export default function AdminAppointmentModals({
   outstandingAppointment,
   setOutstandingAppointment,
 
-  actions,
+  refundAppointment,
+  setRefundAppointment,
 
-  loading,
+  actions,
 }) {
   return (
     <>
       <AppointmentDetailsModal
         appointment={selectedAppointment}
         onClose={() => setSelectedAppointment(null)}
+        isAdmin
       />
 
       {pricingAppointment && (
@@ -70,6 +73,18 @@ export default function AdminAppointmentModals({
           onSubmit={actions.handleSettleOutstanding}
         />
       )}
+
+      <RefundRequestModal
+        appointment={refundAppointment}
+        isOpen={!!refundAppointment}
+        loading={actions.refundLoading}
+        onClose={() => setRefundAppointment(null)}
+        onSubmit={(payload) =>
+          actions.handleRequestRefund(payload, () => {
+            setRefundAppointment(null);
+          })
+        }
+      />
     </>
   );
 }

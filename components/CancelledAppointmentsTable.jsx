@@ -3,6 +3,7 @@
 export default function CancelledAppointmentsTable({
   appointments = [],
   onView,
+  onRefund,
 }) {
   if (!appointments.length) {
     return (
@@ -11,13 +12,24 @@ export default function CancelledAppointmentsTable({
       </div>
     );
   }
-  console.log(appointments[0]);
+
+  const canRequestRefund =
+    Number(appointments.amount_paid || 0) > 0 &&
+    appointments.payment_completion_status !== "refund_pending" &&
+    appointments.payment_completion_status !== "fully_refunded";
+
+  const sortedAppointments = [...appointments].sort((a, b) => {
+    const aDate = a.cancelled_at || a.created_at;
+    const bDate = b.cancelled_at || b.created_at;
+
+    return new Date(bDate).getTime() - new Date(aDate).getTime();
+  });
 
   return (
     <>
       {/* ================= MOBILE VIEW ================= */}
       <div className="space-y-4 md:hidden">
-        {appointments.map((appointment) => (
+        {sortedAppointments.map((appointment) => (
           <div
             key={appointment.id}
             className="bg-white border rounded-2xl p-4 shadow-sm"
@@ -83,6 +95,14 @@ export default function CancelledAppointmentsTable({
             >
               View Details
             </button>
+            {canRequestRefund && (
+              <button
+                onClick={() => onRefund?.(appointment)}
+                className="px-4 py-2 rounded-lg bg-orange-600 text-white"
+              >
+                Request Refund
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -111,7 +131,7 @@ export default function CancelledAppointmentsTable({
           </thead>
 
           <tbody>
-            {appointments.map((appointment) => (
+            {sortedAppointments.map((appointment) => (
               <tr key={appointment.id} className="border-t hover:bg-neutral-50">
                 <td className="px-4 py-4">
                   <div>
@@ -166,12 +186,23 @@ export default function CancelledAppointmentsTable({
                 </td>
 
                 <td className="px-4 py-4 text-center">
-                  <button
-                    onClick={() => onView(appointment)}
-                    className="px-4 py-2 rounded-lg bg-black text-white hover:opacity-90"
-                  >
-                    View
-                  </button>
+                  <div className="flex justify-center gap-2">
+                    <button
+                      onClick={() => onView(appointment)}
+                      className="px-4 py-2 rounded-lg bg-black text-white"
+                    >
+                      View
+                    </button>
+
+                    {canRequestRefund && (
+                      <button
+                        onClick={() => onRefund?.(appointment)}
+                        className="px-4 py-2 rounded-lg bg-orange-600 text-white"
+                      >
+                        Request Refund
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

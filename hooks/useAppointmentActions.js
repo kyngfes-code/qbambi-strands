@@ -7,6 +7,7 @@ export default function useAppointmentActions(refreshDashboard) {
   const [completionLoading, setCompletionLoading] = useState(false);
   const [settlingPayment, setSettlingPayment] = useState(false);
   const [cancellationLoading, setCancellationLoading] = useState(false);
+  const [refundLoading, setRefundLoading] = useState(false);
 
   /*
   ==========================================
@@ -43,10 +44,8 @@ export default function useAppointmentActions(refreshDashboard) {
         throw new Error(data.error || "Failed to set pricing");
       }
 
-      alert("Pricing has been saved successfully.");
-
       await refreshDashboard();
-
+      alert("Pricing has been saved successfully.");
       onSuccess?.();
     } catch (error) {
       console.error(error);
@@ -85,9 +84,8 @@ export default function useAppointmentActions(refreshDashboard) {
         throw new Error(data.error || "Failed to confirm payment");
       }
 
-      alert("Payment confirmed successfully.");
-
       await refreshDashboard();
+      alert("Payment confirmed successfully.");
     } catch (error) {
       console.error(error);
 
@@ -126,9 +124,8 @@ export default function useAppointmentActions(refreshDashboard) {
         throw new Error(data.error || "Failed to reject payment");
       }
 
-      alert("Payment rejected.");
-
       await refreshDashboard();
+      alert("Payment rejected.");
     } catch (error) {
       console.error(error);
 
@@ -164,10 +161,8 @@ export default function useAppointmentActions(refreshDashboard) {
         throw new Error(data.error || "Failed to complete appointment");
       }
 
-      alert("Appointment completed.");
-
       await refreshDashboard();
-
+      alert("Appointment completed.");
       onSuccess?.();
     } catch (error) {
       console.error(error);
@@ -204,13 +199,13 @@ export default function useAppointmentActions(refreshDashboard) {
 
       await refreshDashboard();
 
-      onSuccess?.(data);
-
       alert(
         data.fullySettled
           ? "Outstanding balance fully settled."
           : "Payment recorded successfully.",
       );
+
+      onSuccess?.(data);
     } catch (err) {
       console.error(err);
 
@@ -244,10 +239,8 @@ export default function useAppointmentActions(refreshDashboard) {
         throw new Error(data.error || "Failed to cancel appointment");
       }
 
-      alert("Appointment cancelled.");
-
       await refreshDashboard();
-
+      alert("Appointment cancelled.");
       onSuccess?.();
     } catch (error) {
       console.error(error);
@@ -258,11 +251,44 @@ export default function useAppointmentActions(refreshDashboard) {
     }
   }
 
+  async function handleRequestRefund(payload, onSuccess) {
+    try {
+      setRefundLoading(true);
+
+      const res = await fetch("/api/admin/refunds/request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create refund request");
+      }
+
+      alert("Refund request created successfully.");
+
+      await refreshDashboard();
+
+      onSuccess?.(data);
+    } catch (error) {
+      console.error(error);
+
+      alert(error.message || "Failed to create refund request.");
+    } finally {
+      setRefundLoading(false);
+    }
+  }
+
   return {
     pricingLoading,
     completionLoading,
     settlingPayment,
     cancellationLoading,
+    refundLoading,
 
     handleSetPricing,
     handleConfirmPayment,
@@ -270,5 +296,6 @@ export default function useAppointmentActions(refreshDashboard) {
     handleCompleteAppointment,
     handleSettleOutstanding,
     handleCancelAppointment,
+    handleRequestRefund,
   };
 }
