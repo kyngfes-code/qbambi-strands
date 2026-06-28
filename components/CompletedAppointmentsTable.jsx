@@ -35,15 +35,30 @@ export default function CompletedAppointmentsTable({
 
               <th className="px-4 py-3 text-left whitespace-nowrap">Service</th>
 
-              <th className="px-4 py-3 text-left whitespace-nowrap">Date</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Appointment Date & Time
+              </th>
 
               <th className="px-4 py-3 text-left whitespace-nowrap">
                 Completed
+              </th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Service Amount
+              </th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Amount Paid
               </th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Tips</th>
 
               <th className="px-4 py-3 text-left whitespace-nowrap">
                 Outstanding
+              </th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">Refunds</th>
+
+              <th className="px-4 py-3 text-left whitespace-nowrap">
+                Net Proceeds
               </th>
 
               <th className="px-4 py-3 text-center whitespace-nowrap">
@@ -59,6 +74,13 @@ export default function CompletedAppointmentsTable({
                   (sum, adjustment) => sum + Number(adjustment.tip_amount || 0),
                   0,
                 ) || 0;
+              const amountPaid = Number(appointment.amount_paid || 0);
+
+              const refundedAmount = Number(appointment.refunded_amount || 0);
+
+              const netProceeds =
+                Number(appointment.amount_paid || 0) -
+                Number(appointment.refunded_amount || 0);
 
               const outstandingBalance = Number(appointment.balance_due || 0);
               const hasOutstandingBalance = outstandingBalance > 0;
@@ -137,6 +159,19 @@ export default function CompletedAppointmentsTable({
                   </td>
 
                   <td className="px-4 py-4 whitespace-nowrap">
+                    <span className="font-medium">
+                      ₦
+                      {Number(appointment.service_amount || 0).toLocaleString()}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className="font-semibold text-blue-700">
+                      ₦{amountPaid.toLocaleString()}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-4 whitespace-nowrap">
                     {totalTips > 0 ? (
                       <span className="font-semibold text-purple-700">
                         ₦{totalTips.toLocaleString()}
@@ -156,6 +191,17 @@ export default function CompletedAppointmentsTable({
                         Cleared
                       </span>
                     )}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className="font-semibold text-red-600">
+                      ₦{refundedAmount.toLocaleString()}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className="font-semibold text-green-700">
+                      ₦{netProceeds.toLocaleString()}
+                    </span>
                   </td>
 
                   <td className="px-4 py-4 text-center">
@@ -193,6 +239,12 @@ export default function CompletedAppointmentsTable({
             ) || 0;
           const outstandingBalance = Number(appointment.balance_due || 0);
           const hasOutstandingBalance = outstandingBalance > 0;
+
+          const amountPaid = Number(appointment.amount_paid || 0);
+
+          const refundedAmount = Number(appointment.refunded_amount || 0);
+
+          const netProceeds = amountPaid - refundedAmount;
 
           return (
             <div
@@ -251,6 +303,19 @@ export default function CompletedAppointmentsTable({
                     : "-"}
                 </p>
                 <p>
+                  <strong>Service Amount:</strong>{" "}
+                  <span className="font-medium">
+                    ₦{Number(appointment.service_amount || 0).toLocaleString()}
+                  </span>
+                </p>
+
+                <p>
+                  <strong>Amount Paid:</strong>{" "}
+                  <span className="font-semibold text-blue-700">
+                    ₦{amountPaid.toLocaleString()}
+                  </span>
+                </p>
+                <p>
                   <strong>Tips:</strong>{" "}
                   {totalTips > 0 ? (
                     <span className="font-semibold text-purple-700">
@@ -269,6 +334,18 @@ export default function CompletedAppointmentsTable({
                   ) : (
                     <span className="text-green-600">Cleared</span>
                   )}
+                  <p>
+                    <strong>Refunded:</strong>{" "}
+                    <span className="font-semibold text-red-600">
+                      ₦{refundedAmount.toLocaleString()}
+                    </span>
+                  </p>
+                  <p>
+                    <strong>Net Proceeds:</strong>{" "}
+                    <span className="font-semibold text-green-700">
+                      ₦{netProceeds.toLocaleString()}
+                    </span>
+                  </p>
                 </p>
               </div>
             </div>

@@ -1,71 +1,108 @@
+"use client";
+
 export default function PaymentHistoryTable({ history, onViewOrder }) {
   if (!history?.length) {
-    return <p className="text-sm text-neutral-500">No payments yet</p>;
+    return (
+      <div className="rounded-xl border bg-white p-6 text-center text-neutral-500">
+        No payments yet
+      </div>
+    );
   }
 
+  const statusStyles = {
+    confirmed: "bg-green-100 text-green-700",
+    pending: "bg-yellow-100 text-yellow-700",
+    failed: "bg-red-100 text-red-700",
+  };
+
   return (
-    <table className="w-full text-sm border mt-4">
-      <thead className="bg-neutral-100">
-        <tr>
-          <th className="p-2 border">Order</th>
-          <th className="p-2 border">User</th>
-          <th className="p-2 border">Amount</th>
-          <th className="p-2 border">Type</th>
-          <th className="p-2 border">Method</th>
-          <th className="p-2 border">Status</th>
-          <th className="p-2 border">Date</th>
-          <th className="p-2 border">Confirmed By</th>
-          <th className="p-2 border">Confirmed At</th>
-        </tr>
-      </thead>
+    <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
+      <table className="min-w-[1400px] w-full text-sm">
+        <thead className="bg-neutral-100">
+          <tr>
+            <th className="border-b p-3 text-left">Order</th>
 
-      <tbody>
-        {history.map((payment) => (
-          <tr key={payment.id}>
-            <td className="p-2 border">
-              <button
-                onClick={() => onViewOrder(payment.order_id)}
-                className="text-blue-600 hover:underline font-medium"
-              >
-                {payment.order_id?.slice(0, 8)}
-              </button>
-            </td>
+            <th className="border-b p-3 text-left">Customer</th>
 
-            <td className="p-2 border">{payment.user_id?.slice(0, 8)}</td>
+            <th className="border-b p-3 text-left ">Email</th>
 
-            <td className="p-2 border">
-              ₦{Number(payment.amount).toLocaleString()}
-            </td>
+            <th className="border-b p-3 text-left ">Phone</th>
 
-            <td className="p-2 border capitalize">{payment.payment_type}</td>
+            <th className="border-b p-3 text-right">Amount</th>
 
-            <td className="p-2 border capitalize">{payment.payment_method}</td>
+            <th className="border-b p-3 text-left ">Type</th>
 
-            <td className="p-2 border">
-              <span
-                className={`px-2 py-1 rounded text-white ${
-                  payment.status === "completed"
-                    ? "bg-green-600"
-                    : "bg-yellow-600"
-                }`}
-              >
-                {payment.status}
-              </span>
-            </td>
+            <th className="border-b p-3 text-left ">Method</th>
 
-            <td className="p-2 border">
-              {new Date(payment.created_at).toLocaleString()}
-            </td>
-            <td className="p-2 border">{payment.confirmer?.name ?? "-"}</td>
+            <th className="border-b p-3 text-center">Status</th>
 
-            <td className="p-2 border">
-              {payment.confirmed_at
-                ? new Date(payment.confirmed_at).toLocaleString()
-                : "-"}
-            </td>
+            <th className="border-b p-3 text-left ">Payment Date</th>
+
+            <th className="border-b p-3 text-left ">Confirmed By</th>
+
+            <th className="border-b p-3 text-left ">Confirmed At</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+
+        <tbody>
+          {history.map((payment) => (
+            <tr
+              key={payment.id}
+              className="border-b last:border-0 hover:bg-neutral-50"
+            >
+              <td className="p-3">
+                <button
+                  onClick={() => onViewOrder(payment.order_id)}
+                  className="font-medium text-blue-600 hover:underline"
+                >
+                  {payment.order_id?.slice(0, 8)}
+                </button>
+              </td>
+
+              <td className="p-3 font-medium">
+                {payment.customer?.name ?? "-"}
+              </td>
+
+              <td className="p-3 ">{payment.customer?.email ?? "-"}</td>
+
+              <td className="p-3 ">{payment.customer?.phone ?? "-"}</td>
+
+              <td className="p-3 text-right font-medium whitespace-nowrap">
+                ₦{Number(payment.amount ?? 0).toLocaleString()}
+              </td>
+
+              <td className="p-3 capitalize ">{payment.payment_type}</td>
+
+              <td className="p-3 capitalize ">
+                {payment.payment_method?.replace("_", " ")}
+              </td>
+
+              <td className="p-3 text-center">
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
+                    statusStyles[payment.status] ??
+                    "bg-neutral-100 text-neutral-700"
+                  }`}
+                >
+                  {payment.status}
+                </span>
+              </td>
+
+              <td className="p-3 whitespace-nowrap ">
+                {new Date(payment.created_at).toLocaleString()}
+              </td>
+
+              <td className="p-3 ">{payment.confirmer?.name ?? "-"}</td>
+
+              <td className="p-3 whitespace-nowrap ">
+                {payment.confirmed_at
+                  ? new Date(payment.confirmed_at).toLocaleString()
+                  : "-"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

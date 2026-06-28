@@ -1,9 +1,11 @@
 "use client";
 
+import NavBarCart from "@/components/NavBarCart";
 import { useEffect, useMemo, useState } from "react";
 
 export default function MyRefundsPage() {
-  const [refunds, setRefunds] = useState([]);
+  const [pendingRefunds, setPendingRefunds] = useState([]);
+  const [completedRefunds, setCompletedRefunds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -26,7 +28,8 @@ export default function MyRefundsPage() {
         throw new Error(data.error || "Failed to load refunds.");
       }
 
-      setRefunds(data || []);
+      setPendingRefunds(data.pendingRefunds || []);
+      setCompletedRefunds(data.completedRefunds || []);
     } catch (error) {
       console.error(error);
 
@@ -36,24 +39,12 @@ export default function MyRefundsPage() {
     }
   }
 
-  const pendingRefunds = useMemo(
-    () =>
-      refunds.filter((r) =>
-        ["pending", "processing"].includes(r.refund_status),
-      ),
-    [refunds],
-  );
-
-  const completedRefunds = useMemo(
-    () => refunds.filter((r) => r.refund_status === "completed"),
-    [refunds],
-  );
-
   const visibleRefunds =
     activeTab === "completed" ? completedRefunds : pendingRefunds;
 
   return (
     <div className="min-h-screen px-3 py-4 sm:px-5 lg:px-8">
+      <NavBarCart />
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white rounded-2xl border shadow-sm p-5 sm:p-6">

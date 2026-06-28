@@ -146,6 +146,7 @@ export async function GET() {
   payment_method,
   refund_method,
   reason,
+  tip_amount,
   created_at,
   recorder:users!appointment_payment_adjustments_recorded_by_fkey (
     name
@@ -169,18 +170,6 @@ export async function GET() {
         { status: 400 },
       );
     }
-
-    // const appointments = data.map((appointment) => ({
-    //   ...appointment,
-
-    //   appointment_payment_adjustments: (
-    //     appointment.appointment_payment_adjustments || []
-    //   ).filter((adjustment) =>
-    //     ["refund", "overpayment_refund", "write_off"].includes(
-    //       adjustment.adjustment_type,
-    //     ),
-    //   ),
-    // }));
 
     return NextResponse.json(data);
   } catch (error) {

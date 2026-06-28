@@ -9,7 +9,6 @@ import useRefundActions from "@/hooks/useRefundActions";
 import PageSpinner from "@/components/PageSpinner";
 
 export default function RefundsPage() {
-  const [refunds, setRefunds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -17,6 +16,9 @@ export default function RefundsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [activeTab, setActiveTab] = useState("pending");
   const [period, setPeriod] = useState("all");
+
+  const [pendingRefunds, setPendingRefunds] = useState([]);
+  const [completedRefunds, setCompletedRefunds] = useState([]);
 
   const actions = useRefundActions(refreshRefunds);
 
@@ -38,8 +40,8 @@ export default function RefundsPage() {
       if (!res.ok) {
         throw new Error(data.error || "Failed to load refunds");
       }
-
-      setRefunds(data || []);
+      setPendingRefunds(data.pendingRefunds || []);
+      setCompletedRefunds(data.completedRefunds || []);
     } catch (err) {
       console.error(err);
 
@@ -58,6 +60,10 @@ export default function RefundsPage() {
   useEffect(() => {
     refreshRefunds();
   }, []);
+
+  const refunds = useMemo(() => {
+    return activeTab === "completed" ? completedRefunds : pendingRefunds;
+  }, [activeTab, pendingRefunds, completedRefunds]);
 
   /*
   ==========================================
@@ -96,46 +102,80 @@ export default function RefundsPage() {
     });
   }, [refunds, period]);
 
-  /*
-  ==========================================
-  Filtered data set
-  ==========================================
-  */
-  const visibleRefunds = useMemo(() => {
-    return filteredRefunds.filter((refund) => {
-      if (activeTab === "pending") {
-        return refund.refund_status === "pending";
-      }
+  const filteredPendingRefunds = useMemo(() => {
+    const now = new Date();
 
-      if (activeTab === "completed") {
-        return refund.refund_status === "completed";
-      }
+    return pendingRefunds.filter((refund) => {
+      const refundDate = new Date(refund.created_at);
 
-      return true;
+      switch (period) {
+        case "today":
+          return refundDate.toDateString() === now.toDateString();
+
+        case "week": {
+          const weekAgo = new Date();
+          weekAgo.setDate(now.getDate() - 7);
+          return refundDate >= weekAgo;
+        }
+
+        case "month":
+          return (
+            refundDate.getMonth() === now.getMonth() &&
+            refundDate.getFullYear() === now.getFullYear()
+          );
+
+        case "year":
+          return refundDate.getFullYear() === now.getFullYear();
+
+        default:
+          return true;
+      }
     });
-  }, [filteredRefunds, activeTab]);
+  }, [pendingRefunds, period]);
+
+  const filteredCompletedRefunds = useMemo(() => {
+    const now = new Date();
+
+    return completedRefunds.filter((refund) => {
+      const refundDate = new Date(refund.created_at);
+
+      switch (period) {
+        case "today":
+          return refundDate.toDateString() === now.toDateString();
+
+        case "week": {
+          const weekAgo = new Date();
+          weekAgo.setDate(now.getDate() - 7);
+          return refundDate >= weekAgo;
+        }
+
+        case "month":
+          return (
+            refundDate.getMonth() === now.getMonth() &&
+            refundDate.getFullYear() === now.getFullYear()
+          );
+
+        case "year":
+          return refundDate.getFullYear() === now.getFullYear();
+
+        default:
+          return true;
+      }
+    });
+  }, [completedRefunds, period]);
 
   /*
   ==========================================
   Dashboard Statistics
   ==========================================
   */
-  const pendingCount = useMemo(
-    () => filteredRefunds.filter((r) => r.refund_status === "pending").length,
-    [filteredRefunds],
-  );
+  const pendingCount = filteredPendingRefunds.length;
 
-  const completedCount = useMemo(
-    () => filteredRefunds.filter((r) => r.refund_status === "completed").length,
-    [filteredRefunds],
-  );
+  const completedCount = filteredCompletedRefunds.length;
 
-  const totalRefunded = useMemo(
-    () =>
-      filteredRefunds
-        .filter((r) => r.refund_status === "completed")
-        .reduce((sum, r) => sum + Number(r.amount || 0), 0),
-    [filteredRefunds],
+  const totalRefunded = filteredCompletedRefunds.reduce(
+    (sum, r) => sum + Number(r.amount || 0),
+    0,
   );
 
   /*
@@ -144,8 +184,9 @@ export default function RefundsPage() {
   ==========================================
   */
 
-  function handleViewAppointment(refund) {
-    setSelectedAppointment(refund.appointment);
+  function handleViewAppointment(appointment) {
+    console.log("APPOINTMENT SENT TO MODAL", appointment);
+    setSelectedAppointment(appointment);
   }
 
   /*
@@ -290,7 +331,7 @@ export default function RefundsPage() {
               </div>
 
               <RefundQueueTable
-                refunds={visibleRefunds}
+                refunds={filteredRefunds}
                 onProcessRefund={handleOpenProcess}
                 onViewAppointment={handleViewAppointment}
               />
@@ -303,6 +344,7 @@ export default function RefundsPage() {
         {selectedRefund && (
           <ProcessRefundModal
             refund={selectedRefund}
+            isOpen={true}
             loading={actions.processingRefund}
             onClose={() => setSelectedRefund(null)}
             onSubmit={(payload) =>
@@ -318,6 +360,7 @@ export default function RefundsPage() {
         <AppointmentDetailsModal
           appointment={selectedAppointment}
           onClose={() => setSelectedAppointment(null)}
+          isAdmin
         />
       </div>
     </div>

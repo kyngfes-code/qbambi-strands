@@ -17,8 +17,9 @@ export async function GET() {
       .select(
         `
         *,
-        appointment:appointments (
+        appointment:appointments!inner(
           id,
+          user_id,
           service_name,
           appointment_date,
           appointment_time
@@ -38,7 +39,22 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(data || []);
+    const pendingRefunds = (data || []).filter(
+      (refund) =>
+        refund.adjustment_type === "refund_pending" &&
+        refund.refund_status === "pending",
+    );
+
+    const completedRefunds = (data || []).filter(
+      (refund) =>
+        refund.adjustment_type === "refund" &&
+        refund.refund_status === "completed",
+    );
+
+    return NextResponse.json({
+      pendingRefunds,
+      completedRefunds,
+    });
   } catch (error) {
     console.error(error);
 

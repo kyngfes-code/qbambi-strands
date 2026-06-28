@@ -1,5 +1,5 @@
-export default function PaymentPlansTable({ plans }) {
-  if (!plans.length) {
+export default function PaymentPlansTable({ plans = [] }) {
+  if (!plans?.length) {
     return <p className="text-sm text-neutral-500">No payment plans</p>;
   }
 

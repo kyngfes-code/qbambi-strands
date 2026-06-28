@@ -15,13 +15,31 @@ export async function GET() {
     .from("payment_history")
     .select(
       `
-    *,
-    confirmer:confirmed_by (
+  id,
+  order_id,
+  amount,
+  payment_type,
+  payment_method,
+  status,
+  created_at,
+  confirmed_at,
+
+  confirmer:users!payment_history_confirmed_by_fkey (
+    id,
+    name
+  ),
+
+  order:orders(
+    id,
+    user_id,
+    customer:users!orders_user_id_fkey(
       id,
       name,
-      email
+      email,
+      phone
     )
-  `,
+  )
+`,
     )
     .order("created_at", { ascending: false })
     .limit(100);
@@ -35,5 +53,13 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json(data);
+  const history = data.map((payment) => ({
+    ...payment,
+
+    customer: payment.order?.customer ?? null,
+
+    order: undefined,
+  }));
+
+  return NextResponse.json(history);
 }

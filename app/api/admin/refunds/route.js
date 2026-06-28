@@ -17,6 +17,16 @@ export async function GET() {
       .select(
         `
         *,
+        recorder:users!appointment_payment_adjustments_recorded_by_fkey(
+      id,
+      name,
+      email
+    ),
+    approver:users!appointment_payment_adjustments_approved_by_fkey(
+  id,
+  name,
+  email
+),
         appointment:appointments (
           id,
           service_name,
@@ -25,6 +35,7 @@ export async function GET() {
           amount_paid,
           service_amount,
           balance_due,
+          refunded_amount,
           payment_completion_status,
           status,
           created_at,
@@ -32,7 +43,27 @@ export async function GET() {
             id,
             name,
             email
-          )
+          ),
+           appointment_payments (
+    id,
+    amount,
+    payment_method,
+    status,
+    created_at
+  ),
+
+  appointment_payment_adjustments (
+    id,
+    adjustment_type,
+    amount,
+    reason,
+    payment_method,
+    refund_method,
+    refund_status,
+    tip_amount,
+    created_at,
+    refunded_at
+  )
         )
       `,
       )
@@ -48,7 +79,19 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(data || []);
+    const pendingRefunds = (data || []).filter(
+      (r) =>
+        r.adjustment_type === "refund_pending" && r.refund_status === "pending",
+    );
+
+    const completedRefunds = (data || []).filter(
+      (r) => r.adjustment_type === "refund" && r.refund_status === "completed",
+    );
+
+    return NextResponse.json({
+      pendingRefunds,
+      completedRefunds,
+    });
   } catch (error) {
     console.error(error);
 

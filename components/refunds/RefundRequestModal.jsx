@@ -25,7 +25,13 @@ export default function RefundRequestModal({
 
   if (!isOpen || !appointment) return null;
 
-  const maxRefundable = Number(appointment.amount_paid || 0);
+  const refundable =
+    Number(appointment.amount_paid || 0) -
+    Number(appointment.refunded_amount || 0);
+
+  if (refundable <= 0) {
+    return null;
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -39,10 +45,8 @@ export default function RefundRequestModal({
       return;
     }
 
-    if (amount > maxRefundable) {
-      setError(
-        `Refund amount cannot exceed ₦${maxRefundable.toLocaleString()}.`,
-      );
+    if (amount > refundable) {
+      setError(`Refund amount cannot exceed ₦${refundable.toLocaleString()}.`);
       return;
     }
 
@@ -119,6 +123,21 @@ export default function RefundRequestModal({
                   ₦{Number(appointment.amount_paid || 0).toLocaleString()}
                 </p>
               </div>
+              <div>
+                <p className="text-gray-500">Already Refunded</p>
+
+                <p className="font-medium text-orange-700">
+                  ₦{Number(appointment.refunded_amount || 0).toLocaleString()}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-gray-500">Refundable Balance</p>
+
+                <p className="font-medium text-blue-700">
+                  ₦{refundable.toLocaleString()}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -138,14 +157,16 @@ export default function RefundRequestModal({
             />
 
             <p className="text-sm text-gray-500 mt-2">
-              Maximum refundable amount: ₦{maxRefundable.toLocaleString()}
+              Maximum refundable amount: ₦{refundable.toLocaleString()}
             </p>
           </div>
 
           {/* Refund Reason */}
 
           <div>
-            <label className="block font-medium mb-2">Refund Reason</label>
+            <label className="block font-medium mb-2">
+              Refund Reason - What client sees
+            </label>
 
             <textarea
               rows={4}
@@ -206,7 +227,7 @@ export default function RefundRequestModal({
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || refundable <= 0}
               className="px-5 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700"
             >
               {loading ? "Creating Request..." : "Create Refund Request"}

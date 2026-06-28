@@ -116,12 +116,36 @@ export default function RefundQueueTable({
               )}
 
               {/* Requested By */}
-              <div className="text-sm">
-                <p className="text-gray-500">Recorded By</p>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="text-gray-500">Requested By</p>
 
-                <p className="font-medium">
-                  {refund.recorder?.name || "Unknown"}
-                </p>
+                  <p className="font-medium">
+                    {refund.recorder?.name || "Unknown"}
+                  </p>
+                </div>
+
+                {refund.refund_status === "completed" && (
+                  <>
+                    <div>
+                      <p className="text-gray-500">Approved By</p>
+
+                      <p className="font-medium">
+                        {refund.approver?.name || "Unknown"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-gray-500">Approved At</p>
+
+                      <p className="font-medium">
+                        {refund.approved_at
+                          ? new Date(refund.approved_at).toLocaleString()
+                          : "-"}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Actions */}
@@ -177,6 +201,10 @@ export default function RefundQueueTable({
               <th className="px-6 py-4 font-semibold">Requested By</th>
 
               <th className="px-6 py-4 font-semibold">Requested At</th>
+
+              <th className="px-6 py-4 font-semibold">Approved By</th>
+
+              <th className="px-6 py-4 font-semibold">Approved At</th>
 
               <th className="px-6 py-4 font-semibold">Reason</th>
 
@@ -262,6 +290,22 @@ export default function RefundQueueTable({
                       : "-"}
                   </td>
 
+                  {/* Approved By */}
+                  <td className="px-6 py-5">
+                    {refund.refund_status === "completed"
+                      ? refund.approver?.name || "Unknown"
+                      : "-"}
+                  </td>
+
+                  {/* Approved At */}
+                  <td className="px-6 py-5 text-sm">
+                    {refund.refund_status === "completed"
+                      ? refund.approved_at
+                        ? new Date(refund.approved_at).toLocaleString()
+                        : "-"
+                      : "-"}
+                  </td>
+
                   {/* Reason */}
                   <td className="px-6 py-5 max-w-xs">
                     <p
@@ -270,8 +314,22 @@ export default function RefundQueueTable({
                         line-clamp-2
                       "
                     >
-                      {refund.note || "-"}
+                      {refund.refund_note || "-"}
                     </p>
+                  </td>
+
+                  <td className="px-6 py-5">
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                        refund.refund_status === "completed"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {refund.refund_status === "completed"
+                        ? "Completed"
+                        : "Pending"}
+                    </span>
                   </td>
 
                   {/* Actions */}
@@ -304,19 +362,6 @@ export default function RefundQueueTable({
                         </button>
                       )}
                     </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                        refund.refund_status === "completed"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {refund.refund_status === "completed"
-                        ? "Completed"
-                        : "Pending"}
-                    </span>
                   </td>
                 </tr>
               ))

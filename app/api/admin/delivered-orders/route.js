@@ -18,15 +18,29 @@ export async function GET() {
       id,
       user_id,
       total_amount,
+      payment_method,
       delivered_at,
-      payment_method
+       customer:users!orders_user_id_fkey (
+      id,
+      name,
+      email,
+      phone
+    )
     `,
     )
     .eq("status", "delivered")
     .order("delivered_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Delivered Orders API Error:", error);
+
+    return NextResponse.json(
+      {
+        error: error.message,
+        details: error,
+      },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json(data);

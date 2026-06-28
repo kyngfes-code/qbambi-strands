@@ -141,8 +141,6 @@ export async function POST(request) {
         affects_balance: false,
 
         recorded_by: session.user.id,
-
-        created_by: session.user.id,
       });
 
     if (insertError) {

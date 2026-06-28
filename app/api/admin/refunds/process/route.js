@@ -70,6 +70,7 @@ export async function POST(request) {
           id,
           service_amount,
           amount_paid,
+          refunded_amount,
           balance_due,
           payment_completion_status
         `,
@@ -101,20 +102,9 @@ export async function POST(request) {
     ==========================================
     */
 
-    const newAmountPaid = Number(appointment.amount_paid || 0) - refundAmount;
+    const currentRefunded = Number(appointment.refunded_amount || 0);
 
-    const newBalanceDue = Math.max(
-      Number(appointment.service_amount || 0) - newAmountPaid,
-      0,
-    );
-
-    let paymentCompletionStatus = "partially_paid";
-
-    if (newAmountPaid <= 0) {
-      paymentCompletionStatus = "refund_pending";
-    } else if (newAmountPaid >= Number(appointment.service_amount || 0)) {
-      paymentCompletionStatus = "fully_paid";
-    }
+    const newRefundedAmount = currentRefunded + refundAmount;
 
     /*
     ==========================================
@@ -149,7 +139,10 @@ export async function POST(request) {
 
         recorded_by: session.user.id,
 
-        created_by: session.user.id,
+        approved_by: session.user.id,
+        approved_at: new Date().toISOString(),
+
+        // created_by: session.user.id,
       });
 
     if (insertRefundError) {
@@ -204,9 +197,7 @@ export async function POST(request) {
     const { error: appointmentUpdateError } = await supabase
       .from("appointments")
       .update({
-        amount_paid: newAmountPaid,
-        balance_due: newBalanceDue,
-        payment_completion_status: paymentCompletionStatus,
+        refunded_amount: newRefundedAmount,
       })
       .eq("id", appointment.id);
 
@@ -222,8 +213,9 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       refundAmount,
-      amountPaid: newAmountPaid,
-      balanceDue: newBalanceDue,
+      amountPaid: appointment.amount_paid,
+      refundedAmount: newRefundedAmount,
+      netProceeds: Number(appointment.amount_paid || 0) - newRefundedAmount,
     });
   } catch (error) {
     console.error(error);
