@@ -7,6 +7,10 @@ import ProcessRefundModal from "@/components/ProcessRefundModal";
 import AppointmentDetailsModal from "@/components/appointments/AppointmentDetailsModal";
 import useRefundActions from "@/hooks/useRefundActions";
 import PageSpinner from "@/components/PageSpinner";
+import OrderDetailsModal from "@/components/admin/order/OrderDetailsModal";
+import OrderRefundQueueTable from "@/components/admin/order/OrderRefundQueueTable";
+import useOrderActions from "@/hooks/useOrderActions";
+import useOrderRefundActions from "@/hooks/useOrderRefundActions";
 
 export default function RefundsPage() {
   const [loading, setLoading] = useState(true);
@@ -14,13 +18,19 @@ export default function RefundsPage() {
 
   const [selectedRefund, setSelectedRefund] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [activeTab, setActiveTab] = useState("pending");
   const [period, setPeriod] = useState("all");
 
-  const [pendingRefunds, setPendingRefunds] = useState([]);
-  const [completedRefunds, setCompletedRefunds] = useState([]);
+  const [statusTab, setStatusTab] = useState("pending");
+  const [refundSource, setRefundSource] = useState("appointments");
 
-  const actions = useRefundActions(refreshRefunds);
+  const [appointmentPendingRefunds, setAppointmentPendingRefunds] = useState(
+    [],
+  );
+  const [appointmentCompletedRefunds, setAppointmentCompletedRefunds] =
+    useState([]);
+
+  const [orderPendingRefunds, setOrderPendingRefunds] = useState([]);
+  const [orderCompletedRefunds, setOrderCompletedRefunds] = useState([]);
 
   /*
   ==========================================
@@ -33,21 +43,43 @@ export default function RefundsPage() {
       setLoading(true);
       setError("");
 
-      const res = await fetch("/api/admin/refunds");
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to load refunds");
-      }
-      setPendingRefunds(data.pendingRefunds || []);
-      setCompletedRefunds(data.completedRefunds || []);
+      await Promise.all([refreshAppointmentRefunds(), refreshOrderRefunds()]);
     } catch (err) {
       console.error(err);
-
       setError(err.message || "Failed to load refunds");
     } finally {
       setLoading(false);
+    }
+  }
+
+  const appointmentRefundActions = useRefundActions(refreshRefunds);
+  const orderActions = useOrderActions(refreshRefunds);
+  const orderRefundActions = useOrderRefundActions(refreshRefunds);
+
+  async function refreshAppointmentRefunds() {
+    const res = await fetch("/api/admin/refunds/appointments");
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to load appointment refunds");
+    }
+
+    setAppointmentPendingRefunds(data.pendingRefunds || []);
+    setAppointmentCompletedRefunds(data.completedRefunds || []);
+  }
+
+  async function refreshOrderRefunds() {
+    try {
+      const res = await fetch("/api/admin/refunds/orders");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load order refunds");
+      }
+
+      setOrderPendingRefunds(data.pendingRefunds || []);
+      setOrderCompletedRefunds(data.completedRefunds || []);
+    } finally {
     }
   }
 
@@ -61,16 +93,25 @@ export default function RefundsPage() {
     refreshRefunds();
   }, []);
 
-  const refunds = useMemo(() => {
-    return activeTab === "completed" ? completedRefunds : pendingRefunds;
-  }, [activeTab, pendingRefunds, completedRefunds]);
+  const currentPendingRefunds =
+    refundSource === "appointments"
+      ? appointmentPendingRefunds
+      : orderPendingRefunds;
+
+  const currentCompletedRefunds =
+    refundSource === "appointments"
+      ? appointmentCompletedRefunds
+      : orderCompletedRefunds;
+
+  const refunds =
+    statusTab === "pending" ? currentPendingRefunds : currentCompletedRefunds;
 
   /*
   ==========================================
   filtered refunds
   ==========================================
   */
-  const filteredRefunds = useMemo(() => {
+  function filterRefunds(refunds, period) {
     const now = new Date();
 
     return refunds.filter((refund) => {
@@ -83,7 +124,6 @@ export default function RefundsPage() {
         case "week": {
           const weekAgo = new Date();
           weekAgo.setDate(now.getDate() - 7);
-
           return refundDate >= weekAgo;
         }
 
@@ -100,83 +140,39 @@ export default function RefundsPage() {
           return true;
       }
     });
-  }, [refunds, period]);
+  }
 
-  const filteredPendingRefunds = useMemo(() => {
-    const now = new Date();
-
-    return pendingRefunds.filter((refund) => {
-      const refundDate = new Date(refund.created_at);
-
-      switch (period) {
-        case "today":
-          return refundDate.toDateString() === now.toDateString();
-
-        case "week": {
-          const weekAgo = new Date();
-          weekAgo.setDate(now.getDate() - 7);
-          return refundDate >= weekAgo;
-        }
-
-        case "month":
-          return (
-            refundDate.getMonth() === now.getMonth() &&
-            refundDate.getFullYear() === now.getFullYear()
-          );
-
-        case "year":
-          return refundDate.getFullYear() === now.getFullYear();
-
-        default:
-          return true;
-      }
-    });
-  }, [pendingRefunds, period]);
-
-  const filteredCompletedRefunds = useMemo(() => {
-    const now = new Date();
-
-    return completedRefunds.filter((refund) => {
-      const refundDate = new Date(refund.created_at);
-
-      switch (period) {
-        case "today":
-          return refundDate.toDateString() === now.toDateString();
-
-        case "week": {
-          const weekAgo = new Date();
-          weekAgo.setDate(now.getDate() - 7);
-          return refundDate >= weekAgo;
-        }
-
-        case "month":
-          return (
-            refundDate.getMonth() === now.getMonth() &&
-            refundDate.getFullYear() === now.getFullYear()
-          );
-
-        case "year":
-          return refundDate.getFullYear() === now.getFullYear();
-
-        default:
-          return true;
-      }
-    });
-  }, [completedRefunds, period]);
+  const filteredRefunds = useMemo(
+    () => filterRefunds(refunds, period),
+    [refunds, period],
+  );
 
   /*
   ==========================================
   Dashboard Statistics
   ==========================================
   */
+  const filteredPendingRefunds = filterRefunds(currentPendingRefunds, period);
+
+  const filteredCompletedRefunds = filterRefunds(
+    currentCompletedRefunds,
+    period,
+  );
+
   const pendingCount = filteredPendingRefunds.length;
 
   const completedCount = filteredCompletedRefunds.length;
 
-  const totalRefunded = filteredCompletedRefunds.reduce(
-    (sum, r) => sum + Number(r.amount || 0),
-    0,
-  );
+  const totalRefunded =
+    refundSource === "appointments"
+      ? filteredCompletedRefunds.reduce(
+          (sum, refund) => sum + Number(refund.amount || 0),
+          0,
+        )
+      : filteredCompletedRefunds.reduce(
+          (sum, refund) => sum + Number(refund.amount || 0),
+          0,
+        );
 
   /*
   ==========================================
@@ -185,7 +181,6 @@ export default function RefundsPage() {
   */
 
   function handleViewAppointment(appointment) {
-    console.log("APPOINTMENT SENT TO MODAL", appointment);
     setSelectedAppointment(appointment);
   }
 
@@ -293,23 +288,50 @@ export default function RefundsPage() {
             {/* Refund Queue */}
 
             <section className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+              <div className="flex flex-wrap gap-3 rounded-2xl border bg-white p-3 shadow-sm">
+                <button
+                  onClick={() => setRefundSource("appointments")}
+                  className={`rounded-xl px-5 py-2.5 text-sm font-medium transition-all ${
+                    refundSource === "appointments"
+                      ? "bg-black text-white shadow-sm"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Appointment Refunds
+                </button>
+
+                <button
+                  onClick={() => setRefundSource("orders")}
+                  className={`rounded-xl px-5 py-2.5 text-sm font-medium transition-all ${
+                    refundSource === "orders"
+                      ? "bg-black text-white shadow-sm"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Order Refunds
+                </button>
+              </div>
               <div className="p-5 border-b">
                 <h2 className="text-xl font-bold">
-                  {activeTab === "completed"
-                    ? "Completed Refunds"
-                    : "Pending Refund Queue"}
+                  {refundSource === "appointments"
+                    ? statusTab === "pending"
+                      ? "Appointment Pending Refund Queue"
+                      : "Completed Appointment Refunds"
+                    : statusTab === "pending"
+                      ? "Order Pending Refund Queue"
+                      : "Completed Order Refunds"}
                 </h2>
 
                 <p className="text-sm text-gray-500 mt-1">
-                  {activeTab === "completed"
+                  {statusTab === "completed"
                     ? "View processed refund history."
                     : "Review and process pending customer refunds."}
                 </p>
                 <div className="bg-white rounded-2xl border shadow-sm p-2 flex flex-wrap gap-2">
                   <button
-                    onClick={() => setActiveTab("pending")}
+                    onClick={() => setStatusTab("pending")}
                     className={`px-4 py-2 rounded-xl ${
-                      activeTab === "pending"
+                      statusTab === "pending"
                         ? "bg-black text-white"
                         : "bg-gray-100"
                     }`}
@@ -318,9 +340,9 @@ export default function RefundsPage() {
                   </button>
 
                   <button
-                    onClick={() => setActiveTab("completed")}
+                    onClick={() => setStatusTab("completed")}
                     className={`px-4 py-2 rounded-xl ${
-                      activeTab === "completed"
+                      statusTab === "completed"
                         ? "bg-black text-white"
                         : "bg-gray-100"
                     }`}
@@ -330,11 +352,19 @@ export default function RefundsPage() {
                 </div>
               </div>
 
-              <RefundQueueTable
-                refunds={filteredRefunds}
-                onProcessRefund={handleOpenProcess}
-                onViewAppointment={handleViewAppointment}
-              />
+              {refundSource === "appointments" ? (
+                <RefundQueueTable
+                  refunds={filteredRefunds}
+                  onProcessRefund={handleOpenProcess}
+                  onViewAppointment={handleViewAppointment}
+                />
+              ) : (
+                <OrderRefundQueueTable
+                  refundRequests={filteredRefunds}
+                  onProcessRefund={handleOpenProcess}
+                  onViewOrder={orderActions.details.open}
+                />
+              )}
             </section>
           </>
         )}
@@ -343,25 +373,40 @@ export default function RefundsPage() {
 
         {selectedRefund && (
           <ProcessRefundModal
+            type={refundSource}
             refund={selectedRefund}
-            isOpen={true}
-            loading={actions.processingRefund}
-            onClose={() => setSelectedRefund(null)}
-            onSubmit={(payload) =>
-              actions.handleProcessRefund(payload, () => {
-                setSelectedRefund(null);
-              })
+            isOpen
+            loading={
+              refundSource === "appointments"
+                ? appointmentRefundActions.processingRefund
+                : orderRefundActions.processingRefund
             }
+            onClose={() => setSelectedRefund(null)}
+            onSubmit={(payload) => {
+              const action =
+                refundSource === "appointments"
+                  ? appointmentRefundActions.handleProcessRefund
+                  : orderRefundActions.handleProcessRefund;
+
+              action(payload, () => {
+                setSelectedRefund(null);
+              });
+            }}
           />
         )}
 
-        {/* Appointment Details */}
-
-        <AppointmentDetailsModal
-          appointment={selectedAppointment}
-          onClose={() => setSelectedAppointment(null)}
-          isAdmin
-        />
+        {refundSource === "appointments" ? (
+          <AppointmentDetailsModal
+            appointment={selectedAppointment}
+            onClose={() => setSelectedAppointment(null)}
+            isAdmin
+          />
+        ) : (
+          <OrderDetailsModal
+            order={orderActions.details.order}
+            onClose={orderActions.details.close}
+          />
+        )}
       </div>
     </div>
   );

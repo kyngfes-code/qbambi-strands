@@ -5,16 +5,24 @@ import NavBarCart from "@/components/NavBarCart";
 import PaymentPlan from "@/components/PaymentPlan";
 import OfflineNotice from "@/components/OfflineNotice";
 import { useOnlineStatus } from "../OnlineStatusProvider";
+import CustomerOrderDetailsModal from "@/components/admin/order/CustomerOrderDetailsModal";
+import OrderRefundRequestModal from "@/components/refunds/OrderRefundRequestModal";
 
 export default function OrdersPage() {
   const isOnline = useOnlineStatus();
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedPay, setSelectedPay] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [error, setError] = useState(null);
   const [uploadingOrderId, setUploadingOrderId] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [refundOrder, setRefundOrder] = useState(null);
+
+  function openOrder(order) {
+    setSelectedOrder(order);
+  }
 
   async function loadOrders() {
     try {
@@ -26,12 +34,14 @@ export default function OrdersPage() {
       }
 
       const data = await res.json();
-      console.log("Orders:", data);
+
       setOrders(data || []);
+      return data || [];
     } catch (err) {
       console.error(err);
       setOrders([]);
       setError("Failed to load orders");
+      return [];
     } finally {
       setLoading(false);
     }
@@ -114,7 +124,7 @@ export default function OrdersPage() {
       }
 
       alert("Receipt uploaded. Awaiting confirmation.");
-      setSelectedOrder(null);
+      setSelectedPay(null);
       setReceipt(null);
       loadOrders();
     } catch (err) {
@@ -122,6 +132,44 @@ export default function OrdersPage() {
       alert("Failed to upload receipt. Please try again.");
     } finally {
       setUploadingOrderId(null);
+    }
+  }
+
+  async function handleRefundRequest(refundData) {
+    try {
+      const res = await fetch("/api/orders/request-refund", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(refundData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to submit refund request.");
+      }
+
+      alert("Refund request submitted successfully.");
+
+      setRefundOrder(null);
+
+      // Reload orders and get the updated data
+      const updatedOrders = await loadOrders();
+
+      const updatedOrder = updatedOrders.find(
+        (o) => o.id === refundData.orderId,
+      );
+
+      if (updatedOrder) {
+        setSelectedOrder(updatedOrder);
+      } else {
+        setSelectedOrder(null);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Failed to submit refund request.");
     }
   }
 
@@ -155,23 +203,30 @@ export default function OrdersPage() {
 
                 <div className="text-right">
                   <p className="text-lg font-bold">
-                    ₦{order.total_amount.toLocaleString()}
+                    ₦
+                    {Number(
+                      order.financialSummary.totalAmount || 0,
+                    ).toLocaleString()}
                   </p>
+
+                  {Number(order.financialSummary.refundedAmount || 0) > 0 && (
+                    <p className="text-sm font-semibold text-red-600 mt-1">
+                      -₦
+                      {Number(
+                        order.financialSummary.refundedAmount,
+                      ).toLocaleString()}
+                    </p>
+                  )}
 
                   <p className="text-sm font-semibold text-red-600 mt-1">
                     Delivery (waybill) fee is not included in this total.
                   </p>
+
                   <span className="text-sm px-3 py-1 rounded-full bg-yellow-100">
                     {order.status}
                   </span>
                 </div>
               </div>
-
-              {/*  Payment Plan disabled temporarily
-              {order.status === "pending" && !order.payment_plan && (
-                <PaymentPlan order={order} onPlanCreated={loadOrders} />
-              )} 
-              */}
 
               {/* Payment Plan Coming Soon */}
               {order.status === "pending" && !order.payment_plan && (
@@ -198,9 +253,7 @@ export default function OrdersPage() {
 
                   <button
                     onClick={() =>
-                      setSelectedOrder(
-                        selectedOrder === order.id ? null : order.id,
-                      )
+                      setSelectedPay(selectedPay === order.id ? null : order.id)
                     }
                     className="w-full py-2 border rounded-lg"
                   >
@@ -210,7 +263,7 @@ export default function OrdersPage() {
               )}
 
               {/* Mobile Transfer */}
-              {selectedOrder === order.id && (
+              {selectedPay === order.id && (
                 <div className="border rounded-xl p-4 space-y-3">
                   <p className="font-semibold">Bank Transfer Details</p>
 
@@ -249,12 +302,20 @@ export default function OrdersPage() {
               )}
 
               {order.status === "paid" && (
-                <p className="text-green-600 font-semibold leading-relaxed">
-                  Payment received successfully. Our team will contact you
-                  shortly regarding pickup or delivery arrangements.
-                  <br />
-                  Customer Support: 07036308292
-                </p>
+                <>
+                  <p className="text-green-600 font-semibold leading-relaxed">
+                    Payment received successfully. Our team will contact you
+                    shortly regarding pickup or delivery arrangements.
+                    <br />
+                    Customer Support: 07036308292
+                  </p>
+                  <button
+                    onClick={() => openOrder(order)}
+                    className="w-full border rounded-lg py-2"
+                  >
+                    View Details
+                  </button>
+                </>
               )}
               {order.status === "delivered" && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -266,6 +327,12 @@ export default function OrdersPage() {
                     Your order has been delivered successfully. Thank you for
                     shopping with us.
                   </p>
+                  <button
+                    onClick={() => openOrder(order)}
+                    className="w-full border rounded-lg py-2"
+                  >
+                    View Details
+                  </button>
                 </div>
               )}
               {order.status === "rejected" && (
@@ -319,6 +386,18 @@ export default function OrdersPage() {
           );
         })}
       </main>
+      <CustomerOrderDetailsModal
+        order={selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onRequestRefund={(order) => setRefundOrder(order)}
+      />
+
+      <OrderRefundRequestModal
+        order={refundOrder}
+        isOpen={!!refundOrder}
+        onClose={() => setRefundOrder(null)}
+        onSubmit={handleRefundRequest}
+      />
     </div>
   );
 }

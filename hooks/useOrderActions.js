@@ -27,6 +27,68 @@ export default function useOrderActions(loadAdminData) {
   const [cancelMessage, setCancelMessage] = useState("");
   const [cancelAdminNote, setCancelAdminNote] = useState("");
 
+  const [refundOrder, setRefundOrder] = useState(null);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [refundCustomerMessage, setRefundCustomerMessage] = useState("");
+  const [refundAdminNote, setRefundAdminNote] = useState("");
+
+  const openRefundModal = (order) => {
+    setRefundOrder(order);
+  };
+
+  const closeRefundModal = () => {
+    setRefundOrder(null);
+
+    setRefundAmount("");
+    setRefundReason("");
+    setRefundCustomerMessage("");
+    setRefundAdminNote("");
+  };
+
+  const submitRefund = async () => {
+    try {
+      if (!refundOrder) {
+        alert("No order selected");
+        return;
+      }
+
+      if (!refundAmount || Number(refundAmount) <= 0) {
+        alert("Enter a valid refund amount");
+        return;
+      }
+
+      const res = await fetch("/api/admin/refund-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderId: refundOrder.id,
+          amount: Number(refundAmount),
+          reason: refundReason,
+          customerMessage: refundCustomerMessage,
+          adminNote: refundAdminNote,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Refund failed");
+      }
+
+      alert("Refund recorded successfully");
+
+      closeRefundModal();
+
+      await Promise.all([loadAdminData(), viewOrder(refundOrder.id)]);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
+  };
+
   // =====================================================
   // View Order
   // =====================================================
@@ -262,6 +324,7 @@ export default function useOrderActions(loadAdminData) {
       rejectOrder: setRejectingOrder,
 
       cancelOrder: setCancellingOrder,
+      openRefundModal,
     },
 
     details: {
@@ -300,6 +363,25 @@ export default function useOrderActions(loadAdminData) {
       close: closeCancelModal,
 
       submit: cancelOrder,
+    },
+
+    refund: {
+      order: refundOrder,
+
+      amount: refundAmount,
+      reason: refundReason,
+      customerMessage: refundCustomerMessage,
+      adminNote: refundAdminNote,
+
+      setAmount: setRefundAmount,
+      setReason: setRefundReason,
+      setCustomerMessage: setRefundCustomerMessage,
+      setAdminNote: setRefundAdminNote,
+
+      open: openRefundModal,
+      close: closeRefundModal,
+
+      submit: submitRefund,
     },
   };
 }

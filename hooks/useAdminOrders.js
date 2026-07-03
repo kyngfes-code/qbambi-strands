@@ -162,6 +162,7 @@ export default function useAdminOrders() {
     setPeriod,
 
     refresh,
+    loadAdminData,
 
     data: filteredData,
   };

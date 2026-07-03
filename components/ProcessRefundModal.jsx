@@ -3,16 +3,30 @@
 import { useEffect, useState } from "react";
 
 export default function ProcessRefundModal({
+  type = "appointments",
   refund,
   isOpen,
-  loading = false,
+  loading,
   onClose,
   onSubmit,
 }) {
+  const [action, setAction] = useState("approve");
   const [refundMethod, setRefundMethod] = useState("");
   const [adminNote, setAdminNote] = useState("");
   const [refundReference, setRefundReference] = useState("");
   const [errors, setErrors] = useState({});
+
+  const isAppointment = type === "appointments";
+
+  const customer = isAppointment
+    ? refund.appointment?.user
+    : refund.order?.user;
+
+  const service = isAppointment
+    ? refund.appointment?.service_name
+    : "Order Refund";
+
+  const refundAmount = isAppointment ? refund.amount : refund.requested_amount;
 
   /*
   ==========================================
@@ -20,17 +34,14 @@ export default function ProcessRefundModal({
   ==========================================
   */
   useEffect(() => {
-    if (isOpen && refund) {
-      setRefundMethod("");
-      setAdminNote("");
-      setRefundReference("");
-      setErrors({});
-    }
-  }, [isOpen, refund]);
+    if (!isOpen || !refund) return;
 
-  if (!isOpen || !refund) {
-    return null;
-  }
+    setAction("approve");
+    setRefundMethod("");
+    setAdminNote("");
+    setRefundReference("");
+    setErrors({});
+  }, [isOpen, refund]);
 
   /*
   ==========================================
@@ -40,8 +51,10 @@ export default function ProcessRefundModal({
   function validate() {
     const newErrors = {};
 
-    if (!refundMethod) {
-      newErrors.refundMethod = "Please select a refund method.";
+    if (isAppointment || action === "approve") {
+      if (!refundMethod) {
+        newErrors.refundMethod = "Please select a refund method.";
+      }
     }
 
     setErrors(newErrors);
@@ -57,12 +70,11 @@ export default function ProcessRefundModal({
   function handleSubmit(e) {
     e.preventDefault();
 
-    if (!validate()) {
-      return;
-    }
+    if (!validate()) return;
 
     onSubmit({
-      refundId: refund.id,
+      refundRequestId: refund.id,
+      action,
       refundMethod,
       refundReference: refundReference.trim(),
       adminNote: adminNote.trim(),
@@ -84,11 +96,13 @@ export default function ProcessRefundModal({
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-red-700">
-                Process Refund
+                {isAppointment ? "Process Refund" : "Review Refund Request"}
               </h2>
 
               <p className="text-sm text-gray-500 mt-1">
-                Confirm that this refund has been issued to the customer.
+                {isAppointment
+                  ? "Confirm that this refund has been issued."
+                  : "Approve or reject this refund request."}
               </p>
             </div>
 
@@ -117,44 +131,46 @@ export default function ProcessRefundModal({
               <div>
                 <p className="text-gray-500">Customer</p>
 
-                <p className="font-medium">
-                  {refund.appointment?.user?.name || "N/A"}
-                </p>
+                <p className="font-medium">{customer?.name || "N/A"}</p>
               </div>
 
               <div>
                 <p className="text-gray-500">Email</p>
 
                 <p className="font-medium break-all">
-                  {refund.appointment?.user?.email || "N/A"}
+                  {customer?.email || "N/A"}
                 </p>
               </div>
 
               <div>
                 <p className="text-gray-500">Service</p>
 
-                <p className="font-medium">
-                  {refund.appointment?.service_name || "N/A"}
-                </p>
+                <p className="font-medium">{service || "N/A"}</p>
               </div>
 
               <div>
-                <p className="text-gray-500">Appointment</p>
+                <div>
+                  <p className="text-gray-500">
+                    {isAppointment ? "Appointment" : "Order"}
+                  </p>
 
-                <p className="font-medium">
-                  {refund.appointment?.appointment_date
-                    ? new Date(
-                        refund.appointment.appointment_date,
-                      ).toLocaleDateString()
-                    : "-"}
-                </p>
+                  <p className="font-medium">
+                    {isAppointment
+                      ? refund.appointment?.appointment_date
+                        ? new Date(
+                            refund.appointment.appointment_date,
+                          ).toLocaleDateString()
+                        : "-"
+                      : `#${refund.order?.id?.slice(0, 8)}`}
+                  </p>
+                </div>
               </div>
 
               <div>
                 <p className="text-gray-500">Refund Amount</p>
 
                 <p className="font-semibold text-red-600">
-                  ₦{Number(refund.amount || 0).toLocaleString()}
+                  ₦{Number(refundAmount || 0).toLocaleString()}
                 </p>
               </div>
 
@@ -176,75 +192,111 @@ export default function ProcessRefundModal({
             )}
           </div>
 
-          {/* Refund Method */}
-          <div className="border rounded-2xl p-5">
-            <h3 className="font-semibold text-lg mb-4">Refund Method</h3>
+          {/*Approve / Reject section (orders only) */}
+          {!isAppointment && (
+            <div className="border rounded-2xl p-5">
+              <h3 className="font-semibold text-lg mb-4">Decision</h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[
-                {
-                  value: "bank_transfer",
-                  label: "Bank Transfer",
-                },
-                {
-                  value: "cash",
-                  label: "Cash",
-                },
-                {
-                  value: "pos",
-                  label: "POS",
-                },
-                {
-                  value: "other",
-                  label: "Other",
-                },
-              ].map((method) => (
-                <label
-                  key={method.value}
-                  className="
+              <div className="grid grid-cols-2 gap-3">
+                <label className="border rounded-xl p-3 flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="approve"
+                    checked={action === "approve"}
+                    onChange={(e) => setAction(e.target.value)}
+                  />
+                  Approve Refund
+                </label>
+
+                <label className="border rounded-xl p-3 flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="reject"
+                    checked={action === "reject"}
+                    onChange={(e) => setAction(e.target.value)}
+                  />
+                  Reject Request
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Refund Method */}
+          {(isAppointment || action === "approve") && (
+            <div className="border rounded-2xl p-5">
+              <h3 className="font-semibold text-lg mb-4">Refund Method</h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  {
+                    value: "bank_transfer",
+                    label: "Bank Transfer",
+                  },
+                  {
+                    value: "cash",
+                    label: "Cash",
+                  },
+                  {
+                    value: "pos",
+                    label: "POS",
+                  },
+                  {
+                    value: "other",
+                    label: "Other",
+                  },
+                ].map((method) => (
+                  <label
+                    key={method.value}
+                    className="
                     flex items-center gap-3
                     border rounded-xl
                     p-3 cursor-pointer
                   "
-                >
-                  <input
-                    type="radio"
-                    name="refundMethod"
-                    value={method.value}
-                    checked={refundMethod === method.value}
-                    onChange={(e) => setRefundMethod(e.target.value)}
-                    disabled={loading}
-                  />
+                  >
+                    <input
+                      type="radio"
+                      name="refundMethod"
+                      value={method.value}
+                      checked={refundMethod === method.value}
+                      onChange={(e) => setRefundMethod(e.target.value)}
+                      disabled={loading}
+                    />
 
-                  <span>{method.label}</span>
-                </label>
-              ))}
+                    <span>{method.label}</span>
+                  </label>
+                ))}
+              </div>
+
+              {errors.refundMethod && (
+                <p className="mt-2 text-sm text-red-600">
+                  {errors.refundMethod}
+                </p>
+              )}
             </div>
+          )}
 
-            {errors.refundMethod && (
-              <p className="mt-2 text-sm text-red-600">{errors.refundMethod}</p>
-            )}
-          </div>
-          <div>
-            <label className="block font-medium mb-2">
-              Refund Reference
-              <span className="text-sm text-gray-500 ml-2">(Optional)</span>
-            </label>
+          {(isAppointment || action === "approve") && (
+            <div>
+              <label className="block font-medium mb-2">
+                Refund Reference
+                <span className="text-sm text-gray-500 ml-2">(Optional)</span>
+              </label>
 
-            <input
-              type="text"
-              value={refundReference}
-              onChange={(e) => setRefundReference(e.target.value)}
-              disabled={loading}
-              placeholder="Bank transfer reference, receipt number, etc."
-              className="
+              <input
+                type="text"
+                value={refundReference}
+                onChange={(e) => setRefundReference(e.target.value)}
+                disabled={loading}
+                placeholder="Bank transfer reference, receipt number, etc."
+                className="
       w-full rounded-xl border
       px-4 py-3
       focus:outline-none
       focus:ring-2 focus:ring-red-500
     "
-            />
-          </div>
+              />
+            </div>
+          )}
 
           {/* Admin Note */}
           <div>
@@ -271,8 +323,11 @@ export default function ProcessRefundModal({
           {/* Warning */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
             <p className="text-sm text-yellow-700">
-              <strong>Warning:</strong> This action marks the refund as
-              completed and removes it from the refund queue.
+              {isAppointment
+                ? "This will mark the refund as completed."
+                : action === "approve"
+                  ? "This refund request will be approved and processed."
+                  : "This refund request will be rejected."}
             </p>
           </div>
 
@@ -301,16 +356,15 @@ export default function ProcessRefundModal({
             <button
               type="submit"
               disabled={loading}
-              className="
-                w-full sm:w-auto
-                px-5 py-3
-                rounded-xl
-                bg-red-600 text-white
-                hover:bg-red-700
-                disabled:opacity-50
-              "
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-red-600 text-white"
             >
-              {loading ? "Processing..." : "Mark Refund as Processed"}
+              {loading
+                ? "Processing..."
+                : isAppointment
+                  ? "Mark Refund as Processed"
+                  : action === "approve"
+                    ? "Approve Refund"
+                    : "Reject Request"}
             </button>
           </div>
         </form>

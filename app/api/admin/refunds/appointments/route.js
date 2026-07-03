@@ -18,24 +18,24 @@ export async function GET() {
         `
         *,
         recorder:users!appointment_payment_adjustments_recorded_by_fkey(
-      id,
-      name,
-      email
-    ),
-    approver:users!appointment_payment_adjustments_approved_by_fkey(
-  id,
-  name,
-  email
-),
-        appointment:appointments (
+          id,
+          name,
+          email
+        ),
+        approver:users!appointment_payment_adjustments_approved_by_fkey(
+          id,
+          name,
+          email
+        ),
+        appointment:appointments(
           id,
           service_name,
           appointment_date,
           appointment_time,
           amount_paid,
           service_amount,
-          balance_due,
           refunded_amount,
+          balance_due,
           payment_completion_status,
           status,
           created_at,
@@ -43,57 +43,33 @@ export async function GET() {
             id,
             name,
             email
-          ),
-           appointment_payments (
-    id,
-    amount,
-    payment_method,
-    status,
-    created_at
-  ),
-
-  appointment_payment_adjustments (
-    id,
-    adjustment_type,
-    amount,
-    reason,
-    payment_method,
-    refund_method,
-    refund_status,
-    tip_amount,
-    created_at,
-    refunded_at
-  )
+          )
         )
       `,
       )
       .in("adjustment_type", ["refund_pending", "refund"])
-      .order("created_at", { ascending: false });
+      .order("created_at", {
+        ascending: false,
+      });
 
     if (error) {
-      console.error(error);
-
-      return NextResponse.json(
-        { error: "Failed to load refunds." },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const pendingRefunds = (data || []).filter(
-      (r) =>
-        r.adjustment_type === "refund_pending" && r.refund_status === "pending",
-    );
-
-    const completedRefunds = (data || []).filter(
-      (r) => r.adjustment_type === "refund" && r.refund_status === "completed",
-    );
-
     return NextResponse.json({
-      pendingRefunds,
-      completedRefunds,
+      pendingRefunds: data.filter(
+        (r) =>
+          r.adjustment_type === "refund_pending" &&
+          r.refund_status === "pending",
+      ),
+
+      completedRefunds: data.filter(
+        (r) =>
+          r.adjustment_type === "refund" && r.refund_status === "completed",
+      ),
     });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
 
     return NextResponse.json(
       { error: "Internal server error." },

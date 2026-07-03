@@ -8,13 +8,21 @@ import CancelOrderModal from "@/components/admin/order/CancelOrderModal";
 import useAdminOrders from "@/hooks/useAdminOrders";
 import useOrderActions from "@/hooks/useOrderActions";
 import PageSpinner from "@/components/PageSpinner";
+import RefundOrderModal from "@/components/admin/order/RefundOrderModal";
 
 export default function AdminOrdersPage() {
-  const { loading, refreshing, data, period, setPeriod, refresh } =
-    useAdminOrders();
+  const {
+    loading,
+    refreshing,
+    data,
+    period,
+    setPeriod,
+    refresh,
+    loadAdminData,
+  } = useAdminOrders();
 
-  const { actions, details, rejection, cancellation } =
-    useOrderActions(refresh);
+  const { actions, details, rejection, cancellation, refund } =
+    useOrderActions(loadAdminData);
 
   if (loading) {
     return <PageSpinner text="loading" />;
@@ -33,7 +41,11 @@ export default function AdminOrdersPage() {
         }}
       />
 
-      <OrderDetailsModal order={details.order} onClose={details.close} />
+      <OrderDetailsModal
+        order={details.order}
+        onClose={details.close}
+        onRefund={actions.openRefundModal}
+      />
 
       <RejectPaymentModal
         isOpen={!!rejection.orderId}
@@ -57,6 +69,12 @@ export default function AdminOrdersPage() {
         setCancelAdminNote={cancellation.setAdminNote}
         onClose={cancellation.close}
         onConfirm={cancellation.submit}
+      />
+      <RefundOrderModal
+        isOpen={!!refund.order}
+        refund={refund}
+        onClose={refund.close}
+        onConfirm={refund.submit}
       />
     </>
   );
