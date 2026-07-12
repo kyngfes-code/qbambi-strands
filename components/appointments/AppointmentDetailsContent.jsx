@@ -2,6 +2,7 @@ import AppointmentAdminNotes from "./AppointmentAdminNotes";
 import AppointmentCancellation from "./AppointmentCancellation";
 import AppointmentFinancialHistory from "./AppointmentFinancialHistory";
 import AppointmentPricing from "./AppointmentPricing";
+import AppointmentPricingHistory from "./AppointmentPricingHistory";
 import AppointmentSummary from "./AppointmentSummary";
 
 export default function AppointmentDetailsContent({
@@ -15,6 +16,9 @@ export default function AppointmentDetailsContent({
   const showStatus = true;
 
   const showPricing = true;
+
+  const showPricingHistory =
+    variant === "details" || variant === "admin" || variant === "completion";
 
   const showFinancialHistory =
     variant === "details" || variant === "admin" || variant === "completion";
@@ -32,6 +36,12 @@ export default function AppointmentDetailsContent({
       />
 
       {showPricing && <AppointmentPricing appointment={appointment} />}
+
+      {showPricingHistory && (
+        <AppointmentPricingHistory
+          history={appointment.appointment_pricing_history || []}
+        />
+      )}
 
       {showFinancialHistory && (
         <AppointmentFinancialHistory

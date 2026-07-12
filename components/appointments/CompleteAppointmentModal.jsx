@@ -42,7 +42,7 @@ export default function CompleteAppointmentModal({
       setPaymentMethod("");
     }
 
-    if (completionType !== "refund_pending") {
+    if (completionType !== "refund") {
       setRefundAmount("");
       setRefundReason("");
     }
@@ -109,13 +109,13 @@ export default function CompleteAppointmentModal({
     }
 
     if (
-      completionType === "refund_pending" &&
+      completionType === "refund" &&
       Number(refundAmount) > currentAmountPaid
     ) {
       newErrors.refundAmount = "Refund cannot exceed amounts collected.";
     }
 
-    if (completionType === "refund_pending" && !refundReason.trim()) {
+    if (completionType === "refund" && !refundReason.trim()) {
       newErrors.refundReason = "Enter refund reason.";
     }
 
@@ -156,11 +156,9 @@ export default function CompleteAppointmentModal({
         paymentMethod:
           completionType === "additional_payment" ? paymentMethod : null,
 
-        refundAmount:
-          completionType === "refund_pending" ? Number(refundAmount) : 0,
+        refundAmount: completionType === "refund" ? Number(refundAmount) : 0,
 
-        refundReason:
-          completionType === "refund_pending" ? refundReason.trim() : null,
+        refundReason: completionType === "refund" ? refundReason.trim() : null,
 
         adminNote: adminNote.trim(),
       },
@@ -269,8 +267,8 @@ export default function CompleteAppointmentModal({
               <label className="flex gap-3 cursor-pointer">
                 <input
                   type="radio"
-                  value="refund_pending"
-                  checked={completionType === "refund_pending"}
+                  value="refund"
+                  checked={completionType === "refund"}
                   onChange={(e) => setCompletionType(e.target.value)}
                 />
 
@@ -298,7 +296,7 @@ export default function CompleteAppointmentModal({
             />
           )}
 
-          {completionType === "refund_pending" && (
+          {completionType === "refund" && (
             <RefundSection
               refundAmount={refundAmount}
               setRefundAmount={setRefundAmount}

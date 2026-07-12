@@ -18,103 +18,51 @@ export async function POST(req) {
 
     if (!orderId) {
       return NextResponse.json(
-        { error: "Order ID is required" },
+        { error: "Order ID is required." },
         { status: 400 },
       );
     }
 
     if (!reason) {
       return NextResponse.json(
-        { error: "Cancellation reason is required" },
+        { error: "Cancellation reason is required." },
+        { status: 400 },
+      );
+    }
+
+    if (!message?.trim()) {
+      return NextResponse.json(
+        { error: "Customer message is required." },
         { status: 400 },
       );
     }
 
     const supabase = createSupabaseAdmin();
 
-    // Verify order exists
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select("id,status")
-      .eq("id", orderId)
-      .single();
+    const { data, error } = await supabase.rpc("cancel_order_by_admin", {
+      p_order_id: orderId,
+      p_admin_id: session.user.id,
+      p_cancellation_reason: reason,
+      p_customer_message: message,
+      p_admin_note: adminNote ?? null,
+    });
 
-    if (orderError || !order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
+    if (error) {
+      console.error("RPC Error:", error);
 
-    if (order.status === "cancelled") {
-      return NextResponse.json(
-        { error: "Order already cancelled" },
-        { status: 400 },
-      );
-    }
-
-    if (order.status === "delivered") {
-      return NextResponse.json(
-        { error: "Delivered orders cannot be cancelled" },
-        { status: 400 },
-      );
-    }
-
-    // Create cancellation record
-    const { data: cancellation, error: cancellationError } = await supabase
-      .from("order_cancellations")
-      .insert({
-        order_id: orderId,
-        cancellation_reason: reason,
-        customer_message: message,
-        admin_note: adminNote,
-        cancelled_by: session.user.id,
-      })
-      .select()
-      .single();
-
-    if (cancellationError) {
-      console.error(cancellationError);
-
-      return NextResponse.json(
-        {
-          error: "Failed to create cancellation record",
-          details: cancellationError,
-        },
-        { status: 500 },
-      );
-    }
-
-    // Update order
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({
-        status: "cancelled",
-        cancellation_id: cancellation.id,
-        cancelled_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
-
-    if (updateError) {
-      console.error(updateError);
-
-      return NextResponse.json(
-        {
-          error: "Failed to update order",
-          details: updateError,
-        },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      message: "Order cancelled successfully",
-      cancellation,
+      cancellationId: data,
     });
-  } catch (error) {
-    console.error("Cancel order error:", error);
+  } catch (err) {
+    console.error(err);
 
     return NextResponse.json(
       {
-        error: error.message || "Internal server error",
+        error: err.message || "Internal server error",
       },
       { status: 500 },
     );

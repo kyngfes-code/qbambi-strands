@@ -9,7 +9,7 @@ export default function PaymentRequiredSection({
   onRefresh,
 }) {
   return (
-    <div className="mt-6 bg-orange-50 border border-orange-200 rounded-xl p-4">
+    <div className="mt-6 rounded-xl border border-orange-200 bg-orange-50 p-4">
       <p className="font-medium text-orange-700">Payment Required</p>
 
       {/* Pricing Summary */}
@@ -35,7 +35,7 @@ export default function PaymentRequiredSection({
         </p>
       </div>
 
-      <p className="text-sm text-orange-600 mt-3">
+      <p className="mt-3 text-sm text-orange-600">
         Please complete the required payment to secure your appointment slot.
       </p>
 
@@ -55,10 +55,8 @@ export default function PaymentRequiredSection({
       {!["pending", "confirmed"].includes(latestPayment?.status) && (
         <div className="mt-5">
           <PaymentMethodSelector
-            amount={appointment.deposit_required}
             appointmentId={appointment.id}
-            customerEmail={appointment.user?.email}
-            customerName={appointment.user?.name}
+            paymentType="deposit"
             onUploadReceipt={onRefresh}
           />
         </div>

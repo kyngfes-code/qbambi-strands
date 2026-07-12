@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import crypto from "crypto";
 
 export async function POST(req) {
   try {
@@ -32,6 +33,7 @@ export async function POST(req) {
     const receipt = formData.get("receipt");
     const amount = formData.get("amount");
     const customerMessage = formData.get("customerMessage");
+    let paymentType;
 
     if (!appointmentId || !receipt || !amount) {
       console.timeEnd("appointment-receipt");
@@ -54,7 +56,20 @@ export async function POST(req) {
 
     const { data: appointment, error: appointmentError } = await supabase
       .from("appointments")
-      .select("id, user_id")
+      .select(
+        `
+  id,
+  status,
+  user_id,
+  deposit_required,
+  amount_paid,
+  service_amount,
+  balance_due,
+  user:users!appointments_user_id_fkey(
+  email
+)
+`,
+      )
       .eq("id", appointmentId)
       .single();
 
@@ -71,6 +86,32 @@ export async function POST(req) {
       );
     }
 
+    if (
+      appointment.status === "pending" ||
+      appointment.status === "pending_confirmation"
+    ) {
+      // Initial deposit
+      paymentType = "deposit";
+    } else if (appointment.status === "completed") {
+      // Remaining balance after service
+      paymentType = "outstanding_payment";
+    } else if (appointment.status === "confirmed") {
+      return NextResponse.json(
+        {
+          error:
+            "Your deposit has already been confirmed. Any remaining balance can only be paid after your appointment has been completed.",
+        },
+        { status: 409 },
+      );
+    } else {
+      return NextResponse.json(
+        {
+          error: "Payments are not accepted for this appointment.",
+        },
+        { status: 400 },
+      );
+    }
+
     /*
     ==========================================
     4️⃣ Check Existing Payment
@@ -81,6 +122,7 @@ export async function POST(req) {
       .from("appointment_payments")
       .select("*")
       .eq("appointment_id", appointmentId)
+      .eq("payment_type", paymentType)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -100,26 +142,32 @@ export async function POST(req) {
     Prevent duplicate submissions
     */
 
-    if (existing?.status === "pending") {
-      console.timeEnd("appointment-receipt");
+    if (existing) {
+      switch (existing.status) {
+        case "pending":
+          return NextResponse.json(
+            {
+              error: "Payment is already under review.",
+            },
+            { status: 409 },
+          );
 
-      return NextResponse.json(
-        { error: "Payment is already under review." },
-        { status: 409 },
-      );
-    }
+        case "confirmed":
+          return NextResponse.json(
+            {
+              error: "This payment has already been confirmed.",
+            },
+            { status: 409 },
+          );
 
-    /*
-    Prevent payments after confirmation
-    */
-
-    if (existing?.status === "confirmed") {
-      console.timeEnd("appointment-receipt");
-
-      return NextResponse.json(
-        { error: "Payment has already been confirmed." },
-        { status: 400 },
-      );
+        case "cancelled":
+          return NextResponse.json(
+            {
+              error: "This payment has been cancelled.",
+            },
+            { status: 400 },
+          );
+      }
     }
 
     /*
@@ -187,6 +235,7 @@ export async function POST(req) {
         .update({
           receipt_url: signed.signedUrl,
           amount: Number(amount),
+          payment_type: paymentType,
           status: "pending",
           rejection_reason: null,
           customer_message: customerMessage || null,
@@ -204,6 +253,19 @@ export async function POST(req) {
           { status: 500 },
         );
       }
+
+      await supabase
+        .from("payment_transactions")
+        .update({
+          status: "pending",
+          amount: Number(amount),
+          updated_at: new Date().toISOString(),
+          metadata: {
+            uploadedReceipt: true,
+            resubmitted: true,
+          },
+        })
+        .eq("source_record_id", existing.id);
 
       /*
       Notify Admin
@@ -228,17 +290,27 @@ export async function POST(req) {
     ==========================================
     */
 
-    const { error: paymentError } = await supabase
+    const { data: payment, error: paymentError } = await supabase
       .from("appointment_payments")
       .insert({
         appointment_id: appointmentId,
         user_id: session.user.id,
+
         amount: Number(amount),
+
+        payment_type: paymentType,
+
         payment_method: "bank_transfer",
+        payment_channel: "offline",
+
         receipt_url: signed.signedUrl,
-        status: "pending",
+
         customer_message: customerMessage || null,
-      });
+
+        status: "pending",
+      })
+      .select()
+      .single();
 
     if (paymentError) {
       console.error(paymentError);
@@ -251,6 +323,42 @@ export async function POST(req) {
         },
         { status: 500 },
       );
+    }
+
+    const { error: transactionError } = await supabase
+      .from("payment_transactions")
+      .insert({
+        provider: "bank_transfer",
+        provider_reference: crypto.randomUUID(),
+
+        entity_type: "appointment",
+        entity_id: appointmentId,
+
+        source_record_id: payment.id,
+
+        payment_type: paymentType,
+
+        user_id: session.user.id,
+
+        email: appointment.user.email,
+
+        amount: Number(amount),
+
+        currency: "NGN",
+
+        payment_method: "bank_transfer",
+
+        status: "pending",
+
+        metadata: {
+          uploadedReceipt: true,
+          receipt_url: signed.signedUrl,
+          customerMessage,
+        },
+      });
+
+    if (transactionError) {
+      throw transactionError;
     }
 
     /*

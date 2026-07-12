@@ -1,7 +1,7 @@
 "use client";
 
 import { PhoneIcon, Search } from "lucide-react";
-import Logo from "@/components/Logo";
+import Logo from "@/components/navigation/Logo";
 
 import { Button } from "./ui/button";
 import SearchBar from "./SearchBar";

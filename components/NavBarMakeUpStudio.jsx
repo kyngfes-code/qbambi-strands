@@ -1,5 +1,5 @@
 import { PhoneIcon, Search } from "lucide-react";
-import Logo from "@/components/Logo";
+import Logo from "@/components/navigation/Logo";
 
 import icon from "@/public/icon-flat-gold.png";
 import Navigation from "./Navigation";

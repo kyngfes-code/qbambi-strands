@@ -1,133 +1,248 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, Receipt } from "lucide-react";
+
 export default function AppointmentFinancialHistory({
   appointment,
   variant = "customer",
 }) {
-  const customerLedger = [
-    ...(appointment.appointment_payments || []).map((payment) => ({
-      label: "Deposit Payment",
-      amount: payment.amount,
-      paymentMethod: payment.payment_method,
-      createdAt: payment.created_at,
-      status: payment.status,
-    })),
+  const [expanded, setExpanded] = useState(false);
 
-    ...(appointment.appointment_payment_adjustments || [])
-      .filter((adjustment) =>
-        [
-          "outstanding_payment",
-          "refund",
-          "overpayment_refund",
-          "write_off",
-        ].includes(adjustment.adjustment_type),
-      )
-      .map((adjustment) => ({
-        label:
-          adjustment.adjustment_type === "outstanding_payment"
-            ? "Balance Payment"
-            : adjustment.adjustment_type === "refund"
-              ? "Refund"
-              : adjustment.adjustment_type === "overpayment_refund"
-                ? "Overpayment Refund"
-                : "Write Off",
-
-        amount: adjustment.amount,
-
-        paymentMethod: adjustment.payment_method || adjustment.refund_method,
-
-        createdAt: adjustment.refunded_at || adjustment.created_at,
-
-        status: adjustment.status,
-        adminNote: adjustment.reason,
+  const customerLedger = useMemo(() => {
+    return [
+      ...(appointment.appointment_payments || []).map((payment) => ({
+        label: "Deposit Payment",
+        amount: payment.amount,
+        paymentMethod: payment.payment_method,
+        createdAt: payment.created_at,
+        status: payment.status,
       })),
-  ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+      ...(appointment.appointment_payment_adjustments || [])
+        .filter((adjustment) =>
+          [
+            "outstanding_payment",
+            "refund",
+            "overpayment_refund",
+            "write_off",
+          ].includes(adjustment.adjustment_type),
+        )
+        .map((adjustment) => ({
+          label:
+            adjustment.adjustment_type === "outstanding_payment"
+              ? "Balance Payment"
+              : adjustment.adjustment_type === "refund"
+                ? "Refund"
+                : adjustment.adjustment_type === "overpayment_refund"
+                  ? "Overpayment Refund"
+                  : "Write Off",
+
+          amount: adjustment.amount,
+
+          paymentMethod: adjustment.payment_method || adjustment.refund_method,
+
+          createdAt: adjustment.refunded_at || adjustment.created_at,
+
+          status: adjustment.status,
+          adminNote: adjustment.reason,
+        })),
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [appointment]);
+
+  const visibleEntries = expanded ? customerLedger : customerLedger.slice(0, 3);
 
   return (
-    <div className="border rounded-2xl p-5">
-      <h3 className="font-bold text-lg mb-4">Financial History</h3>
+    <div className="rounded-2xl border bg-white shadow-sm">
+      {/* Header */}
 
-      {customerLedger.length === 0 ? (
-        <p>No payments recorded.</p>
-      ) : (
-        <div className="space-y-4">
-          {customerLedger.map((entry, index) => {
-            const isRejected = entry.status === "rejected";
-            const isNegative =
-              entry.label === "Refund" ||
-              entry.label === "Overpayment Refund" ||
-              entry.label === "Write Off";
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        className="
+          w-full
+          flex
+          items-center
+          justify-between
+          gap-4
+          p-4
+          sm:p-5
+          text-left
+          hover:bg-gray-50
+          rounded-t-2xl
+          transition
+        "
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <Receipt className="h-5 w-5 text-gray-600 shrink-0" />
 
-            return (
-              <div
-                key={index}
-                className={`border rounded-xl p-4 flex justify-between ${
-                  isRejected ? "bg-red-50 border-red-300" : ""
-                }`}
-              >
-                <div>
-                  <p
-                    className={`font-medium ${
-                      isRejected ? "text-red-700" : ""
-                    }`}
+          <div className="min-w-0">
+            <h3 className="font-semibold text-base sm:text-lg">
+              Financial History
+            </h3>
+
+            <p className="text-xs sm:text-sm text-gray-500">
+              {customerLedger.length} transaction
+              {customerLedger.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+        </div>
+
+        {expanded ? (
+          <ChevronUp className="h-5 w-5 shrink-0 text-gray-500" />
+        ) : (
+          <ChevronDown className="h-5 w-5 shrink-0 text-gray-500" />
+        )}
+      </button>
+
+      {/* Body */}
+
+      {expanded && (
+        <div className="border-t px-4 sm:px-5 py-5">
+          {customerLedger.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No payments recorded.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {visibleEntries.map((entry, index) => {
+                const isRejected = entry.status === "rejected";
+
+                const isNegative =
+                  entry.label === "Refund" ||
+                  entry.label === "Overpayment Refund" ||
+                  entry.label === "Write Off";
+
+                return (
+                  <div
+                    key={index}
+                    className={`
+                      rounded-xl
+                      border
+                      p-4
+                      ${
+                        isRejected
+                          ? "border-red-300 bg-red-50"
+                          : "border-gray-200 bg-white"
+                      }
+                    `}
                   >
-                    {entry.label}
-                    {entry.status && (
-                      <span
-                        className={`ml-2 text-xs px-2 py-1 rounded-full ${
-                          entry.status === "confirmed"
-                            ? "bg-green-100 text-green-700"
-                            : entry.status === "rejected"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {entry.status}
-                      </span>
-                    )}
-                  </p>
+                    <div
+                      className="
+                        flex
+                        flex-col
+                        gap-4
+                        sm:flex-row
+                        sm:justify-between
+                        sm:items-start
+                      "
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p
+                            className={`font-medium ${
+                              isRejected ? "text-red-700" : ""
+                            }`}
+                          >
+                            {entry.label}
+                          </p>
 
-                  <p className="text-sm text-gray-500">
-                    {new Date(entry.createdAt).toLocaleString()}
-                  </p>
+                          {entry.status && (
+                            <span
+                              className={`
+                                text-xs
+                                px-2 py-1
+                                rounded-full
+                                whitespace-nowrap
+                                ${
+                                  entry.status === "confirmed"
+                                    ? "bg-green-100 text-green-700"
+                                    : entry.status === "rejected"
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-gray-100 text-gray-700"
+                                }
+                              `}
+                            >
+                              {entry.status}
+                            </span>
+                          )}
+                        </div>
 
-                  {entry.paymentMethod && (
-                    <p className="text-sm text-gray-500">
-                      Method:{" "}
-                      {entry.paymentMethod.replaceAll("_", " ").toUpperCase()}
-                    </p>
-                  )}
-                  {variant === "admin" && (
-                    <p className="text-sm text-blue-600 mt-1">
-                      Admin Note: {entry.adminNote}
-                    </p>
-                  )}
-                </div>
+                        <p className="mt-2 text-xs sm:text-sm text-gray-500 break-words">
+                          {new Date(entry.createdAt).toLocaleString()}
+                        </p>
 
-                <p
-                  className={`font-semibold ${
-                    isRejected
-                      ? "text-red-700"
-                      : isNegative
-                        ? "text-red-600"
-                        : "text-green-700"
-                  }`}
-                >
-                  {isNegative ? "-" : "+"}₦
-                  {Number(entry.amount).toLocaleString()}
+                        {entry.paymentMethod && (
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">
+                            Method:{" "}
+                            {entry.paymentMethod
+                              .replaceAll("_", " ")
+                              .toUpperCase()}
+                          </p>
+                        )}
+
+                        {variant === "admin" && entry.adminNote && (
+                          <p className="mt-2 text-xs sm:text-sm text-blue-600 break-words">
+                            <strong>Admin Note:</strong> {entry.adminNote}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="sm:text-right">
+                        <p
+                          className={`
+                            text-lg
+                            font-bold
+                            ${
+                              isRejected
+                                ? "text-red-700"
+                                : isNegative
+                                  ? "text-red-600"
+                                  : "text-green-700"
+                            }
+                          `}
+                        >
+                          {isNegative ? "-" : "+"}₦
+                          {Number(entry.amount).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Outstanding */}
+
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4">
+            <div
+              className="
+                flex
+                flex-col
+                gap-2
+                sm:flex-row
+                sm:items-center
+                sm:justify-between
+              "
+            >
+              <div>
+                <p className="text-sm text-gray-500">Outstanding Payment</p>
+
+                <p className="mt-1 text-2xl font-bold text-red-600">
+                  ₦{Number(appointment.balance_due || 0).toLocaleString()}
                 </p>
               </div>
-            );
-          })}
+
+              {Number(appointment.balance_due || 0) <= 0 && (
+                <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                  Fully Paid
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       )}
-      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-        <p className="text-sm text-gray-500">Outstanding Payment</p>
-
-        <p className="font-bold mt-1 text-red-600">
-          ₦{Number(appointment.balance_due || 0).toLocaleString()}
-        </p>
-      </div>
     </div>
   );
 }

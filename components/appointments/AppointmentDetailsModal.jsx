@@ -1,14 +1,24 @@
 "use client";
 
-import AppointmentAdminNotes from "./AppointmentAdminNotes";
+import OutstandingPaymentSection from "../payments/OutstandingPaymentSection";
 import AppointmentDetailsContent from "./AppointmentDetailsContent";
+import AppointmentPricingSection from "./AppointmentPricingSection";
+// import AppointmentAdminNotes from "./AppointmentAdminNotes";
 
 export default function AppointmentDetailsModal({
   appointment,
   onClose,
   isAdmin = false,
+  onRefresh,
+  actions,
 }) {
   if (!appointment) return null;
+
+  /*
+  --------------------------------------------------
+  Total Tips
+  --------------------------------------------------
+  */
 
   const totalTips =
     appointment.appointment_payment_adjustments?.reduce(
@@ -16,61 +26,176 @@ export default function AppointmentDetailsModal({
       0,
     ) || 0;
 
+  /*
+  --------------------------------------------------
+  Latest Outstanding Payment
+  --------------------------------------------------
+  */
+
+  const latestOutstandingPayment =
+    appointment.appointment_payments
+      ?.filter((payment) => payment.payment_type === "outstanding_payment")
+      ?.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )?.[0] || null;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-6">
+    <div
+      className="
+        fixed inset-0 z-50
+        bg-black/60
+        flex items-center justify-center
+        p-2 sm:p-4 lg:p-6
+      "
+    >
       <div
         className="
-          bg-white rounded-2xl shadow-xl
-          w-full max-w-5xl
+          relative
+          w-full
+          max-w-6xl
           max-h-[95vh]
           overflow-y-auto
+          rounded-2xl
+          bg-white
+          shadow-2xl
         "
       >
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-4 flex justify-between items-center rounded-t-2xl">
-          <div>
-            <h2 className="text-lg sm:text-2xl font-bold">
-              Appointment Details
-            </h2>
+        {/* ------------------------------------------
+            Header
+        ------------------------------------------ */}
 
-            <p className="text-sm text-gray-500 mt-1">
-              Booking ID: {appointment.id.slice(0, 8)}
-            </p>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg border hover:bg-gray-100"
+        <div
+          className="
+            sticky top-0 z-10
+            bg-white
+            border-b
+            rounded-t-2xl
+            px-4 sm:px-6 lg:px-8
+            py-4
+          "
+        >
+          <div
+            className="
+              flex
+              flex-col
+              gap-4
+              sm:flex-row
+              sm:items-center
+              sm:justify-between
+            "
           >
-            Close
-          </button>
+            <div className="min-w-0">
+              <h2
+                className="
+                  text-xl
+                  sm:text-2xl
+                  font-bold
+                  break-words
+                "
+              >
+                Appointment Details
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500 break-all">
+                Booking ID: {appointment.id.slice(0, 8)}
+              </p>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="
+                w-full
+                sm:w-auto
+                rounded-lg
+                border
+                px-5 py-2.5
+                text-sm
+                font-medium
+                hover:bg-gray-100
+                transition
+              "
+            >
+              Close
+            </button>
+          </div>
         </div>
 
-        <div className="p-4 sm:p-6">
-          {isAdmin ? (
-            <AppointmentDetailsContent
+        {/* ------------------------------------------
+            Body
+        ------------------------------------------ */}
+
+        <div className="space-y-6 px-4 py-5 sm:px-6 lg:px-8">
+          <AppointmentDetailsContent
+            appointment={appointment}
+            variant={isAdmin ? "admin" : "details"}
+          />
+
+          {/* --------------------------------------
+              Pricing update section
+          -------------------------------------- */}
+
+          {isAdmin && appointment.status === "confirmed" && (
+            <AppointmentPricingSection
               appointment={appointment}
-              variant="admin"
-            />
-          ) : (
-            <AppointmentDetailsContent
-              appointment={appointment}
-              variant="details"
+              onEditPricing={() => {
+                onClose();
+                actions.handleOpenPricing(appointment);
+              }}
             />
           )}
+
+          {/* --------------------------------------
+              Admin Tips Summary
+          -------------------------------------- */}
+
           {isAdmin && totalTips > 0 && (
-            <div className="w-full border rounded-xl p-4 bg-white">
+            <div
+              className="
+                rounded-2xl
+                border
+                bg-white
+                p-5
+                shadow-sm
+              "
+            >
               <p className="text-sm text-gray-500">Total Tips</p>
-              <p className="font-bold mt-1 text-purple-700">
+
+              <p
+                className="
+                  mt-2
+                  text-2xl
+                  font-bold
+                  text-purple-700
+                "
+              >
                 ₦{totalTips.toLocaleString()}
               </p>
             </div>
           )}
-        </div>
 
-        {/* <div>
-          <AppointmentAdminNotes appointment={appointment} isAdmin />
-        </div> */}
+          {/* --------------------------------------
+              Outstanding Payment
+          -------------------------------------- */}
+
+          <OutstandingPaymentSection
+            appointment={appointment}
+            latestOutstandingPayment={latestOutstandingPayment}
+            isAdmin={isAdmin}
+            onRefresh={onRefresh}
+          />
+
+          {/* --------------------------------------
+              Admin Notes (future)
+          -------------------------------------- */}
+
+          {/*
+          <AppointmentAdminNotes
+            appointment={appointment}
+            isAdmin={isAdmin}
+          />
+          */}
+        </div>
       </div>
     </div>
   );

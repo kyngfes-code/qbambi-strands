@@ -405,6 +405,7 @@ export default function RefundsPage() {
           <OrderDetailsModal
             order={orderActions.details.order}
             onClose={orderActions.details.close}
+            hideRefundButton={true}
           />
         )}
       </div>

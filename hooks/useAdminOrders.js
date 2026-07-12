@@ -2,14 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 
 export default function useAdminOrders() {
   const [loading, setLoading] = useState(true);
-
+  const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState("all");
 
-  const [refreshing, setRefreshing] = useState(false);
-
   const [rawData, setRawData] = useState({
+    overview: null,
     plans: [],
-    history: [],
+    transactions: [],
     overdue: [],
     pending: [],
     deliveredOrders: [],
@@ -25,25 +24,35 @@ export default function useAdminOrders() {
         setLoading(true);
       }
 
-      const [plans, history, overdue, pending, delivered, rejected, cancelled] =
-        await Promise.all([
-          fetch("/api/admin/payment-plans").then((r) => r.json()),
-          fetch("/api/admin/payment-history").then((r) => r.json()),
-          fetch("/api/admin/overdue-instalments").then((r) => r.json()),
-          fetch("/api/admin/pending-confirmations").then((r) => r.json()),
-          fetch("/api/admin/delivered-orders").then((r) => r.json()),
-          fetch("/api/admin/payment-rejections").then((r) => r.json()),
-          fetch("/api/admin/cancelled-orders").then((r) => r.json()),
-        ]);
-
-      setRawData({
+      const [
+        overview,
         plans,
-        history,
+        transactions,
         overdue,
         pending,
-        deliveredOrders: delivered,
-        rejections: rejected,
-        cancelledOrders: cancelled,
+        delivered,
+        rejected,
+        cancelled,
+      ] = await Promise.all([
+        fetch("/api/admin/overview").then((r) => r.json()),
+        fetch("/api/admin/payment-plans").then((r) => r.json()),
+        fetch("/api/admin/payment-history").then((r) => r.json()),
+        fetch("/api/admin/overdue-instalments").then((r) => r.json()),
+        fetch("/api/admin/pending-confirmations").then((r) => r.json()),
+        fetch("/api/admin/delivered-orders").then((r) => r.json()),
+        fetch("/api/admin/payment-rejections").then((r) => r.json()),
+        fetch("/api/admin/cancelled-orders").then((r) => r.json()),
+      ]);
+
+      setRawData({
+        overview: overview ?? null,
+        plans: Array.isArray(plans) ? plans : [],
+        transactions: Array.isArray(transactions) ? transactions : [],
+        overdue: Array.isArray(overdue) ? overdue : [],
+        pending: Array.isArray(pending) ? pending : [],
+        deliveredOrders: Array.isArray(delivered) ? delivered : [],
+        rejections: Array.isArray(rejected) ? rejected : [],
+        cancelledOrders: Array.isArray(cancelled) ? cancelled : [],
       });
     } finally {
       setLoading(false);
@@ -92,8 +101,8 @@ export default function useAdminOrders() {
       isWithinPeriod(plan.created_at),
     );
 
-    const history = rawData.history.filter((item) =>
-      isWithinPeriod(item.created_at),
+    const transactions = rawData.transactions.filter((tx) =>
+      isWithinPeriod(tx.created_at),
     );
 
     const overdue = rawData.overdue.filter((item) =>
@@ -116,36 +125,28 @@ export default function useAdminOrders() {
       isWithinPeriod(item.cancelled_at || item.created_at),
     );
 
-    // ===== Overview derived from filtered data =====
-
-    const totalRevenue = history.reduce(
-      (sum, payment) => sum + Number(payment.amount || 0),
-      0,
-    );
-
-    const totalOrders =
-      pending.length +
-      deliveredOrders.length +
-      cancelledOrders.length +
-      rejections.length;
-
-    const pendingPayments = pending.length;
-
-    const rejectedPayments = rejections.length;
-
     const overview = {
-      totalRevenue,
-      totalOrders,
-      pendingPayments,
-      deliveredOrders: deliveredOrders.length,
-      cancelledOrders: cancelledOrders.length,
-      rejectedPayments,
+      grossRevenue: 0,
+      totalRefunds: 0,
+      netRevenue: 0,
+
+      totalOrders: 0,
+
+      awaitingPaymentConfirmation: 0,
+      awaitingDeliveryConfirmation: 0,
+      pendingOrders: 0,
+
+      deliveredOrders: 0,
+      cancelledOrders: 0,
+      rejectedPayments: 0,
+
+      ...(rawData.overview ?? {}),
     };
 
     return {
       overview,
       plans,
-      history,
+      transactions,
       overdue,
       pending,
       deliveredOrders,
@@ -157,13 +158,10 @@ export default function useAdminOrders() {
   return {
     loading,
     refreshing,
-
     period,
     setPeriod,
-
     refresh,
     loadAdminData,
-
     data: filteredData,
   };
 }

@@ -3,63 +3,54 @@
 import { useState } from "react";
 
 export default function PaystackButton({
-  appointmentId,
+  entityType,
+  entityId,
+  paymentType,
   label = "Pay with Paystack",
   className = "",
-  onSuccess,
 }) {
   const [loading, setLoading] = useState(false);
 
   async function handlePaystackPayment() {
     try {
       setLoading(true);
+      console.log({
+        entityType,
+        entityId,
+        paymentType,
+      });
 
-      const res = await fetch("/api/appointments/paystack/initiate", {
+      const response = await fetch("/api/paystack/initialize", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          appointmentId,
+          entityType,
+          entityId,
+          paymentType,
         }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to initialize Paystack payment");
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to initialize Paystack payment.");
       }
 
-      /*
-      Expected response:
-
-      {
-        authorization_url: "...",
-      }
-      */
-
-      if (!data.authorization_url) {
+      if (!data.authorizationUrl) {
         throw new Error("Missing Paystack authorization URL.");
       }
 
-      /*
-      Redirect customer to Paystack
-      */
-
-      window.location.href = data.authorization_url;
-
-      /*
-      This won't usually execute because
-      Paystack redirects away.
-      */
-
-      if (onSuccess) {
-        onSuccess(data);
-      }
+      // Redirect customer to Paystack
+      window.location.href = data.authorizationUrl;
     } catch (error) {
-      console.error("Paystack error:", error);
+      console.error("Paystack initialization error:", error);
 
-      alert(error.message || "Unable to initialize Paystack payment.");
+      alert(
+        error.message ||
+          "Unable to initialize Paystack payment. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -67,19 +58,22 @@ export default function PaystackButton({
 
   return (
     <button
+      type="button"
       onClick={handlePaystackPayment}
       disabled={loading}
       className={`
-        px-5 py-3
+        w-full
+        sm:w-auto
         rounded-xl
         bg-green-600
-        text-white
+        px-5
+        py-3
         font-medium
+        text-white
         transition
         hover:bg-green-700
-        disabled:opacity-50
         disabled:cursor-not-allowed
-        w-full sm:w-auto
+        disabled:opacity-50
         ${className}
       `}
     >

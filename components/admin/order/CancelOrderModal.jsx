@@ -1,17 +1,17 @@
 "use client";
 
 export default function CancelOrderModal({
-  open,
-  reason,
-  setReason,
-  message,
-  setMessage,
-  adminNote,
-  setAdminNote,
+  isOpen,
+  cancelReason,
+  setCancelReason,
+  cancelMessage,
+  setCancelMessage,
+  cancelAdminNote,
+  setCancelAdminNote,
   onClose,
   onConfirm,
 }) {
-  if (!open) return null;
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -26,8 +26,8 @@ export default function CancelOrderModal({
             </label>
 
             <select
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
               className="w-full border rounded-lg p-3"
             >
               <option value="">Select reason</option>
@@ -58,8 +58,8 @@ export default function CancelOrderModal({
 
             <textarea
               rows={4}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              value={cancelMessage}
+              onChange={(e) => setCancelMessage(e.target.value)}
               placeholder="Explain why this order is being cancelled..."
               className="w-full border rounded-lg p-3 resize-none"
             />
@@ -73,8 +73,8 @@ export default function CancelOrderModal({
 
             <textarea
               rows={3}
-              value={adminNote}
-              onChange={(e) => setAdminNote(e.target.value)}
+              value={cancelAdminNote}
+              onChange={(e) => setCancelAdminNote(e.target.value)}
               placeholder="Internal note visible only to admins..."
               className="w-full border rounded-lg p-3 resize-none"
             />

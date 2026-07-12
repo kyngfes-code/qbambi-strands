@@ -11,18 +11,69 @@ export async function GET() {
 
   const supabase = createSupabaseAdmin();
 
-  const { data: pending, error } = await supabase
+  /*
+   * Payment transactions remain the financial source of truth.
+   * We only care about transactions that are still relevant to the
+   * order workflow.
+   */
+  const { data: transactions, error: txError } = await supabase
+    .from("payment_transactions")
+    .select(
+      `
+      id,
+      entity_id,
+      entity_type,
+      amount,
+      payment_method,
+      payment_type,
+      provider,
+      provider_reference,
+      status,
+      metadata,
+      created_at
+    `,
+    )
+    .eq("entity_type", "order")
+    .in("status", ["pending", "verified"])
+    .order("created_at", { ascending: false });
+
+  if (txError) {
+    console.error(txError);
+
+    return NextResponse.json(
+      { error: "Failed to load payment transactions" },
+      { status: 500 },
+    );
+  }
+
+  if (!transactions?.length) {
+    return NextResponse.json([]);
+  }
+
+  const orderIds = [...new Set(transactions.map((tx) => tx.entity_id))];
+
+  /*
+   * Only fetch orders that are still active in the workflow.
+   *
+   * awaiting_confirmation
+   *      -> waiting for payment confirmation
+   *
+   * paid
+   *      -> waiting for delivery confirmation
+   *
+   * delivered/cancelled/refunded/etc are intentionally excluded.
+   */
+  const { data: orders, error: orderError } = await supabase
     .from("orders")
     .select(
       `
       id,
       user_id,
       total_amount,
-      receipt_url,
-      payment_method,
-      created_at,
       status,
-      users!orders_user_id_fkey (
+      receipt_url,
+      created_at,
+      users!orders_user_id_fkey(
         id,
         name,
         email,
@@ -30,28 +81,61 @@ export async function GET() {
       )
     `,
     )
-    .in("status", ["awaiting_confirmation", "paid"])
-    .is("payment_plan_id", null)
-    .order("created_at", { ascending: false });
+    .in("id", orderIds)
+    .in("status", ["awaiting_confirmation", "paid"]);
 
-  if (error) {
-    console.error(error);
+  if (orderError) {
+    console.error(orderError);
 
     return NextResponse.json(
-      { error: "Failed to load pending confirmations" },
+      { error: "Failed to load orders" },
       { status: 500 },
     );
   }
 
-  const result = pending.map((order) => ({
-    ...order,
-    customer: order.users,
-    users: undefined,
-    type: "full",
-    instalment_id: null,
-    instalment_number: null,
-    instalment_amount: null,
-  }));
+  const orderMap = new Map((orders ?? []).map((order) => [order.id, order]));
+
+  const result = transactions
+    .map((tx) => {
+      const order = orderMap.get(tx.entity_id);
+
+      // Ignore transactions whose order is no longer active.
+      if (!order) return null;
+
+      return {
+        id: order.id,
+        transaction_id: tx.id,
+
+        user_id: order.user_id,
+
+        total_amount: Number(order.total_amount),
+        amount: Number(tx.amount),
+
+        receipt_url: tx.metadata?.receipt_url ?? order.receipt_url ?? null,
+
+        payment_method: tx.payment_method,
+        payment_type: tx.payment_type,
+
+        provider: tx.provider,
+        provider_reference: tx.provider_reference,
+
+        // Workflow state (Orders table)
+        status: order.status,
+
+        // Financial state (Payment Transactions table)
+        transaction_status: tx.status,
+
+        created_at: tx.created_at,
+
+        customer: order.users,
+
+        type: "full",
+        instalment_id: null,
+        instalment_number: null,
+        instalment_amount: null,
+      };
+    })
+    .filter(Boolean);
 
   return NextResponse.json(result);
 }

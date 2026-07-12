@@ -12,7 +12,13 @@ export async function GET() {
 
     const supabase = createSupabaseAdmin();
 
-    const { data, error } = await supabase
+    /*
+    ==========================================
+    Appointment Refunds
+    ==========================================
+    */
+
+    const { data: appointmentRefunds, error: appointmentError } = await supabase
       .from("appointment_payment_adjustments")
       .select(
         `
@@ -30,30 +36,106 @@ export async function GET() {
       .eq("appointment.user_id", session.user.id)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error(error);
+    if (appointmentError) {
+      console.error(appointmentError);
 
       return NextResponse.json(
-        { error: "Failed to load refunds." },
+        { error: "Failed to load appointment refunds." },
         { status: 500 },
       );
     }
 
-    const pendingRefunds = (data || []).filter(
-      (refund) =>
-        refund.adjustment_type === "refund_pending" &&
-        refund.refund_status === "pending",
+    /*
+    ==========================================
+    Order Refunds
+    ==========================================
+    */
+
+    const { data: orderRefunds, error: orderError } = await supabase
+      .from("order_refund_requests")
+      .select(
+        `
+        *,
+        order:orders!inner(
+          id,
+          user_id,
+          created_at
+        )
+      `,
+      )
+      .eq("order.user_id", session.user.id)
+      .order("created_at", { ascending: false });
+
+    if (orderError) {
+      console.error(orderError);
+
+      return NextResponse.json(
+        { error: "Failed to load order refunds." },
+        { status: 500 },
+      );
+    }
+
+    /*
+    ==========================================
+    Normalize Appointment Refunds
+    ==========================================
+    */
+
+    const normalizedAppointments = (appointmentRefunds || []).map((refund) => ({
+      ...refund,
+      type: "appointment",
+
+      // normalize workflow status
+      status:
+        refund.refund_status === "completed"
+          ? "approved"
+          : refund.refund_status === "cancelled"
+            ? "rejected"
+            : refund.refund_status,
+    }));
+
+    /*
+    ==========================================
+    Normalize Order Refunds
+    ==========================================
+    */
+
+    const normalizedOrders = (orderRefunds || []).map((r) => ({
+      ...r,
+      type: "order",
+
+      // already uses workflow status
+      status: r.status,
+    }));
+
+    /*
+    ==========================================
+    Combine
+    ==========================================
+    */
+
+    const refunds = [...normalizedAppointments, ...normalizedOrders].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
     );
 
-    const completedRefunds = (data || []).filter(
-      (refund) =>
-        refund.adjustment_type === "refund" &&
-        refund.refund_status === "completed",
+    /*
+    ==========================================
+    Split
+    ==========================================
+    */
+
+    const pendingRefunds = refunds.filter(
+      (r) => r.status === "pending" || r.status === "processing",
     );
+
+    const approvedRefunds = refunds.filter((r) => r.status === "approved");
+
+    const rejectedRefunds = refunds.filter((r) => r.status === "rejected");
 
     return NextResponse.json({
       pendingRefunds,
-      completedRefunds,
+      approvedRefunds,
+      rejectedRefunds,
     });
   } catch (error) {
     console.error(error);

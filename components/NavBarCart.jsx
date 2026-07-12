@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Logo from "./Logo";
+import Logo from "./navigation/Logo";
 import icon from "@/public/icon-flat-gold.png";
 
 function NavBarCart() {

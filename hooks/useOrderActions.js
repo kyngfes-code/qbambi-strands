@@ -33,8 +33,21 @@ export default function useOrderActions(loadAdminData) {
   const [refundCustomerMessage, setRefundCustomerMessage] = useState("");
   const [refundAdminNote, setRefundAdminNote] = useState("");
 
-  const openRefundModal = (order) => {
-    setRefundOrder(order);
+  const openRefundModal = async (order) => {
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}`);
+
+      if (!res.ok) {
+        throw new Error("Failed to load order");
+      }
+
+      const fullOrder = await res.json();
+
+      setRefundOrder(fullOrder);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load refund information.");
+    }
   };
 
   const closeRefundModal = () => {
@@ -80,9 +93,12 @@ export default function useOrderActions(loadAdminData) {
 
       alert("Refund recorded successfully");
 
+      // const orderId = refundOrder.id;
+
+      await loadAdminData();
       closeRefundModal();
 
-      await Promise.all([loadAdminData(), viewOrder(refundOrder.id)]);
+      await Promise.all([loadAdminData()]);
     } catch (err) {
       console.error(err);
       alert(err.message);
@@ -127,8 +143,10 @@ export default function useOrderActions(loadAdminData) {
         }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error("Payment confirmation failed");
+        throw new Error(data.error || "Payment confirmation failed");
       }
 
       await loadAdminData();

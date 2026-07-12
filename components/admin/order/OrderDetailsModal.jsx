@@ -1,6 +1,11 @@
 "use client";
 
-export default function OrderDetailsModal({ order, onClose, onRefund }) {
+export default function OrderDetailsModal({
+  order,
+  onClose,
+  onRefund,
+  hideRefundButton = false,
+}) {
   if (!order) return null;
 
   const statusColor = {
@@ -74,7 +79,7 @@ export default function OrderDetailsModal({ order, onClose, onRefund }) {
                   <p className="text-lg sm:text-xl font-bold text-red-600">
                     ₦
                     {Number(
-                      order.financialSummary?.refundedAmount ?? 0,
+                      order.financialSummary?.totalRefunded ?? 0,
                     ).toLocaleString()}
                   </p>
                 </div>
@@ -233,20 +238,22 @@ export default function OrderDetailsModal({ order, onClose, onRefund }) {
         </div>
 
         {/* Refund Action */}
-        <div className="space-y-8 border-t pt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          {order.financialSummary?.refundableBalance > 0 ? (
-            <button
-              onClick={() => onRefund(order)}
-              className="w-full sm:w-auto rounded-lg bg-red-600 px-5 py-2 font-medium text-white hover:bg-red-700"
-            >
-              Issue Refund
-            </button>
-          ) : (
-            <span className="w-full sm:w-auto rounded-lg bg-green-100 px-5 py-2 text-center font-medium text-green-700">
-              Fully Refunded
-            </span>
-          )}
-        </div>
+        {!hideRefundButton && (
+          <div className="space-y-8 border-t pt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            {order.financialSummary?.refundableBalance > 0 ? (
+              <button
+                onClick={() => onRefund(order)}
+                className="w-full sm:w-auto rounded-lg bg-red-600 px-5 py-2 font-medium text-white hover:bg-red-700"
+              >
+                Issue Refund
+              </button>
+            ) : (
+              <span className="w-full sm:w-auto rounded-lg bg-green-100 px-5 py-2 text-center font-medium text-green-700">
+                Fully Refunded
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

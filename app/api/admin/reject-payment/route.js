@@ -6,19 +6,11 @@ export async function POST(req) {
   try {
     const session = await auth();
 
-    if (!session || session.user.role !== "admin") {
+    if (!session?.user || session.user.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await req.json();
-
-    const { orderId, reason, message, adminNote } = body;
-    if (!message?.trim()) {
-      return NextResponse.json(
-        { error: "Customer message is required" },
-        { status: 400 },
-      );
-    }
+    const { orderId, reason, message, adminNote } = await req.json();
 
     if (!orderId) {
       return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
@@ -26,87 +18,40 @@ export async function POST(req) {
 
     if (!reason) {
       return NextResponse.json(
-        { error: "Missing rejection reason" },
+        { error: "Rejection reason is required." },
+        { status: 400 },
+      );
+    }
+
+    if (!message?.trim()) {
+      return NextResponse.json(
+        { error: "Customer message is required." },
         { status: 400 },
       );
     }
 
     const supabase = createSupabaseAdmin();
 
-    /* 1️⃣ Fetch order */
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select("id, user_id, status")
-      .eq("id", orderId)
-      .single();
+    const { data, error } = await supabase.rpc(
+      "reject_order_bank_transfer_payment",
+      {
+        p_order_id: orderId,
+        p_admin_id: session.user.id,
+        p_rejection_reason: reason,
+        p_customer_message: message,
+        p_admin_note: adminNote ?? null,
+      },
+    );
 
-    if (orderError || !order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
+    if (error) {
+      console.error("RPC Error:", error);
 
-    /* 2️⃣ Record rejection */
-    const { data: rejection, error: rejectionError } = await supabase
-      .from("payment_rejections")
-      .insert({
-        order_id: order.id,
-        user_id: order.user_id,
-        rejected_by: session.user.id,
-        rejection_reason: reason,
-        customer_message: message,
-        admin_note: adminNote || null,
-      })
-      .select()
-      .single();
-
-    if (rejectionError) {
-      console.error(
-        "Rejection insert error:",
-        JSON.stringify(rejectionError, null, 2),
-      );
-
-      return NextResponse.json(
-        {
-          error: rejectionError.message,
-          details: rejectionError,
-        },
-        { status: 500 },
-      );
-    }
-
-    /* 3️⃣ Update order */
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({
-        status: "rejected",
-        rejection_id: rejection.id,
-      })
-      .eq("id", orderId);
-
-    if (updateError) {
-      console.error("Order update error:", updateError);
-
-      return NextResponse.json(
-        { error: "Failed to update order" },
-        { status: 500 },
-      );
-    }
-
-    /* 4️⃣ Mark notification read */
-    const { error: notificationError } = await supabase
-      .from("admin_notifications")
-      .update({
-        is_read: true,
-      })
-      .eq("order_id", orderId)
-      .eq("type", "receipt_uploaded");
-
-    if (notificationError) {
-      console.error("Notification update error:", notificationError);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      rejection,
+      rejectionId: data,
     });
   } catch (error) {
     console.error("Reject payment error:", error);

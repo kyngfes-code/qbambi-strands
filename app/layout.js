@@ -1,9 +1,12 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import "@/app/styles/globals.css";
 import { Playfair_Display, Inter } from "next/font/google";
-import { Toaster } from "sonner";
+
+import "@/app/styles/globals.css";
+
 import Providers from "./providers";
 import { OnlineStatusProvider } from "./OnlineStatusProvider";
+
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,11 +19,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
   display: "swap",
 });
+
 const playfair = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-playfair",
   display: "swap",
 });
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -28,19 +33,22 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Qbambi Strands / Home",
-  description: "Hair and beauty",
+  title: "Qbambi Strands",
+  description: "Hair, Beauty, Academy and Salon",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} font-inter min-h-screen relative flex flex-col bg-linear-to-bl from-violet-100 to-stone-500`}
+        className={`${geistSans.variable} ${geistMono.variable} font-inter min-h-screen bg-neutral-50 text-neutral-900`}
       >
         <OnlineStatusProvider>
-          <Providers>{children}</Providers>
+          <Providers>
+            <main>{children}</main>
+          </Providers>
         </OnlineStatusProvider>
+
         <Toaster richColors closeButton />
       </body>
     </html>

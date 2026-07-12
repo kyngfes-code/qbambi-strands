@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Logo from "./Logo";
+import Logo from "./navigation/Logo";
 import icon from "@/public/icon-flat-gold.png";
-import SignInDropdownButton from "./SignInDropDownButton";
+import SignInDropdownButton from "./navigation/SignInDropDownButton";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 

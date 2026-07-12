@@ -5,8 +5,10 @@ import ReceiptUploader from "./ReceiptUploader";
 
 export default function BankTransferPayment({
   amount,
-  appointmentId,
-  onReceiptUploaded,
+  entityType,
+  entityId,
+  paymentType,
+  onUploadReceipt,
 }) {
   const [showInstructions, setShowInstructions] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -25,11 +27,27 @@ export default function BankTransferPayment({
 
       const formData = new FormData();
 
-      formData.append("appointmentId", appointmentId);
-      formData.append("amount", depositAmount);
-      formData.append("receipt", file);
+      if (entityType === "appointment") {
+        formData.append("appointmentId", entityId);
+        formData.append("amount", depositAmount.toString());
+        formData.append("receipt", file);
 
-      const res = await fetch("/api/appointments/upload-receipt", {
+        // Optional
+        formData.append("customerMessage", "");
+      } else {
+        formData.append("entityType", entityType);
+        formData.append("entityId", entityId);
+        formData.append("paymentType", paymentType);
+        formData.append("amount", depositAmount.toString());
+        formData.append("receipt", file);
+      }
+
+      const endpoint =
+        entityType === "appointment"
+          ? "/api/appointments/upload-receipt"
+          : "/api/orders/receipt";
+
+      const res = await fetch(endpoint, {
         method: "POST",
         body: formData,
       });
@@ -50,7 +68,7 @@ export default function BankTransferPayment({
       setError("");
       alert("Receipt submitted successfully.");
 
-      onReceiptUploaded?.();
+      onUploadReceipt?.();
     } catch (err) {
       console.error(err);
 
@@ -124,8 +142,7 @@ export default function BankTransferPayment({
               <li>Transfer the exact deposit amount.</li>
 
               <li>
-                Use booking ID {appointmentId?.slice(0, 8)} as payment
-                reference.
+                Use booking ID {entityId?.slice(0, 8)} as payment reference.
               </li>
 
               <li>Upload your payment receipt below.</li>

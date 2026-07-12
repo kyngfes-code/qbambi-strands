@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
-export async function POST(request) {
+export async function POST(req) {
   try {
     /*
-    ─────────────────────────────────────────────
+    ==========================================
     Authenticate Admin
-    ─────────────────────────────────────────────
+    ==========================================
     */
     const session = await auth();
 
@@ -20,93 +20,149 @@ export async function POST(request) {
     }
 
     /*
-    ─────────────────────────────────────────────
-    Parse Request Body
-    ─────────────────────────────────────────────
+    ==========================================
+    Parse Request
+    ==========================================
     */
     const {
       appointmentId,
       completionType,
-      totalAmountReceived,
-      paymentMethod,
-      refundAmount,
-      refundReason,
-      adminNote,
-    } = await request.json();
+      totalAmountReceived = 0,
+      paymentMethod = null,
+      paymentChannel = null,
+      transactionReference = null,
+      receiptGroupId = null,
+      refundAmount = 0,
+      refundReason = null,
+      adminNote = null,
+    } = await req.json();
 
     if (!appointmentId) {
       return NextResponse.json(
-        { error: "Appointment ID is required" },
-        { status: 400 },
+        {
+          error: "Appointment ID is required.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
-    if (Number(totalAmountReceived || 0) < 0) {
+    if (!completionType) {
       return NextResponse.json(
-        { error: "Amount received cannot be negative." },
-        { status: 400 },
+        {
+          error: "completion type is required.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
-    if (Number(refundAmount || 0) < 0) {
+    const validTypes = ["normal", "additional_payment", "refund"];
+
+    if (!validTypes.includes(completionType)) {
       return NextResponse.json(
-        { error: "Refund amount cannot be negative." },
-        { status: 400 },
+        {
+          error: "Invalid settlement type.",
+        },
+        {
+          status: 400,
+        },
       );
     }
+
+    if (
+      completionType === "additional_payment" &&
+      Number(totalAmountReceived) <= 0
+    ) {
+      return NextResponse.json(
+        {
+          error: "Payment received must be greater than zero.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (completionType === "refund" && Number(refundAmount) <= 0) {
+      return NextResponse.json(
+        {
+          error: "Refund amount must be greater than zero.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    /*
+    ==========================================
+    Call RPC
+    ==========================================
+    */
 
     const supabase = createSupabaseAdmin();
 
     const { data, error } = await supabase.rpc("complete_appointment", {
       p_appointment_id: appointmentId,
+
       p_completed_by: session.user.id,
 
-      p_total_amount_received: Number(totalAmountReceived || 0),
+      p_completion_type: completionType,
 
-      p_payment_method:
-        paymentMethod && paymentMethod.trim() ? paymentMethod : null,
+      p_total_amount_received: Number(totalAmountReceived),
 
-      p_refund_amount: Number(refundAmount || 0),
+      p_payment_method: paymentMethod,
 
-      p_refund_reason:
-        refundReason && refundReason.trim() ? refundReason.trim() : null,
+      p_payment_channel: paymentChannel,
 
-      p_admin_note: adminNote && adminNote.trim() ? adminNote.trim() : null,
+      p_transaction_reference: transactionReference,
+
+      p_receipt_group_id: receiptGroupId,
+
+      p_refund_amount: Number(refundAmount),
+
+      p_refund_reason: refundReason,
+
+      p_admin_note: adminNote,
     });
 
     if (error) {
-      console.error("complete_appointment RPC:", error);
+      console.error("complete_appointment:", error);
 
       return NextResponse.json(
         {
           error: error.message,
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
 
     /*
-    ─────────────────────────────────────────────
-    Success Response
-    ─────────────────────────────────────────────
+    ==========================================
+    Success
+    ==========================================
     */
+
     return NextResponse.json({
       success: true,
-      message: "Appointment marked as completed.",
-      appointment: data.appointment,
-
-      offlinePayment: data.offline_payment,
-
-      tipAdjustment: data.tip_adjustment,
-
-      refundAdjustment: data.refund_adjustment,
+      message: "Appointment completed successfully.",
+      ...data,
     });
-  } catch (error) {
-    console.error("POST /api/admin/appointments/complete:", error);
+  } catch (err) {
+    console.error("Complete appointment:", err);
 
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+      {
+        error: "Internal server error.",
+      },
+      {
+        status: 500,
+      },
     );
   }
 }

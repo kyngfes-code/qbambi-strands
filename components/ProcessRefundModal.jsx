@@ -15,18 +15,25 @@ export default function ProcessRefundModal({
   const [adminNote, setAdminNote] = useState("");
   const [refundReference, setRefundReference] = useState("");
   const [errors, setErrors] = useState({});
+  const [approvedAmount, setApprovedAmount] = useState("");
 
   const isAppointment = type === "appointments";
 
   const customer = isAppointment
-    ? refund.appointment?.user
-    : refund.order?.user;
+    ? refund?.appointment?.user
+    : refund?.order?.user;
 
   const service = isAppointment
-    ? refund.appointment?.service_name
+    ? refund?.appointment?.service_name
     : "Order Refund";
 
-  const refundAmount = isAppointment ? refund.amount : refund.requested_amount;
+  const refundAmount = isAppointment
+    ? refund?.amount
+    : refund?.requested_amount;
+
+  const requestedAmount = Number(
+    isAppointment ? (refund?.amount ?? 0) : (refund?.requested_amount ?? 0),
+  );
 
   /*
   ==========================================
@@ -40,8 +47,15 @@ export default function ProcessRefundModal({
     setRefundMethod("");
     setAdminNote("");
     setRefundReference("");
+
+    setApprovedAmount(
+      String(
+        isAppointment ? (refund.amount ?? 0) : (refund.requested_amount ?? 0),
+      ),
+    );
+
     setErrors({});
-  }, [isOpen, refund]);
+  }, [isOpen, refund, isAppointment]);
 
   /*
   ==========================================
@@ -50,6 +64,23 @@ export default function ProcessRefundModal({
   */
   function validate() {
     const newErrors = {};
+
+    const requestedAmount = Number(
+      isAppointment ? refund.amount : refund.requested_amount,
+    );
+
+    const approved = Number(approvedAmount);
+
+    if (!isAppointment && action === "approve") {
+      if (Number.isNaN(approved)) {
+        newErrors.approvedAmount = "Enter a valid amount.";
+      } else if (approved <= 0) {
+        newErrors.approvedAmount = "Approved amount must be greater than zero.";
+      } else if (approved > requestedAmount) {
+        newErrors.approvedAmount =
+          "Approved amount cannot exceed the requested amount.";
+      }
+    }
 
     if (isAppointment || action === "approve") {
       if (!refundMethod) {
@@ -72,13 +103,18 @@ export default function ProcessRefundModal({
 
     if (!validate()) return;
 
-    onSubmit({
+    const payload = {
       refundRequestId: refund.id,
       action,
-      refundMethod,
-      refundReference: refundReference.trim(),
+      approvedAmount: action === "approve" ? Number(approvedAmount) : null,
+      refundMethod: action === "approve" ? refundMethod : null,
+      refundReference: action === "approve" ? refundReference.trim() : null,
       adminNote: adminNote.trim(),
-    });
+    };
+
+    console.log(payload);
+
+    onSubmit(payload);
   }
 
   return (
@@ -156,29 +192,74 @@ export default function ProcessRefundModal({
 
                   <p className="font-medium">
                     {isAppointment
-                      ? refund.appointment?.appointment_date
+                      ? refund?.appointment?.appointment_date
                         ? new Date(
                             refund.appointment.appointment_date,
                           ).toLocaleDateString()
                         : "-"
-                      : `#${refund.order?.id?.slice(0, 8)}`}
+                      : refund?.order?.id
+                        ? `#${refund.order.id.slice(0, 8)}`
+                        : "-"}
                   </p>
                 </div>
               </div>
 
-              <div>
-                <p className="text-gray-500">Refund Amount</p>
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Requested Amount</span>
 
-                <p className="font-semibold text-red-600">
-                  ₦{Number(refundAmount || 0).toLocaleString()}
-                </p>
+                  <span className="font-semibold text-red-600">
+                    ₦{requestedAmount.toLocaleString()}
+                  </span>
+                </div>
+
+                {!isAppointment && action === "approve" && (
+                  <>
+                    <div>
+                      <label className="block mb-2 font-medium">
+                        Approved Amount
+                      </label>
+
+                      <input
+                        type="number"
+                        min="0"
+                        max={requestedAmount}
+                        value={approvedAmount}
+                        onChange={(e) => setApprovedAmount(e.target.value)}
+                        className="w-full rounded-xl border px-4 py-3"
+                      />
+
+                      {errors.approvedAmount && (
+                        <p className="mt-2 text-sm text-red-600">
+                          {errors.approvedAmount}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="rounded-xl bg-neutral-50 p-3 text-sm">
+                      <div className="flex justify-between">
+                        <span>Difference</span>
+
+                        <span>
+                          ₦
+                          {Math.max(
+                            requestedAmount - Number(approvedAmount || 0),
+                            0,
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div>
                 <p className="text-gray-500">Requested</p>
 
                 <p className="font-medium">
-                  {new Date(refund.created_at).toLocaleString()}
+                  {refund?.created_at
+                    ? new Date(refund.created_at).toLocaleString()
+                    : "-"}
                 </p>
               </div>
             </div>
@@ -321,15 +402,31 @@ export default function ProcessRefundModal({
           </div>
 
           {/* Warning */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
-            <p className="text-sm text-yellow-700">
-              {isAppointment
-                ? "This will mark the refund as completed."
-                : action === "approve"
-                  ? "This refund request will be approved and processed."
-                  : "This refund request will be rejected."}
-            </p>
-          </div>
+          {!isAppointment &&
+          action === "approve" &&
+          Number(approvedAmount) < requestedAmount ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm text-amber-700">
+                This request will be partially approved. The customer requested
+                <strong> ₦{requestedAmount.toLocaleString()}</strong> but only
+                <strong>
+                  {" "}
+                  ₦{Number(approvedAmount).toLocaleString()}
+                </strong>{" "}
+                will be refunded.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+              <p className="text-sm text-yellow-700">
+                {isAppointment
+                  ? "This will mark the refund as completed."
+                  : action === "approve"
+                    ? "This refund request will be approved and processed."
+                    : "This refund request will be rejected."}
+              </p>
+            </div>
+          )}
 
           {/* Footer */}
           <div

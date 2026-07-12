@@ -34,6 +34,7 @@ export default function AdminAppointmentModals({
         appointment={selectedAppointment}
         onClose={() => setSelectedAppointment(null)}
         isAdmin
+        actions={actions}
       />
 
       {pricingAppointment && (

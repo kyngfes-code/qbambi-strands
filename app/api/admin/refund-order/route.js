@@ -6,7 +6,7 @@ export async function POST(req) {
   try {
     const session = await auth();
 
-    if (!session || session.user.role !== "admin") {
+    if (!session?.user || session.user.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -20,9 +20,7 @@ export async function POST(req) {
       );
     }
 
-    const refundAmount = Number(amount);
-
-    if (!refundAmount || refundAmount <= 0) {
+    if (!amount || Number(amount) <= 0) {
       return NextResponse.json(
         { error: "Invalid refund amount." },
         { status: 400 },
@@ -31,105 +29,22 @@ export async function POST(req) {
 
     const supabase = createSupabaseAdmin();
 
-    /*
-    ---------------------------------------
-    Get total confirmed payments
-    ---------------------------------------
-    */
-
-    const { data: payments, error: paymentError } = await supabase
-      .from("payment_history")
-      .select("id, amount")
-      .eq("order_id", orderId)
-      .eq("status", "confirmed");
-
-    if (paymentError) {
-      return NextResponse.json(
-        { error: paymentError.message },
-        { status: 500 },
-      );
-    }
-
-    if (!payments.length) {
-      return NextResponse.json(
-        { error: "No confirmed payments found." },
-        { status: 400 },
-      );
-    }
-
-    /*
-    ---------------------------------------
-    Already refunded
-    ---------------------------------------
-    */
-
-    const { data: refunds, error: refundError } = await supabase
-      .from("order_payment_adjustments")
-      .select("amount")
-      .in("adjustment_type", ["refund", "partial_refund"])
-      .eq("order_id", orderId);
-
-    if (refundError) {
-      return NextResponse.json({ error: refundError.message }, { status: 500 });
-    }
-
-    const totalPaid = payments.reduce(
-      (sum, payment) => sum + Number(payment.amount),
-      0,
-    );
-
-    const totalRefunded = refunds.reduce(
-      (sum, refund) => sum + Number(refund.amount),
-      0,
-    );
-
-    const refundable = totalPaid - totalRefunded;
-
-    if (refundAmount > refundable) {
-      return NextResponse.json(
-        {
-          error: `Maximum refundable amount is ₦${refundable.toLocaleString()}.`,
-        },
-        { status: 400 },
-      );
-    }
-
-    /*
-    ---------------------------------------
-    Determine adjustment type
-    ---------------------------------------
-    */
-
-    const adjustmentType =
-      refundAmount === refundable ? "refund" : "partial_refund";
-
-    /*
-    ---------------------------------------
-    Insert adjustment
-    ---------------------------------------
-    */
-
-    const { error: insertError } = await supabase
-      .from("order_payment_adjustments")
-      .insert({
-        order_id: orderId,
-        adjustment_type: adjustmentType,
-        amount: refundAmount,
-        reason,
-        customer_message: customerMessage,
-        admin_note: adminNote,
-        created_by: session.user.id,
-      });
-
-    if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      refunded: refundAmount,
-      remainingRefundable: refundable - refundAmount,
+    const { data, error } = await supabase.rpc("refund_order_payment", {
+      p_order_id: orderId,
+      p_admin_id: session.user.id,
+      p_amount: Number(amount),
+      p_reason: reason ?? null,
+      p_customer_message: customerMessage ?? null,
+      p_admin_note: adminNote ?? null,
     });
+
+    if (error) {
+      console.error("RPC Error:", error);
+
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json(data);
   } catch (err) {
     console.error(err);
 

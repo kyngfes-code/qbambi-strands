@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import Link from "next/link";
-import UserMenu from "./UserMenu"; // ✅ NEW CLIENT COMPONENT
-import SignInDropdownButton from "./SignInDropDownButton";
+import UserMenu from "./navigation/UserMenu"; // ✅ NEW CLIENT COMPONENT
+import SignInDropdownButton from "./navigation/SignInDropDownButton";
 
 export default async function Navigation({ className = "" }) {
   const session = await auth();

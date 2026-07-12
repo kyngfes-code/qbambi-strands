@@ -2,68 +2,88 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
-export async function GET() {
+export async function POST(req) {
   try {
+    /*
+    ==========================================
+    Authenticate Admin
+    ==========================================
+    */
+
     const session = await auth();
 
-    // Must be logged in
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Must be admin
     if (session.user.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const supabaseAdmin = createSupabaseAdmin();
+    /*
+    ==========================================
+    Parse Request
+    ==========================================
+    */
 
-    const { data, error } = await supabaseAdmin
-      .from("appointment_payments")
-      .select(
-        `
-    *,
-    appointment:appointments (
-      id,
-      service_name,
-      appointment_date,
-      appointment_time,
-      service_amount,
-      deposit_required,
-      amount_paid,
-      balance_due,
-      user_id,
+    const { paymentId, rejectionReason, customerMessage } = await req.json();
 
-      user:users!appointments_user_id_fkey (
-        id,
-        name,
-        email
-      )
-    )
-  `,
-      )
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Failed to fetch appointment payments:", error);
-
+    if (!paymentId) {
       return NextResponse.json(
-        {
-          error: "Failed to fetch appointment payments",
-          details: error.message,
-        },
-        { status: 500 },
+        { error: "Payment ID is required." },
+        { status: 400 },
       );
     }
 
-    return NextResponse.json(data ?? []);
-  } catch (error) {
-    console.error("Appointment payments GET error:", error);
+    if (!rejectionReason?.trim()) {
+      return NextResponse.json(
+        { error: "Rejection reason is required." },
+        { status: 400 },
+      );
+    }
+
+    /*
+    ==========================================
+    Execute RPC
+    ==========================================
+    */
+
+    const supabase = createSupabaseAdmin();
+
+    const { data, error } = await supabase.rpc("reject_appointment_deposit", {
+      p_payment_id: paymentId,
+      p_rejected_by: session.user.id,
+      p_rejection_reason: rejectionReason.trim(),
+      p_customer_message: customerMessage?.trim() || null,
+    });
+
+    if (error) {
+      console.error("reject_appointment_deposit:", error);
+
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    /*
+    ==========================================
+    Success
+    ==========================================
+    */
+
+    return NextResponse.json({
+      success: true,
+      message: "Deposit payment rejected successfully.",
+      ...data,
+    });
+  } catch (err) {
+    console.error("Reject appointment deposit:", err);
 
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+      {
+        error: "Internal server error.",
+      },
+      {
+        status: 500,
+      },
     );
   }
 }

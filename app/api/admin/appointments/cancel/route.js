@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
-export async function POST(request) {
+export async function POST(req) {
   try {
     /*
-    ─────────────────────────────────────────────
+    ==========================================
     Authenticate Admin
-    ─────────────────────────────────────────────
+    ==========================================
     */
     const session = await auth();
 
@@ -20,107 +20,67 @@ export async function POST(request) {
     }
 
     /*
-    ─────────────────────────────────────────────
-    Parse Request Body
-    ─────────────────────────────────────────────
+    ==========================================
+    Parse Request
+    ==========================================
     */
-    const { appointmentId, cancellationReason, customerMessage, adminNote } =
-      await request.json();
+    const {
+      appointmentId,
+      reason,
+      adminNote = null,
+      customerMessage = null,
+    } = await req.json();
 
     if (!appointmentId) {
       return NextResponse.json(
-        { error: "Appointment ID is required" },
+        { error: "Appointment ID is required." },
         { status: 400 },
       );
     }
 
-    if (!cancellationReason) {
+    if (!reason?.trim()) {
       return NextResponse.json(
-        { error: "Cancellation reason is required" },
+        { error: "Cancellation reason is required." },
         { status: 400 },
       );
     }
 
+    /*
+    ==========================================
+    Execute RPC
+    ==========================================
+    */
     const supabase = createSupabaseAdmin();
 
-    /*
-    ─────────────────────────────────────────────
-    Ensure Appointment Exists
-    ─────────────────────────────────────────────
-    */
-    const { data: appointment, error: fetchError } = await supabase
-      .from("appointments")
-      .select("*")
-      .eq("id", appointmentId)
-      .single();
-
-    if (fetchError || !appointment) {
-      return NextResponse.json(
-        { error: "Appointment not found" },
-        { status: 404 },
-      );
-    }
-
-    /*
-    ─────────────────────────────────────────────
-    Prevent Duplicate Cancellation
-    ─────────────────────────────────────────────
-    */
-    if (appointment.status === "cancelled") {
-      return NextResponse.json(
-        { error: "Appointment is already cancelled" },
-        { status: 400 },
-      );
-    }
-
-    /*
-    ─────────────────────────────────────────────
-    Cancel Appointment
-    ─────────────────────────────────────────────
-    */
-    const { data, error } = await supabase
-      .from("appointments")
-      .update({
-        status: "cancelled",
-        cancelled_at: new Date().toISOString(),
-        cancelled_by: session.user.id,
-        cancellation_reason: cancellationReason,
-        cancellation_customer_message: customerMessage || null,
-        cancellation_admin_note: adminNote || null,
-      })
-      .eq("id", appointmentId)
-      .select(
-        `
-        *,
-        customer:users!appointments_user_id_fkey (
-          id,
-          name,
-          email
-        )
-      `,
-      )
-      .single();
+    const { data, error } = await supabase.rpc("cancel_appointment", {
+      p_appointment_id: appointmentId,
+      p_cancelled_by: session.user.id,
+      p_reason: reason,
+      p_admin_note: adminNote,
+      p_customer_message: customerMessage,
+    });
 
     if (error) {
-      console.error("Appointment cancellation error:", error);
+      console.error("cancel_appointment:", error);
 
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     /*
-    ─────────────────────────────────────────────
-    Success Response
-    ─────────────────────────────────────────────
+    ==========================================
+    Success
+    ==========================================
     */
     return NextResponse.json({
-      message: "Appointment cancelled successfully",
-      appointment: data,
+      success: true,
+      message: "Appointment cancelled successfully.",
+      ...data,
     });
-  } catch (error) {
-    console.error("POST /api/admin/appointments/cancel:", error);
+  } catch (err) {
+    console.error("Cancel appointment:", err);
 
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error." },
       { status: 500 },
     );
   }

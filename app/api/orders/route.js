@@ -123,15 +123,7 @@ export async function GET() {
         created_at
       ),
 
-      payment_history (
-        id,
-        amount,
-        payment_method,
-        status,
-        created_at
-      ),
-
-      order_payment_adjustments (
+        order_payment_adjustments (
         id,
         adjustment_type,
         amount,
@@ -154,6 +146,54 @@ export async function GET() {
       },
       { status: 400 },
     );
+  }
+
+  const orderIds = (data ?? []).map((o) => o.id);
+
+  let transactions = [];
+
+  if (orderIds.length) {
+    const { data: txs, error: transactionsError } = await supabase
+      .from("payment_transactions")
+      .select(
+        `
+      id,
+      entity_id,
+      entity_type,
+      amount,
+      payment_method,
+      payment_type,
+      provider,
+      provider_reference,
+      status,
+      verified_at,
+      paid_at,
+      created_at
+    `,
+      )
+      .eq("entity_type", "order")
+      .in("entity_id", orderIds);
+
+    if (transactionsError) {
+      console.error(transactionsError);
+
+      return NextResponse.json(
+        { error: transactionsError.message },
+        { status: 400 },
+      );
+    }
+
+    transactions = txs ?? [];
+  }
+
+  const txMap = {};
+
+  for (const tx of transactions ?? []) {
+    if (!txMap[tx.entity_id]) {
+      txMap[tx.entity_id] = [];
+    }
+
+    txMap[tx.entity_id].push(tx);
   }
 
   const enriched = (data || []).map((order) => {
@@ -182,14 +222,17 @@ export async function GET() {
        Payments
     ----------------------------- */
 
-    const paymentHistory = (order.payment_history || [])
-      .filter((payment) => payment.status === "confirmed")
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const paymentHistory = (txMap[order.id] ?? [])
+      .filter((tx) => tx.status === "verified")
+      .sort(
+        (a, b) =>
+          new Date(a.verified_at || a.created_at) -
+          new Date(b.verified_at || b.created_at),
+      );
 
-    const totalPaid = paymentHistory.reduce(
-      (sum, payment) => sum + Number(payment.amount || 0),
-      0,
-    );
+    const totalPaid = paymentHistory.reduce((sum, tx) => {
+      return sum + Number(tx.amount || 0);
+    }, 0);
 
     /* ----------------------------
        Refunds
@@ -208,6 +251,10 @@ export async function GET() {
 
     const netReceived = totalPaid - refundedAmount;
 
+    const totalAmount = Number(order.total_amount || 0);
+
+    const balanceDue = Math.max(totalAmount - totalPaid, 0);
+
     /* ----------------------------
        Timeline
     ----------------------------- */
@@ -218,11 +265,14 @@ export async function GET() {
         created_at: order.created_at,
       },
 
-      ...paymentHistory.map((payment) => ({
+      ...paymentHistory.map((tx) => ({
         type: "payment",
-        amount: payment.amount,
-        payment_method: payment.payment_method,
-        created_at: payment.created_at,
+        amount: tx.amount,
+        payment_method: tx.payment_method,
+        payment_type: tx.payment_type,
+        provider: tx.provider,
+        reference: tx.provider_reference,
+        created_at: tx.verified_at || tx.created_at,
       })),
 
       ...refunds.map((refund) => ({
@@ -247,6 +297,7 @@ export async function GET() {
       financialSummary: {
         totalAmount: Number(order.total_amount || 0),
         totalPaid,
+        balanceDue,
         refundedAmount,
         refundableBalance,
         netReceived,

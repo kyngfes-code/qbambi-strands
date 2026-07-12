@@ -87,6 +87,7 @@ export default function PendingConfirmationsSection({ orders = [], actions }) {
           onViewOrder={actions.viewOrder}
           onReject={actions.rejectOrder}
           onCancel={actions.cancelOrder}
+          onRefund={actions.openRefundModal}
         />
       </div>
     </DashboardSection>

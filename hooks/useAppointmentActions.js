@@ -25,7 +25,7 @@ export default function useAppointmentActions(refreshDashboard) {
     try {
       setPricingLoading(true);
 
-      const res = await fetch("/api/admin/appointments/pricing", {
+      const res = await fetch("/api/admin/appointments/set-pricing", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -68,15 +68,18 @@ export default function useAppointmentActions(refreshDashboard) {
     if (!confirmed) return;
 
     try {
-      const res = await fetch("/api/admin/appointment-payments/confirm", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(
+        "/api/admin/appointment-payments/confirm-deposit",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            paymentId,
+          }),
         },
-        body: JSON.stringify({
-          paymentId,
-        }),
-      });
+      );
 
       const data = await res.json();
 
@@ -147,12 +150,34 @@ export default function useAppointmentActions(refreshDashboard) {
     try {
       setCompletionLoading(true);
 
+      const apiPayload = {
+        appointmentId: payload.appointmentId,
+
+        completionType: payload.completionType,
+
+        totalAmountReceived: payload.totalAmountReceived,
+
+        paymentMethod: payload.paymentMethod,
+
+        paymentChannel: payload.paymentChannel,
+
+        transactionReference: payload.transactionReference,
+
+        receiptGroupId: payload.receiptGroupId,
+
+        refundAmount: payload.refundAmount,
+
+        refundReason: payload.refundReason,
+
+        adminNote: payload.adminNote,
+      };
+
       const res = await fetch("/api/admin/appointments/complete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(apiPayload),
       });
 
       const data = await res.json();
@@ -166,7 +191,6 @@ export default function useAppointmentActions(refreshDashboard) {
       onSuccess?.();
     } catch (error) {
       console.error(error);
-
       alert(error.message || "Failed to complete appointment.");
     } finally {
       setCompletionLoading(false);

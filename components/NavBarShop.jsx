@@ -1,11 +1,11 @@
 import { PhoneIcon, Search } from "lucide-react";
-import Logo from "@/components/Logo";
+import Logo from "@/components/navigation/Logo";
 import { Button } from "./ui/button";
 import icon from "@/public/icon-flat-gold.png";
 import StoreSearch from "./StoreSearch";
 import { auth } from "@/lib/auth";
-import UserMenu from "./UserMenu";
-import SignInDropdownButton from "./SignInDropDownButton";
+import UserMenu from "./navigation/UserMenu";
+import SignInDropdownButton from "./navigation/SignInDropDownButton";
 
 async function NavBarShop() {
   const session = await auth();

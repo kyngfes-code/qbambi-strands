@@ -334,18 +334,18 @@ export default function CompletedAppointmentsTable({
                   ) : (
                     <span className="text-green-600">Cleared</span>
                   )}
-                  <p>
-                    <strong>Refunded:</strong>{" "}
-                    <span className="font-semibold text-red-600">
-                      ₦{refundedAmount.toLocaleString()}
-                    </span>
-                  </p>
-                  <p>
-                    <strong>Net Proceeds:</strong>{" "}
-                    <span className="font-semibold text-green-700">
-                      ₦{netProceeds.toLocaleString()}
-                    </span>
-                  </p>
+                </p>
+                <p>
+                  <strong>Refunded:</strong>{" "}
+                  <span className="font-semibold text-red-600">
+                    ₦{refundedAmount.toLocaleString()}
+                  </span>
+                </p>
+                <p>
+                  <strong>Net Proceeds:</strong>{" "}
+                  <span className="font-semibold text-green-700">
+                    ₦{netProceeds.toLocaleString()}
+                  </span>
                 </p>
               </div>
             </div>

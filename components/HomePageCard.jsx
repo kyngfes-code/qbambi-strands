@@ -3,154 +3,151 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default async function HomePageCard() {
-  const homePageImageData = await getHomePageImages();
-  if (!homePageImageData) {
+  const data = await getHomePageImages();
+
+  if (!data) {
     return (
-      <div className="text-center text-gray-500 py-10">
-        Unable to load images. Please check your internet connection.
+      <div className="py-16 text-center text-neutral-500">
+        Unable to load homepage content.
       </div>
     );
   }
 
-  const saloonImagesData = homePageImageData.filter((item) =>
-    item.title.startsWith("Saloon")
-  );
-  const saloonImages = saloonImagesData.slice(0, 4);
+  const makeup = data.find((item) => item.title.startsWith("Makeup"));
+  const hair = data.find((item) => item.title.startsWith("Hair"));
+  const salon = data.find((item) => item.title.startsWith("Saloon"));
+  const academy = data.find((item) => item.title.startsWith("Academy"));
 
-  const academyImageData = homePageImageData.filter((item) =>
-    item.title.startsWith("Academy")
-  );
-  const academyImage = academyImageData[0]?.images || null;
-
-  const makeupImageData = homePageImageData.filter((item) =>
-    item.title.startsWith("Makeup")
-  );
-  const makeupImages = makeupImageData.slice(0, 4);
-
-  const hairImageData = homePageImageData.filter((item) =>
-    item.title.startsWith("Hair")
-  );
-  const hairImages = hairImageData.slice(0, 4);
+  const cards = [
+    {
+      title: "Hair Collection",
+      subtitle: "Premium Wigs & Extensions",
+      description:
+        "Discover luxurious wigs, bundles and premium hair collections.",
+      href: "/store",
+      image: hair?.images,
+      badge: "Shop",
+    },
+    {
+      title: "Luxury Salon",
+      subtitle: "Beauty Services",
+      description:
+        "Book professional styling, treatments and luxury salon experiences.",
+      href: "/saloon",
+      image: salon?.images,
+      badge: "Book",
+    },
+    {
+      title: "Make-up Studio",
+      subtitle: "Professional Glam",
+      description:
+        "Bridal, photoshoot and event make-up by experienced artists.",
+      href: "/makeUpStudio",
+      image: makeup?.images,
+      badge: "Explore",
+    },
+    {
+      title: "Beauty Academy",
+      subtitle: "Learn From Experts",
+      description:
+        "Become a certified beauty professional through our academy.",
+      href: "/academy",
+      image: academy?.images,
+      badge: "Enroll",
+    },
+  ];
 
   return (
-    <div className="w-full flex justify-center mt-6">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 w-full max-w-6xl">
-        {/* CARD 1 – MAKEUP */}
+    <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
+      {cards.map((card) => (
         <Link
-          href="/makeUpStudio"
-          className="backdrop-blur-md bg-white/20 border border-white/30
-        rounded-2xl p-2 shadow-xl transition-all duration-300
-        hover:bg-white/30 hover:scale-[1.02] h-52"
+          key={card.title}
+          href={card.href}
+          className="
+          group
+          relative
+          overflow-hidden
+          rounded-3xl
+          bg-white
+          shadow-lg
+          transition-all
+          duration-500
+          hover:-translate-y-3
+          hover:shadow-2xl
+        "
         >
-          <span
-            className={
-              "absolute top-2 left-2 z-20 text-white text-sm font-semibold bg-black/50 px-2 py-1 rounded animate-pulse"
-            }
-          >
-            click me
-          </span>
-          <div className="grid grid-cols-2 gap-2 h-full">
-            {makeupImages.map((img, index) => (
+          {/* Image */}
+
+          <div className="relative h-80 overflow-hidden">
+            <Image
+              src={card.image}
+              alt={card.title}
+              fill
+              className="
+                object-cover
+                transition-transform
+                duration-700
+                group-hover:scale-110
+              "
+            />
+
+            {/* Gradient */}
+
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+
+            {/* Badge */}
+
+            <span
+              className="
+                absolute
+                left-5
+                top-5
+                rounded-full
+                bg-white/90
+                px-3
+                py-1
+                text-xs
+                font-semibold
+                text-neutral-900
+              "
+            >
+              {card.badge}
+            </span>
+
+            {/* Text */}
+
+            <div className="absolute bottom-0 p-6 text-white">
+              <p className="text-sm uppercase tracking-[0.3em] text-amber-300">
+                {card.subtitle}
+              </p>
+
+              <h3 className="mt-2 font-playfair text-3xl font-bold">
+                {card.title}
+              </h3>
+
+              <p className="mt-3 text-sm leading-6 text-white/90">
+                {card.description}
+              </p>
+
               <div
-                className="relative w-full h-full rounded-lg overflow-hidden"
-                key={index}
+                className="
+                  mt-6
+                  inline-flex
+                  items-center
+                  gap-2
+                  font-semibold
+                  text-amber-300
+                  transition-all
+                  group-hover:gap-4
+                "
               >
-                <Image
-                  src={img.images}
-                  alt="makeup"
-                  fill
-                  className="object-cover object-top opacity-90 hover:opacity-100 transition"
-                  draggable={false}
-                />
+                Discover
+                <span>→</span>
               </div>
-            ))}
+            </div>
           </div>
         </Link>
-
-        {/* CARD 2 – STORE */}
-        <Link
-          href="/store"
-          className="backdrop-blur-md bg-white/20 border border-white/30
-        rounded-2xl p-2 shadow-xl transition-all duration-300
-        hover:bg-white/30 hover:scale-[1.02] h-52"
-        >
-          <span
-            className={
-              "absolute top-2 left-2 z-20 text-white text-sm font-semibold bg-black/50 px-2 py-1 rounded animate-pulse"
-            }
-          >
-            click me
-          </span>
-          <div className="grid grid-cols-2 gap-2 h-full">
-            {hairImages.map((img, index) => (
-              <div
-                className="relative w-full h-full rounded-lg overflow-hidden"
-                key={index}
-              >
-                <Image
-                  src={img.images}
-                  alt="hair"
-                  fill
-                  className="object-cover opacity-90 hover:opacity-100 transition"
-                  draggable={false}
-                />
-              </div>
-            ))}
-          </div>
-        </Link>
-
-        {/* CARD 3 – SALOON */}
-        <Link
-          href="/saloon"
-          className="backdrop-blur-md bg-white/20 border border-white/30
-        rounded-2xl p-2 shadow-xl transition-all duration-300
-        hover:bg-white/30 hover:scale-[1.03] h-52 block"
-        >
-          <span
-            className={
-              "absolute top-2 left-2 z-20 text-white text-sm font-semibold bg-black/50 px-2 py-1 rounded animate-pulse"
-            }
-          >
-            click me
-          </span>
-          <div className="grid grid-cols-2 gap-2 h-full">
-            {saloonImages.map((img, index) => (
-              <div
-                className="relative w-full h-full rounded-lg overflow-hidden"
-                key={index}
-              >
-                <Image
-                  src={img.images}
-                  alt="saloon"
-                  fill
-                  className="object-cover opacity-90 hover:opacity-100 transition"
-                  draggable={false}
-                />
-              </div>
-            ))}
-          </div>
-        </Link>
-
-        {/* CARD 4 – ACADEMY */}
-        <Link
-          href="/academy"
-          className="relative backdrop-blur-md bg-white/20 border border-white/30
-        rounded-2xl p-2 shadow-xl transition-all duration-300
-        hover:bg-white/30 hover:scale-[1.03] h-52 block"
-        >
-          <Image
-            src={academyImage}
-            alt="Academy"
-            fill
-            className="object-cover opacity-90 hover:opacity-100 transition rounded-xl"
-            draggable={false}
-          />
-
-          <span className="absolute top-3 left-3 bg-black/40 text-white text-sm px-3 py-1 rounded-full animate-pulse z-10">
-            Visit Academy
-          </span>
-        </Link>
-      </div>
+      ))}
     </div>
   );
 }

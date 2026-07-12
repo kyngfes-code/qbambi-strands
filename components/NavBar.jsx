@@ -1,4 +1,4 @@
-import Logo from "./Logo";
+import Logo from "./navigation/Logo";
 import Navigation from "./Navigation";
 
 import icon from "@/public/icon-flat-gold.png";

@@ -13,6 +13,7 @@ export async function POST(req) {
     const {
       refundRequestId,
       action,
+      approvedAmount,
       adminNote,
       refundMethod,
       refundReference,
@@ -44,9 +45,10 @@ export async function POST(req) {
       const { data, error } = await supabase.rpc("process_order_refund", {
         p_refund_request_id: refundRequestId,
         p_admin_id: session.user.id,
-        p_admin_note: adminNote || null,
+        p_approved_amount: approvedAmount ?? null,
+        p_admin_note: adminNote ?? null,
         p_refund_method: refundMethod,
-        p_refund_reference: refundReference || null,
+        p_refund_reference: refundReference ?? null,
       });
 
       if (error) {
