@@ -39,7 +39,7 @@ export default function MobileNavigation({ session }) {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
-                    href="/cart"
+                    href="/account/cart"
                     aria-label="Shopping Cart"
                     className="rounded-xl p-2 transition hover:bg-neutral-100"
                   >

@@ -19,6 +19,12 @@ export default function RefundRequestsCard({ refunds }) {
                     {refund.reason}
                   </div>
 
+                  {refund.status === "rejected" && refund.rejection_reason && (
+                    <div className="text-sm text-neutral-500">
+                      {refund.rejection_reason}
+                    </div>
+                  )}
+
                   <div className="text-xs text-neutral-500">
                     {refund.created_at}
                   </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 import OrderHeader from "./OrderHeader";
 import FinancialSummary from "./FinancialSummary";
@@ -8,7 +9,7 @@ import PaymentProgress from "./PaymentProgress";
 import DeliveryNotice from "./DeliveryNotice";
 import StatusCard from "./StatusCard";
 import PaymentSection from "./PaymentSection";
-import OrderActions from "./OrderActions";
+import RefundHistoryItem from "./RefundHistoryItem";
 
 export default function OrderDetailsView({ order, onReload, onRefund }) {
   const total = Number(order.total_amount || 0);
@@ -70,31 +71,72 @@ export default function OrderDetailsView({ order, onReload, onRefund }) {
 
           <StatusCard order={order} />
 
-          <OrderActions order={order} onRequestRefund={onRefund} />
+          {/* <OrderActions
+            order={order}
+            onRequestRefund={onRefund}
+            hideViewDetails
+          /> */}
         </div>
       </article>
 
       {/* Order Items */}
       <section className="rounded-3xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-6 text-xl font-semibold">Order Items</h2>
+        <h2 className="mb-6 flex items-center justify-between text-xl font-semibold">
+          <span>Order Items</span>
 
-        <div className="space-y-5">
+          <span className="text-xl font-normal text-neutral-500">
+            {order.order_items?.reduce(
+              (sum, item) => sum + Number(item.quantity),
+              0,
+            )}{" "}
+            Items
+          </span>
+        </h2>
+
+        <div className="space-y-4">
           {order.order_items?.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-4 border-b pb-5 last:border-none last:pb-0"
+              className="flex items-center gap-4 rounded-2xl border p-4 hover:bg-neutral-50 transition"
             >
-              <div className="min-w-0">
-                <h3 className="font-semibold">{item.store?.name}</h3>
-
-                <p className="mt-1 text-sm text-neutral-500">
-                  Qty: {item.quantity}
-                </p>
+              {/* Product Image */}
+              <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border bg-neutral-100">
+                <Image
+                  src={item.store?.image || "/placeholder.png"}
+                  alt={item.store?.title || "Product"}
+                  fill
+                  className="object-cover"
+                />
               </div>
 
+              {/* Product Info */}
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate font-semibold text-neutral-900">
+                  {item.store?.title}
+                </h3>
+
+                <p className="mt-1 text-sm text-neutral-500">
+                  Quantity: {item.quantity}
+                </p>
+
+                {item.store?.category && (
+                  <p className="text-xs text-neutral-400">
+                    {item.store.category}
+                  </p>
+                )}
+              </div>
+
+              {/* Price */}
               <div className="text-right">
-                <p className="font-semibold">
+                <p className="text-sm text-neutral-500">
                   ₦{Number(item.price).toLocaleString()}
+                </p>
+
+                <p className="mt-1 font-semibold">
+                  ₦
+                  {(
+                    Number(item.price) * Number(item.quantity)
+                  ).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -124,7 +166,7 @@ export default function OrderDetailsView({ order, onReload, onRefund }) {
       )}
 
       {/* Payment Plan */}
-      {order.payment_plans && (
+      {/* {order.payment_plans && (
         <section className="rounded-3xl border bg-white p-6 shadow-sm">
           <h2 className="mb-6 text-xl font-semibold">Payment Plan</h2>
 
@@ -181,36 +223,15 @@ export default function OrderDetailsView({ order, onReload, onRefund }) {
             </div>
           )}
         </section>
-      )}
+      )} */}
 
       {/* Refund History */}
-      {order.refunds?.length > 0 && (
-        <section className="rounded-3xl border bg-white p-6 shadow-sm">
-          <h2 className="mb-6 text-xl font-semibold">Refund History</h2>
 
-          <div className="space-y-4">
-            {order.refunds.map((refund) => (
-              <div key={refund.id} className="rounded-xl border p-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium capitalize">
-                    {refund.status}
-                  </span>
-
-                  <span className="font-semibold text-red-600">
-                    ₦{Number(refund.amount || 0).toLocaleString()}
-                  </span>
-                </div>
-
-                {refund.reason && (
-                  <p className="mt-2 text-sm text-neutral-500">
-                    {refund.reason}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <div className="space-y-4">
+        {order.refund_requests.map((refund) => (
+          <RefundHistoryItem key={refund.id} refund={refund} />
+        ))}
+      </div>
     </div>
   );
 }

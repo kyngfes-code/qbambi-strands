@@ -11,6 +11,7 @@ import OrderDetailsModal from "@/components/admin/order/OrderDetailsModal";
 import OrderRefundQueueTable from "@/components/admin/order/OrderRefundQueueTable";
 import useOrderActions from "@/hooks/useOrderActions";
 import useOrderRefundActions from "@/hooks/useOrderRefundActions";
+import RejectRefundModal from "@/components/refunds/RejectRefundModal";
 
 export default function RefundsPage() {
   const [loading, setLoading] = useState(true);
@@ -31,6 +32,7 @@ export default function RefundsPage() {
 
   const [orderPendingRefunds, setOrderPendingRefunds] = useState([]);
   const [orderCompletedRefunds, setOrderCompletedRefunds] = useState([]);
+  const [rejectRefund, setRejectRefund] = useState(null);
 
   /*
   ==========================================
@@ -64,7 +66,7 @@ export default function RefundsPage() {
       throw new Error(data.error || "Failed to load appointment refunds");
     }
 
-    setAppointmentPendingRefunds(data.pendingRefunds || []);
+    setAppointmentPendingRefunds(data.pendingRefundRequests || []);
     setAppointmentCompletedRefunds(data.completedRefunds || []);
   }
 
@@ -166,7 +168,7 @@ export default function RefundsPage() {
   const totalRefunded =
     refundSource === "appointments"
       ? filteredCompletedRefunds.reduce(
-          (sum, refund) => sum + Number(refund.amount || 0),
+          (sum, refund) => sum + Number(refund.approved_amount || 0),
           0,
         )
       : filteredCompletedRefunds.reduce(
@@ -180,8 +182,19 @@ export default function RefundsPage() {
   ==========================================
   */
 
-  function handleViewAppointment(appointment) {
-    setSelectedAppointment(appointment);
+  async function handleViewAppointment(appointment) {
+    try {
+      const res = await fetch(`/api/admin/appointments/${appointment.id}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load appointment.");
+      }
+
+      setSelectedAppointment(data.appointment);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   /*
@@ -356,12 +369,24 @@ export default function RefundsPage() {
                 <RefundQueueTable
                   refunds={filteredRefunds}
                   onProcessRefund={handleOpenProcess}
+                  onRejectRefund={(refund) =>
+                    setRejectRefund({
+                      type: "appointments",
+                      refund,
+                    })
+                  }
                   onViewAppointment={handleViewAppointment}
                 />
               ) : (
                 <OrderRefundQueueTable
                   refundRequests={filteredRefunds}
                   onProcessRefund={handleOpenProcess}
+                  onRejectRefund={(refund) =>
+                    setRejectRefund({
+                      type: "orders",
+                      refund,
+                    })
+                  }
                   onViewOrder={orderActions.details.open}
                 />
               )}
@@ -383,12 +408,15 @@ export default function RefundsPage() {
             }
             onClose={() => setSelectedRefund(null)}
             onSubmit={(payload) => {
-              const action =
-                refundSource === "appointments"
-                  ? appointmentRefundActions.handleProcessRefund
-                  : orderRefundActions.handleProcessRefund;
+              if (refundSource === "appointments") {
+                appointmentRefundActions.handleProcessRefund(payload, () => {
+                  setSelectedRefund(null);
+                });
 
-              action(payload, () => {
+                return;
+              }
+
+              orderRefundActions.handleProcessRefund(payload, () => {
                 setSelectedRefund(null);
               });
             }}
@@ -409,6 +437,29 @@ export default function RefundsPage() {
           />
         )}
       </div>
+      <RejectRefundModal
+        type={rejectRefund?.type}
+        refund={rejectRefund?.refund}
+        isOpen={!!rejectRefund}
+        loading={
+          rejectRefund?.type === "appointments"
+            ? appointmentRefundActions.refundLoading
+            : orderRefundActions.rejectingRefund
+        }
+        onClose={() => setRejectRefund(null)}
+        onSubmit={(payload) => {
+          if (rejectRefund?.type === "appointments") {
+            appointmentRefundActions.handleRejectRefundRequest(payload, () =>
+              setRejectRefund(null),
+            );
+            return;
+          }
+
+          orderRefundActions.handleRejectRefundRequest(payload, () =>
+            setRejectRefund(null),
+          );
+        }}
+      />
     </div>
   );
 }

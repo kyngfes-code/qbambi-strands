@@ -1,26 +1,29 @@
+import StoreProductsTable from "@/components/admin/store/StoreProductsTable";
 import FormShopItems from "@/components/FormShopItems";
-import HaircardAdmin from "@/components/HaircardAdmin";
-import { getStoreItemExtraImages, getStoreItems } from "@/lib/data-service";
+import MobileStoreForm from "@/components/admin/store/MobileStoreForm";
+import { getStoreItems, getStoreItemExtraImages } from "@/lib/data-service";
 
 export default async function Page() {
-  const storeItems = await getStoreItems();
-  if (!storeItems.length) return null;
+  const products = await getStoreItems();
   const extraImages = await getStoreItemExtraImages();
 
   return (
-    <div className="relative flex w-full">
-      <main className="w-full pl-4 lg:pl-4 px-4 py-4 xl:pl-4">
-        <div className="grid grid-cols-1 justify-items-center sm:grid-cols-2 sm:mx-3  lg:grid-cols-3 lg:mx-2 xl:grid-cols-4 xl:mr-1 gap-x-6 gap-y-2 px-4 min-h-screen">
-          {storeItems.map((item) => (
-            <HaircardAdmin
-              extraImages={extraImages}
-              items={item}
-              key={item.id}
-            />
-          ))}
-        </div>
-        <FormShopItems />
-      </main>
-    </div>
+    <main className="mx-auto max-w-[1700px] px-4 py-6 lg:px-6 lg:py-8">
+      {/* Mobile Floating Form */}
+      <div className="lg:hidden">
+        <MobileStoreForm>
+          <FormShopItems />
+        </MobileStoreForm>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_430px]">
+        <StoreProductsTable products={products} extraImages={extraImages} />
+
+        {/* Desktop Form */}
+        <aside className="sticky top-6 hidden self-start lg:block">
+          <FormShopItems />
+        </aside>
+      </div>
+    </main>
   );
 }

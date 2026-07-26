@@ -11,7 +11,7 @@ export default function QuickActions() {
       label: "Continue Shopping",
     },
     {
-      href: "/cart",
+      href: "/account/cart",
       label: "View Cart",
     },
     {

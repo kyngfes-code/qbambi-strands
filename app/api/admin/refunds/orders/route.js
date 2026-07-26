@@ -74,9 +74,35 @@ export async function GET() {
 
     const { data: completedRefunds, error: completedError } = await supabase
       .from("order_refund_requests")
-      .select(refundSelect)
-      .eq("status", "approved")
-      .order("processed_at", { ascending: false });
+      .select(
+        `
+    *,
+    requester:users!order_refund_requests_requested_by_fkey(
+      id,
+      name,
+      email
+    ),
+    processor:users!order_refund_requests_processed_by_fkey(
+      id,
+      name,
+      email
+    ),
+    order:orders(
+      id,
+      user:users!orders_user_id_fkey(
+        id,
+        name,
+        email
+      )
+    ),
+    adjustment:order_payment_adjustments(
+      refund_method,
+      refund_reference
+    )
+  `,
+      )
+      .in("status", ["approved", "rejected"])
+      .order("created_at", { ascending: false });
 
     if (completedError) {
       console.error(completedError);

@@ -10,44 +10,22 @@ export default function AppointmentFinancialHistory({
   const [expanded, setExpanded] = useState(false);
 
   const customerLedger = useMemo(() => {
-    return [
-      ...(appointment.appointment_payments || []).map((payment) => ({
-        label: "Deposit Payment",
-        amount: payment.amount,
-        paymentMethod: payment.payment_method,
-        createdAt: payment.created_at,
-        status: payment.status,
-      })),
-
-      ...(appointment.appointment_payment_adjustments || [])
-        .filter((adjustment) =>
-          [
-            "outstanding_payment",
-            "refund",
-            "overpayment_refund",
-            "write_off",
-          ].includes(adjustment.adjustment_type),
-        )
-        .map((adjustment) => ({
-          label:
-            adjustment.adjustment_type === "outstanding_payment"
-              ? "Balance Payment"
-              : adjustment.adjustment_type === "refund"
-                ? "Refund"
-                : adjustment.adjustment_type === "overpayment_refund"
-                  ? "Overpayment Refund"
-                  : "Write Off",
-
-          amount: adjustment.amount,
-
-          paymentMethod: adjustment.payment_method || adjustment.refund_method,
-
-          createdAt: adjustment.refunded_at || adjustment.created_at,
-
-          status: adjustment.status,
-          adminNote: adjustment.reason,
-        })),
-    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return (appointment.payment_history || [])
+      .map((entry) => ({
+        label: entry.description,
+        amount: entry.amount,
+        paymentMethod: entry.payment_method || entry.refund_method,
+        createdAt: entry.created_at,
+        status: entry.status,
+        adminNote: entry.description,
+        transactionType: entry.transaction_type,
+        recordType: entry.record_type,
+        tipAmount: entry.tip_amount,
+      }))
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
   }, [appointment]);
 
   const visibleEntries = expanded ? customerLedger : customerLedger.slice(0, 3);

@@ -13,45 +13,85 @@ export async function GET(req, { params }) {
     const session = await auth();
 
     if (!session?.user) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized",
-        },
-        {
-          status: 401,
-        },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    /*
-    ---------------------------------------------------------
-    Ensure admin
-    ---------------------------------------------------------
-    */
 
     if (session.user.role !== "admin") {
-      return NextResponse.json(
-        {
-          error: "Forbidden",
-        },
-        {
-          status: 403,
-        },
-      );
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    /*
-    ---------------------------------------------------------
-    Appointment ID
-    ---------------------------------------------------------
-    */
 
     const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
+        { error: "Appointment ID is required." },
+        { status: 400 },
+      );
+    }
+
+    const supabase = createSupabaseAdmin();
+
+    /*
+    ---------------------------------------------------------
+    Appointment
+    ---------------------------------------------------------
+    */
+
+    const { data: appointment, error: appointmentError } = await supabase
+      .from("appointments")
+      .select(
+        `
+        *,
+        user:users!appointments_user_id_fkey(
+          id,
+          name,
+          email,
+          phone
+        ),
+        appointment_pricing_history(
+          *,
+          changed_by_user:users!appointment_pricing_history_changed_by_fkey(
+    id,
+    name,
+    email
+  )
+        )
+      `,
+      )
+      .eq("id", id)
+      .single();
+
+    if (appointmentError || !appointment) {
+      return NextResponse.json(
         {
-          error: "Appointment ID is required.",
+          error: "Appointment not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    /*
+    ---------------------------------------------------------
+    Financial History
+    ---------------------------------------------------------
+    */
+
+    const { data: paymentHistory, error: historyError } = await supabase.rpc(
+      "get_appointment_payment_history",
+      {
+        p_appointment_id: id,
+        p_user_id: null,
+      },
+    );
+
+    if (historyError) {
+      console.error(historyError);
+
+      return NextResponse.json(
+        {
+          error: historyError.message,
         },
         {
           status: 400,
@@ -61,32 +101,11 @@ export async function GET(req, { params }) {
 
     /*
     ---------------------------------------------------------
-    Fetch payment ledger
+    Attach history to appointment
     ---------------------------------------------------------
     */
 
-    const supabase = createSupabaseAdmin();
-
-    const { data, error } = await supabase.rpc(
-      "get_appointment_payment_history",
-      {
-        p_appointment_id: id,
-        p_user_id: null, // Admin bypasses ownership check
-      },
-    );
-
-    if (error) {
-      console.error("Payment history RPC:", error);
-
-      return NextResponse.json(
-        {
-          error: error.message,
-        },
-        {
-          status: 400,
-        },
-      );
-    }
+    appointment.payment_history = paymentHistory ?? [];
 
     /*
     ---------------------------------------------------------
@@ -96,11 +115,10 @@ export async function GET(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      appointmentId: id,
-      paymentHistory: data ?? [],
+      appointment,
     });
   } catch (err) {
-    console.error("GET payment history:", err);
+    console.error(err);
 
     return NextResponse.json(
       {

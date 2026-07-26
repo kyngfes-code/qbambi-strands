@@ -4,6 +4,7 @@ export default function OrderRefundQueueTable({
   refundRequests = [],
   onViewOrder,
   onProcessRefund,
+  onRejectRefund,
 }) {
   if (!refundRequests.length) {
     return (
@@ -34,8 +35,13 @@ export default function OrderRefundQueueTable({
           const order = refund.order;
 
           const requestedAmount = Number(refund.requested_amount || 0);
-          const approvedAmount = Number(refund.approved_amount || 0);
-          const difference = requestedAmount - approvedAmount;
+          const approvedAmount =
+            refund.status === "approved"
+              ? Number(refund.approved_amount || 0)
+              : null;
+
+          const difference =
+            approvedAmount === null ? null : requestedAmount - approvedAmount;
 
           const isPartialRefund =
             approvedAmount > 0 && approvedAmount < requestedAmount;
@@ -90,7 +96,9 @@ export default function OrderRefundQueueTable({
                   <div>
                     <p className="text-xs text-neutral-500">Approved Amount</p>
                     <p className="font-semibold text-green-600">
-                      {formatAmount(approvedAmount)}
+                      {approvedAmount === null
+                        ? "-"
+                        : formatAmount(approvedAmount)}
                     </p>
                   </div>
                 </div>
@@ -102,7 +110,7 @@ export default function OrderRefundQueueTable({
                       difference > 0 ? "text-orange-600" : "text-neutral-700"
                     }`}
                   >
-                    {formatAmount(difference)}
+                    {difference === null ? "-" : formatAmount(difference)}
                   </p>
                 </div>
 
@@ -182,12 +190,20 @@ export default function OrderRefundQueueTable({
                 </button>
 
                 {refund.status === "pending" && (
-                  <button
-                    onClick={() => onProcessRefund(refund)}
-                    className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-                  >
-                    Process
-                  </button>
+                  <>
+                    <button
+                      onClick={() => onProcessRefund(refund)}
+                      className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+                    >
+                      Process
+                    </button>
+                    <button
+                      onClick={() => onRejectRefund(refund)}
+                      className="rounded-lg bg-red-600 px-3 py-2 text-white"
+                    >
+                      Reject
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -226,9 +242,15 @@ export default function OrderRefundQueueTable({
 
               const requestedAmount = Number(refund.requested_amount || 0);
 
-              const approvedAmount = Number(refund.approved_amount || 0);
+              const approvedAmount =
+                refund.status === "approved"
+                  ? Number(refund.approved_amount || 0)
+                  : null;
 
-              const difference = requestedAmount - approvedAmount;
+              const difference =
+                approvedAmount === null
+                  ? null
+                  : requestedAmount - approvedAmount;
 
               const isPartialRefund =
                 approvedAmount > 0 && approvedAmount < requestedAmount;
@@ -252,7 +274,9 @@ export default function OrderRefundQueueTable({
                   </td>
 
                   <td className="whitespace-nowrap px-4 py-4 font-semibold text-green-600">
-                    {formatAmount(approvedAmount)}
+                    {approvedAmount === null
+                      ? "-"
+                      : formatAmount(approvedAmount)}
                   </td>
 
                   <td className="whitespace-nowrap px-4 py-4">
@@ -261,7 +285,7 @@ export default function OrderRefundQueueTable({
                         difference > 0 ? "font-semibold text-orange-600" : ""
                       }
                     >
-                      {formatAmount(difference)}
+                      {difference === null ? "-" : formatAmount(difference)}
                     </span>
                   </td>
 
@@ -339,12 +363,20 @@ export default function OrderRefundQueueTable({
                       </button>
 
                       {refund.status === "pending" && (
-                        <button
-                          onClick={() => onProcessRefund(refund)}
-                          className="rounded-lg bg-red-600 px-3 py-1.5 text-white hover:bg-red-700"
-                        >
-                          Process
-                        </button>
+                        <>
+                          <button
+                            onClick={() => onProcessRefund(refund)}
+                            className="rounded-lg bg-red-600 px-3 py-1.5 text-white hover:bg-red-700"
+                          >
+                            Process
+                          </button>
+                          <button
+                            onClick={() => onRejectRefund(refund)}
+                            className="rounded-lg bg-red-600 px-3 py-2 text-white"
+                          >
+                            Reject
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>

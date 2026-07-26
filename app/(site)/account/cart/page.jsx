@@ -7,7 +7,7 @@ import NavBarCart from "@/components/NavBarCart";
 import OfflineNotice from "@/components/OfflineNotice";
 
 import { getUserCart } from "@/lib/data-service";
-import { useOnlineStatus } from "../OnlineStatusProvider";
+import { useOnlineStatus } from "@/app/OnlineStatusProvider";
 
 export default function Page() {
   const isOnline = useOnlineStatus();
@@ -103,7 +103,7 @@ export default function Page() {
         return;
       }
 
-      window.location.href = "/orders";
+      window.location.href = "/account/orders";
     } finally {
       setCheckingOut(false);
     }

@@ -1,4 +1,7 @@
 export default function FinancialSummaryCard({ summary }) {
+  const refunded = Number(summary.refunded_amount || 0);
+
+  const netPaid = Number(summary.amount_paid || 0) - refunded;
   return (
     <section className="rounded-xl border bg-white p-6">
       <h2 className="mb-5 text-lg font-semibold">Financial Summary</h2>
@@ -9,6 +12,10 @@ export default function FinancialSummaryCard({ summary }) {
         <Money label="Deposit Required" value={summary.deposit_required} />
 
         <Money label="Amount Paid" value={summary.amount_paid} />
+
+        <Money label="Refunded" value={summary.refunded_amount} />
+
+        <Money label="Net Paid" value={netPaid} />
 
         <Money label="Balance Due" value={summary.balance_due} />
 

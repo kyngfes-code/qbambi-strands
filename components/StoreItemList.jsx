@@ -5,7 +5,13 @@ async function StoreItemList({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const items = await getStoreItems();
 
-  if (!items.length) return null;
+  if (!items.length) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <p className="text-lg text-neutral-500">No products available.</p>
+      </div>
+    );
+  }
   const q = resolvedSearchParams.q?.toLowerCase() || "";
 
   let filtered = q
@@ -37,7 +43,7 @@ async function StoreItemList({ searchParams }) {
     filtered = filtered.filter((item) =>
       item.title
         ?.toLowerCase()
-        .startsWith(title.replace(/s$/, "").toLowerCase())
+        .startsWith(title.replace(/s$/, "").toLowerCase()),
     );
   }
 
@@ -46,7 +52,7 @@ async function StoreItemList({ searchParams }) {
     filtered = filtered.filter((item) =>
       item.category
         ?.toLowerCase()
-        .startsWith(category.replace(/s$/, "").toLowerCase())
+        .startsWith(category.replace(/s$/, "").toLowerCase()),
     );
   }
 
@@ -55,7 +61,7 @@ async function StoreItemList({ searchParams }) {
     filtered = filtered.filter((item) =>
       item.wigType
         ?.toLowerCase()
-        .startsWith(wigType.replace(/s$/, "").toLowerCase())
+        .startsWith(wigType.replace(/s$/, "").toLowerCase()),
     );
   }
 
@@ -64,7 +70,7 @@ async function StoreItemList({ searchParams }) {
     filtered = filtered.filter((item) =>
       item.material
         ?.toLowerCase()
-        .startsWith(material.replace(/s$/, "").toLowerCase())
+        .startsWith(material.replace(/s$/, "").toLowerCase()),
     );
   }
 
@@ -73,7 +79,7 @@ async function StoreItemList({ searchParams }) {
     filtered = filtered.filter((item) =>
       item.style
         ?.toLowerCase()
-        .startsWith(style.replace(/s$/, "").toLowerCase())
+        .startsWith(style.replace(/s$/, "").toLowerCase()),
     );
   }
 
@@ -98,6 +104,22 @@ async function StoreItemList({ searchParams }) {
     });
   }
 
+  if (!filtered.length) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold text-neutral-900">
+            No products found
+          </h2>
+
+          <p className="mt-2 text-neutral-500">
+            Try adjusting your filters or search.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // SORTING
   switch (sort) {
     case "price-asc":
@@ -115,7 +137,7 @@ async function StoreItemList({ searchParams }) {
   }
 
   return (
-    <div className="grid grid-cols-1 justify-items-center sm:grid-cols-2 sm:mx-3  lg:grid-cols-3 lg:mx-2 xl:grid-cols-4 xl:mr-1 gap-x-6 gap-y-2 px-4 min-h-screen">
+    <div className="grid grid-cols-1 items-stretch gap-8 sm:grid-cols-2  lg:grid-cols-3 lg:gap-10 xl:grid-cols-4">
       {filtered.map((item) => (
         <Haircard item={item} key={item.id} />
       ))}

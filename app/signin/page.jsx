@@ -27,7 +27,7 @@ export default function SignInPage() {
       return;
     }
 
-    window.location.href = "/user";
+    window.location.href = "/account";
   }
 
   return (
@@ -44,7 +44,7 @@ export default function SignInPage() {
             await signIn("credentials", {
               email: form.email.value,
               password: form.password.value,
-              callbackUrl: "/user",
+              callbackUrl: "/account",
             });
           }}
           className="space-y-3"

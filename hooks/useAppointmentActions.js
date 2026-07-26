@@ -279,12 +279,18 @@ export default function useAppointmentActions(refreshDashboard) {
     try {
       setRefundLoading(true);
 
-      const res = await fetch("/api/admin/refunds/request", {
+      const res = await fetch("/api/admin/refunds/appointments/request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          appointmentId: payload.appointmentId,
+          requestedAmount: payload.refundAmount,
+          reason: payload.refundReason,
+          customerMessage: payload.customerMessage ?? null,
+          adminNote: payload.adminNote,
+        }),
       });
 
       const data = await res.json();

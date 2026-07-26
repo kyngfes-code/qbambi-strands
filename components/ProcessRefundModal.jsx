@@ -10,7 +10,6 @@ export default function ProcessRefundModal({
   onClose,
   onSubmit,
 }) {
-  const [action, setAction] = useState("approve");
   const [refundMethod, setRefundMethod] = useState("");
   const [adminNote, setAdminNote] = useState("");
   const [refundReference, setRefundReference] = useState("");
@@ -32,7 +31,9 @@ export default function ProcessRefundModal({
     : refund?.requested_amount;
 
   const requestedAmount = Number(
-    isAppointment ? (refund?.amount ?? 0) : (refund?.requested_amount ?? 0),
+    isAppointment
+      ? (refund?.requested_amount ?? 0)
+      : (refund?.requested_amount ?? 0),
   );
 
   /*
@@ -43,7 +44,6 @@ export default function ProcessRefundModal({
   useEffect(() => {
     if (!isOpen || !refund) return;
 
-    setAction("approve");
     setRefundMethod("");
     setAdminNote("");
     setRefundReference("");
@@ -71,7 +71,7 @@ export default function ProcessRefundModal({
 
     const approved = Number(approvedAmount);
 
-    if (!isAppointment && action === "approve") {
+    if (!isAppointment) {
       if (Number.isNaN(approved)) {
         newErrors.approvedAmount = "Enter a valid amount.";
       } else if (approved <= 0) {
@@ -82,7 +82,7 @@ export default function ProcessRefundModal({
       }
     }
 
-    if (isAppointment || action === "approve") {
+    if (true) {
       if (!refundMethod) {
         newErrors.refundMethod = "Please select a refund method.";
       }
@@ -105,14 +105,11 @@ export default function ProcessRefundModal({
 
     const payload = {
       refundRequestId: refund.id,
-      action,
-      approvedAmount: action === "approve" ? Number(approvedAmount) : null,
-      refundMethod: action === "approve" ? refundMethod : null,
-      refundReference: action === "approve" ? refundReference.trim() : null,
+      approvedAmount: Number(approvedAmount),
+      refundMethod,
+      refundReference: refundReference.trim(),
       adminNote: adminNote.trim(),
     };
-
-    console.log(payload);
 
     onSubmit(payload);
   }
@@ -213,7 +210,7 @@ export default function ProcessRefundModal({
                   </span>
                 </div>
 
-                {!isAppointment && action === "approve" && (
+                {!isAppointment && (
                   <>
                     <div>
                       <label className="block mb-2 font-medium">
@@ -272,91 +269,57 @@ export default function ProcessRefundModal({
               </div>
             )}
           </div>
-
-          {/*Approve / Reject section (orders only) */}
-          {!isAppointment && (
-            <div className="border rounded-2xl p-5">
-              <h3 className="font-semibold text-lg mb-4">Decision</h3>
-
-              <div className="grid grid-cols-2 gap-3">
-                <label className="border rounded-xl p-3 flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="approve"
-                    checked={action === "approve"}
-                    onChange={(e) => setAction(e.target.value)}
-                  />
-                  Approve Refund
-                </label>
-
-                <label className="border rounded-xl p-3 flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="reject"
-                    checked={action === "reject"}
-                    onChange={(e) => setAction(e.target.value)}
-                  />
-                  Reject Request
-                </label>
-              </div>
-            </div>
-          )}
-
           {/* Refund Method */}
-          {(isAppointment || action === "approve") && (
-            <div className="border rounded-2xl p-5">
-              <h3 className="font-semibold text-lg mb-4">Refund Method</h3>
+          <div className="border rounded-2xl p-5">
+            <h3 className="font-semibold text-lg mb-4">Refund Method</h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
-                  {
-                    value: "bank_transfer",
-                    label: "Bank Transfer",
-                  },
-                  {
-                    value: "cash",
-                    label: "Cash",
-                  },
-                  {
-                    value: "pos",
-                    label: "POS",
-                  },
-                  {
-                    value: "other",
-                    label: "Other",
-                  },
-                ].map((method) => (
-                  <label
-                    key={method.value}
-                    className="
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                {
+                  value: "bank_transfer",
+                  label: "Bank Transfer",
+                },
+                {
+                  value: "cash",
+                  label: "Cash",
+                },
+                {
+                  value: "pos",
+                  label: "POS",
+                },
+                {
+                  value: "other",
+                  label: "Other",
+                },
+              ].map((method) => (
+                <label
+                  key={method.value}
+                  className="
                     flex items-center gap-3
                     border rounded-xl
                     p-3 cursor-pointer
                   "
-                  >
-                    <input
-                      type="radio"
-                      name="refundMethod"
-                      value={method.value}
-                      checked={refundMethod === method.value}
-                      onChange={(e) => setRefundMethod(e.target.value)}
-                      disabled={loading}
-                    />
+                >
+                  <input
+                    type="radio"
+                    name="refundMethod"
+                    value={method.value}
+                    checked={refundMethod === method.value}
+                    onChange={(e) => setRefundMethod(e.target.value)}
+                    disabled={loading}
+                  />
 
-                    <span>{method.label}</span>
-                  </label>
-                ))}
-              </div>
-
-              {errors.refundMethod && (
-                <p className="mt-2 text-sm text-red-600">
-                  {errors.refundMethod}
-                </p>
-              )}
+                  <span>{method.label}</span>
+                </label>
+              ))}
             </div>
-          )}
 
-          {(isAppointment || action === "approve") && (
+            {errors.refundMethod && (
+              <p className="mt-2 text-sm text-red-600">{errors.refundMethod}</p>
+            )}
+          </div>
+
+          {isAppointment && (
             <div>
               <label className="block font-medium mb-2">
                 Refund Reference
@@ -378,7 +341,6 @@ export default function ProcessRefundModal({
               />
             </div>
           )}
-
           {/* Admin Note */}
           <div>
             <label className="block font-medium mb-2">
@@ -400,11 +362,8 @@ export default function ProcessRefundModal({
               "
             />
           </div>
-
           {/* Warning */}
-          {!isAppointment &&
-          action === "approve" &&
-          Number(approvedAmount) < requestedAmount ? (
+          {!isAppointment && Number(approvedAmount) < requestedAmount ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <p className="text-sm text-amber-700">
                 This request will be partially approved. The customer requested
@@ -421,48 +380,59 @@ export default function ProcessRefundModal({
               <p className="text-sm text-yellow-700">
                 {isAppointment
                   ? "This will mark the refund as completed."
-                  : action === "approve"
-                    ? "This refund request will be approved and processed."
-                    : "This refund request will be rejected."}
+                  : "This refund request will be approved and processed."}
               </p>
             </div>
           )}
-
           {/* Footer */}
           <div
             className="
-              flex flex-col-reverse gap-3
-              sm:flex-row sm:justify-end
-            "
+    flex flex-col-reverse gap-3
+    sm:flex-row sm:justify-end
+  "
           >
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
               className="
-                w-full sm:w-auto
-                px-5 py-3
-                rounded-xl border
-                hover:bg-gray-100
-                disabled:opacity-50
-              "
+      w-full sm:w-auto
+      px-5 py-3
+      rounded-xl border
+      hover:bg-gray-100
+      disabled:opacity-50
+    "
             >
               Cancel
             </button>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-red-600 text-white"
-            >
-              {loading
-                ? "Processing..."
-                : isAppointment
-                  ? "Mark Refund as Processed"
-                  : action === "approve"
-                    ? "Approve Refund"
-                    : "Reject Request"}
-            </button>
+            {isAppointment ? (
+              <>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {loading ? "Processing..." : "Mark Refund as Processed"}
+                </button>
+              </>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="
+        w-full sm:w-auto
+        px-5 py-3
+        rounded-xl
+        bg-red-600
+        text-white
+        hover:bg-red-700
+        disabled:opacity-50
+      "
+              >
+                {loading ? "Processing..." : "Approve Refund"}
+              </button>
+            )}
           </div>
         </form>
       </div>

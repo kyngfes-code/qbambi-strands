@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 
-export default function OrderActions({ order, onRequestRefund }) {
+export default function OrderActions({
+  order,
+  onRequestRefund,
+  hideViewDetails = false,
+}) {
   const canRequestRefund =
     order.status === "paid" || order.status === "delivered";
 
@@ -12,10 +16,17 @@ export default function OrderActions({ order, onRequestRefund }) {
         Order Actions
       </h3>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          href={`/account/orders/${order.id}`}
-          className="
+      <div
+        className={`grid gap-3 ${
+          !hideViewDetails && canRequestRefund
+            ? "sm:grid-cols-2"
+            : "sm:grid-cols-1"
+        }`}
+      >
+        {!hideViewDetails && (
+          <Link
+            href={`/account/orders/${order.id}`}
+            className="
             inline-flex items-center justify-center
             rounded-xl
             border border-neutral-300
@@ -27,9 +38,10 @@ export default function OrderActions({ order, onRequestRefund }) {
             hover:border-neutral-400
             hover:bg-neutral-50
           "
-        >
-          View Details
-        </Link>
+          >
+            View Details
+          </Link>
+        )}
 
         {canRequestRefund && (
           <button

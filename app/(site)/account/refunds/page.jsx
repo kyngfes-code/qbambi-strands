@@ -1,6 +1,5 @@
 "use client";
 
-import NavBarCart from "@/components/NavBarCart";
 import { useEffect, useMemo, useState } from "react";
 
 export default function MyRefundsPage() {
@@ -53,15 +52,19 @@ export default function MyRefundsPage() {
   const totalRefunded = useMemo(() => {
     return approvedRefunds.reduce(
       (sum, refund) =>
-        sum + Number(refund.amount ?? refund.requested_amount ?? 0),
+        sum +
+        Number(
+          refund.approved_amount ??
+            refund.amount ??
+            refund.requested_amount ??
+            0,
+        ),
       0,
     );
   }, [approvedRefunds]);
 
   return (
     <div className="min-h-screen px-3 py-4 sm:px-5 lg:px-8">
-      <NavBarCart />
-
       <div className="mx-auto max-w-6xl space-y-6">
         {/* Header */}
 
@@ -177,9 +180,15 @@ export default function MyRefundsPage() {
                       ? "Processing"
                       : "Pending";
 
-              const amount = isAppointment
-                ? refund.amount
-                : refund.requested_amount;
+              const amount =
+                status === "approved"
+                  ? Number(
+                      refund.approved_amount ??
+                        refund.amount ??
+                        refund.requested_amount ??
+                        0,
+                    )
+                  : Number(refund.requested_amount ?? refund.amount ?? 0);
 
               const title = isAppointment
                 ? refund.appointment?.service_name
@@ -252,28 +261,26 @@ export default function MyRefundsPage() {
                   {/* Approved */}
                   {status === "approved" && (
                     <div className="mt-4 border-t pt-4 space-y-2 text-sm">
-                      {refundMethod && (
-                        <p>
-                          <strong>Refund Method:</strong> {refundMethod}
-                        </p>
-                      )}
-
-                      {refundReference && (
-                        <p>
-                          <strong>Reference:</strong> {refundReference}
-                        </p>
-                      )}
-
                       <p>
-                        <strong>Processed:</strong>{" "}
-                        {processedAt
-                          ? new Date(processedAt).toLocaleString()
-                          : "-"}
+                        <strong>Requested:</strong> ₦
+                        {Number(
+                          refund.requested_amount ?? refund.amount ?? 0,
+                        ).toLocaleString()}
                       </p>
-
-                      {adminNote && (
-                        <p>
-                          <strong>Admin Note:</strong> {refund.admin_note}
+                      <p>
+                        <strong>Approved:</strong> ₦
+                        {Number(
+                          refund.approved_amount ??
+                            refund.amount ??
+                            refund.requested_amount ??
+                            0,
+                        ).toLocaleString()}
+                      </p>
+                      {Number(
+                        refund.approved_amount ?? refund.requested_amount ?? 0,
+                      ) < Number(refund.requested_amount ?? 0) && (
+                        <p className="text-amber-600">
+                          Partial refund approved.
                         </p>
                       )}
                     </div>

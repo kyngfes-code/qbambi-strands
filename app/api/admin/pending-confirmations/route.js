@@ -67,19 +67,28 @@ export async function GET() {
     .from("orders")
     .select(
       `
-      id,
-      user_id,
-      total_amount,
-      status,
-      receipt_url,
-      created_at,
-      users!orders_user_id_fkey(
-        id,
-        name,
-        email,
-        phone
-      )
-    `,
+  id,
+  user_id,
+  total_amount,
+  status,
+  receipt_url,
+  created_at,
+
+  payment_confirmed_at,
+
+  payment_confirmed_admin:users!orders_payment_confirmed_by_fkey(
+    id,
+    name,
+    email
+  ),
+
+  users!orders_user_id_fkey(
+    id,
+    name,
+    email,
+    phone
+  )
+`,
     )
     .in("id", orderIds)
     .in("status", ["awaiting_confirmation", "paid"]);
@@ -110,6 +119,9 @@ export async function GET() {
 
         total_amount: Number(order.total_amount),
         amount: Number(tx.amount),
+
+        payment_confirmed_at: order.payment_confirmed_at,
+        payment_confirmed_admin: order.payment_confirmed_admin,
 
         receipt_url: tx.metadata?.receipt_url ?? order.receipt_url ?? null,
 

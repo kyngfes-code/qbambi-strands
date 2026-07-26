@@ -1,23 +1,56 @@
 "use client";
 
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+
 import { createStoreItems } from "@/lib/actions";
 import { supabase } from "@/lib/supabase";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
 
 function FormShopItems() {
   const form = useForm();
+
   const [previewMain, setPreviewMain] = useState(null);
   const [previewExtra, setPreviewExtra] = useState([]);
 
+  const [highlights, setHighlights] = useState([""]);
+  const [careGuide, setCareGuide] = useState([""]);
+
+  function updateHighlight(index, value) {
+    const copy = [...highlights];
+    copy[index] = value;
+    setHighlights(copy);
+  }
+
+  function addHighlight() {
+    setHighlights([...highlights, ""]);
+  }
+
+  function removeHighlight(index) {
+    setHighlights(highlights.filter((_, i) => i !== index));
+  }
+
+  function updateCare(index, value) {
+    const copy = [...careGuide];
+    copy[index] = value;
+    setCareGuide(copy);
+  }
+
+  function addCare() {
+    setCareGuide([...careGuide, ""]);
+  }
+
+  function removeCare(index) {
+    setCareGuide(careGuide.filter((_, i) => i !== index));
+  }
+
   async function onSubmit(data) {
     try {
-      // ✅ 1️⃣ Upload MAIN image directly
       const mainImage = data.mainImage?.[0];
 
       if (!mainImage) throw new Error("Main image required");
@@ -26,9 +59,7 @@ function FormShopItems() {
 
       const { error: mainUploadError } = await supabase.storage
         .from("hair-image")
-        .upload(mainFileName, mainImage, {
-          contentType: mainImage.type,
-        });
+        .upload(mainFileName, mainImage);
 
       if (mainUploadError) throw mainUploadError;
 
@@ -36,209 +67,251 @@ function FormShopItems() {
         .from("hair-image")
         .getPublicUrl(mainFileName);
 
-      const mainImageUrl = mainUrl.publicUrl;
-
-      // ✅ 2️⃣ Upload EXTRA images directly
       const extraImageUrls = [];
 
-      if (data.extraImages?.length > 0) {
-        for (const img of data.extraImages) {
-          const extraFileName = `store-extra-${Date.now()}-${img.name}`;
+      if (data.extraImages?.length) {
+        for (const file of data.extraImages) {
+          const fileName = `store-extra-${Date.now()}-${file.name}`;
 
-          const { error: extraError } = await supabase.storage
+          const { error } = await supabase.storage
             .from("hair-image")
-            .upload(extraFileName, img, {
-              contentType: img.type,
-            });
+            .upload(fileName, file);
 
-          if (extraError) throw extraError;
+          if (error) throw error;
 
-          const { data: extraUrlData } = supabase.storage
+          const { data } = supabase.storage
             .from("hair-image")
-            .getPublicUrl(extraFileName);
+            .getPublicUrl(fileName);
 
-          extraImageUrls.push(extraUrlData.publicUrl);
+          extraImageUrls.push(data.publicUrl);
         }
       }
-      console.log("Extra images:", data.extraImages);
 
-      // ✅ 3️⃣ Send ONLY URLs to server action
       await createStoreItems({
         title: data.title,
         category: data.category,
         wigType: data.wigType || null,
-        description: data.description,
-        price: data.price,
-        material: data.material || null,
         style: data.style || null,
-        quantity: data.quantity,
-        mainImageUrl,
+        material: data.material || null,
+
+        quantity: Number(data.quantity),
+        price: Number(data.price),
+
+        description: data.description,
+
+        highlights: highlights.filter(Boolean),
+
+        qualityStatement: data.qualityStatement,
+
+        careGuide: careGuide.filter(Boolean),
+
+        mainImageUrl: mainUrl.publicUrl,
+
         extraImageUrls,
       });
 
-      alert("✅ Store item created successfully!");
+      alert("✅ Product created!");
+
+      form.reset();
+
+      setPreviewMain(null);
+      setPreviewExtra([]);
+      setHighlights([""]);
+      setCareGuide([""]);
     } catch (err) {
       console.error(err);
-      alert("❌ Upload failed");
+      alert("Upload failed");
     }
   }
+
   return (
-    <div>
-      <Card className="max-w-md mx-auto mt-6">
-        <CardHeader>
-          <CardTitle>Create New Store Item</CardTitle>
-        </CardHeader>
+    <Card className="mx-auto mt-8 max-w-4xl rounded-3xl">
+      <CardHeader>
+        <CardTitle className="text-2xl">Create Store Product</CardTitle>
+      </CardHeader>
 
-        <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="title">Title</FieldLabel>
-                <Input
-                  id="title"
-                  name="title"
-                  type="text"
-                  {...form.register("title")}
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="category">Category</FieldLabel>
-                <Input
-                  id="category"
-                  name="category"
-                  type="text"
-                  {...form.register("category")}
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="wigType">Wig Type</FieldLabel>
-                <Input
-                  id="wigType"
-                  name="wigType"
-                  type="text"
-                  {...form.register("wigType")}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="style">Style</FieldLabel>
-                <Input
-                  id="style"
-                  name="style"
-                  type="text"
-                  {...form.register("style")}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="material">Material</FieldLabel>
-                <Input
-                  id="material"
-                  name="material"
-                  type="text"
-                  {...form.register("material")}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="quantity">Qty</FieldLabel>
-                <Input
-                  id="quantity"
-                  name="quantity"
-                  type="number"
-                  {...form.register("quantity")}
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="price">Price</FieldLabel>
-                <Input
-                  id="price"
-                  name="price"
-                  type="number"
-                  {...form.register("price")}
-                  required
-                />
-              </Field>
+      <CardContent>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
+          {/* BASIC */}
+          <FieldGroup className="grid gap-5 md:grid-cols-2">
+            <Field>
+              <FieldLabel>Title</FieldLabel>
+              <Input {...form.register("title")} />
+            </Field>
 
-              <Field>
-                <FieldLabel htmlFor="description">Description</FieldLabel>
-                <Textarea
-                  id="description"
-                  name="description"
-                  type="text"
-                  placeholder="be detailed and concise eg glueless, glue-down"
-                  {...form.register("description")}
-                />
-              </Field>
-              <Field>
-                <FieldLabel>Main Image</FieldLabel>
+            <Field>
+              <FieldLabel>Category</FieldLabel>
+              <Input {...form.register("category")} />
+            </Field>
+
+            <Field>
+              <FieldLabel>Wig Type</FieldLabel>
+              <Input {...form.register("wigType")} />
+            </Field>
+
+            <Field>
+              <FieldLabel>Style</FieldLabel>
+              <Input {...form.register("style")} />
+            </Field>
+
+            <Field>
+              <FieldLabel>Material</FieldLabel>
+              <Input {...form.register("material")} />
+            </Field>
+
+            <Field>
+              <FieldLabel>Quantity</FieldLabel>
+              <Input type="number" {...form.register("quantity")} />
+            </Field>
+
+            <Field>
+              <FieldLabel>Price</FieldLabel>
+              <Input type="number" {...form.register("price")} />
+            </Field>
+          </FieldGroup>
+
+          {/* DESCRIPTION */}
+
+          <Field>
+            <FieldLabel>Description</FieldLabel>
+
+            <Textarea rows={5} {...form.register("description")} />
+          </Field>
+
+          {/* HIGHLIGHTS */}
+
+          <div className="space-y-3">
+            <FieldLabel>Highlights</FieldLabel>
+
+            {highlights.map((item, index) => (
+              <div key={index} className="flex gap-2">
                 <Input
-                  type="file"
-                  accept="image/*"
-                  {...form.register("mainImage")}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) setPreviewMain(URL.createObjectURL(file));
-                  }}
+                  value={item}
+                  placeholder="e.g. HD Lace"
+                  onChange={(e) => updateHighlight(index, e.target.value)}
                 />
 
-                {previewMain && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => removeHighlight(index)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+
+            <Button type="button" variant="secondary" onClick={addHighlight}>
+              + Add Highlight
+            </Button>
+          </div>
+
+          {/* QUALITY */}
+
+          <Field>
+            <FieldLabel>Quality Statement</FieldLabel>
+
+            <Textarea rows={4} {...form.register("qualityStatement")} />
+          </Field>
+
+          {/* CARE */}
+
+          <div className="space-y-3">
+            <FieldLabel>Care Guide</FieldLabel>
+
+            {careGuide.map((item, index) => (
+              <div key={index} className="flex gap-2">
+                <Input
+                  value={item}
+                  placeholder="e.g. Air dry naturally"
+                  onChange={(e) => updateCare(index, e.target.value)}
+                />
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => removeCare(index)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+
+            <Button type="button" variant="secondary" onClick={addCare}>
+              + Add Care Tip
+            </Button>
+          </div>
+
+          {/* MAIN IMAGE */}
+
+          <Field>
+            <FieldLabel>Main Image</FieldLabel>
+
+            <Input
+              type="file"
+              accept="image/*"
+              {...form.register("mainImage")}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+
+                if (file) {
+                  setPreviewMain(URL.createObjectURL(file));
+                }
+              }}
+            />
+
+            {previewMain && (
+              <img
+                src={previewMain}
+                className="aspect-square w-full max-w-xs rounded-xl object-cover"
+              />
+            )}
+          </Field>
+
+          {/* EXTRA */}
+
+          <Field>
+            <FieldLabel>Extra Images</FieldLabel>
+
+            <Input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+
+                const current = form.getValues("extraImages") || [];
+
+                form.setValue("extraImages", [...current, ...files]);
+
+                setPreviewExtra((prev) => [
+                  ...prev,
+                  ...files.map((f) => URL.createObjectURL(f)),
+                ]);
+
+                e.target.value = "";
+              }}
+            />
+
+            <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border bg-neutral-50 p-3">
+              <div className="grid grid-cols-3 gap-3">
+                {previewExtra.map((src, index) => (
                   <img
-                    src={previewMain}
-                    className="w-40 h-40 object-cover rounded-lg mt-2"
+                    key={index}
+                    src={src}
+                    className="aspect-square w-full rounded-lg object-cover"
                   />
-                )}
-              </Field>
+                ))}
+              </div>
+            </div>
+          </Field>
 
-              <Field>
-                <FieldLabel>Extra Images</FieldLabel>
-                <Input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => {
-                    const newFiles = Array.from(e.target.files || []);
-
-                    // ✅ 1️⃣ APPEND to existing React Hook Form value
-                    const currentFiles = form.getValues("extraImages") || [];
-                    const updatedFiles = [...currentFiles, ...newFiles];
-
-                    form.setValue("extraImages", updatedFiles, {
-                      shouldDirty: true,
-                      shouldTouch: true,
-                      shouldValidate: true,
-                    });
-
-                    // ✅ 2️⃣ APPEND previews
-                    const previews = newFiles.map((file) =>
-                      URL.createObjectURL(file)
-                    );
-                    setPreviewExtra((prev) => [...prev, ...previews]);
-
-                    // ✅ 3️⃣ Reset input so same file can be selected again
-                    e.target.value = "";
-                  }}
-                />
-
-                {previewExtra.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    {previewExtra.map((src, index) => (
-                      <img
-                        key={index}
-                        src={src}
-                        className="w-28 h-28 object-cover rounded-lg"
-                      />
-                    ))}
-                  </div>
-                )}
-              </Field>
-
-              <Button type="submit">Create</Button>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          <Button type="submit" className="w-full">
+            Create Product
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 

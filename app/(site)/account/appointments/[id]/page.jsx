@@ -10,11 +10,16 @@ import RefundRequestsCard from "@/components/account/RefundRequestsCard";
 import PricingHistoryCard from "@/components/account/PricingHistoryCard";
 import { useParams } from "next/navigation";
 import PaymentMethodSelector from "@/components/payments/PaymentMethodSelector";
+import AppointmentRefundRequestModal from "@/components/refunds/AppointmentRefundRequestModal";
+import CollapsibleCard from "@/components/CollapsibleCard";
+import { toast } from "sonner";
 
 export default function AppointmentDetailsPage() {
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundLoading, setRefundLoading] = useState(false);
 
   const { id } = useParams();
 
@@ -81,6 +86,39 @@ export default function AppointmentDetailsPage() {
     );
   }
 
+  async function handleRefundRequest(payload) {
+    try {
+      setRefundLoading(true);
+
+      const res = await fetch("/api/account/appointments/request-refunds", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to submit refund request.");
+      }
+
+      toast.success("Refund request submitted successfully.");
+
+      await loadAppointment();
+
+      setRefundModalOpen(false);
+
+      return data;
+    } catch (err) {
+      toast.error(err.message || "Something went wrong.");
+      throw err; // optional, if you want the modal to know about the error
+    } finally {
+      setRefundLoading(false);
+    }
+  }
+
   const details = appointment.appointment;
   const financial = appointment.financial_summary;
   const payments = appointment.payment_history ?? [];
@@ -107,6 +145,18 @@ export default function AppointmentDetailsPage() {
       : paymentType === "deposit"
         ? Number(details.deposit_required || 0)
         : Number(financial.balance_due || 0);
+
+  const amountPaid = Number(details.amount_paid || 0);
+
+  const refundedAmount = Number(details.refunded_amount || 0);
+
+  const refundableBalance = Math.max(amountPaid - refundedAmount, 0);
+
+  const pendingRefundRequest = refunds.find((r) => r.status === "pending");
+  const canRequestRefund =
+    refundableBalance > 0 &&
+    details.status === "completed" &&
+    !pendingRefundRequest;
 
   return (
     <div className="space-y-8">
@@ -135,6 +185,26 @@ export default function AppointmentDetailsPage() {
 
       <FinancialSummaryCard summary={financial} />
 
+      <div className="flex justify-end">
+        {pendingRefundRequest ? (
+          <button
+            disabled
+            className="cursor-not-allowed rounded-xl bg-amber-100 px-5 py-3 font-medium text-amber-700"
+          >
+            Refund Request Processing
+          </button>
+        ) : (
+          canRequestRefund && (
+            <button
+              onClick={() => setRefundModalOpen(true)}
+              className="rounded-xl bg-orange-600 px-5 py-3 text-white hover:bg-orange-700"
+            >
+              Request Refund
+            </button>
+          )
+        )}
+      </div>
+
       {/* Payment Methods */}
 
       {canMakePayment && (
@@ -149,7 +219,12 @@ export default function AppointmentDetailsPage() {
 
       {/* Payment Timeline */}
 
-      <PaymentHistoryTimeline payments={payments} />
+      <CollapsibleCard
+        title="Payment History"
+        description="View all payments, refunds and adjustments."
+      >
+        <PaymentHistoryTimeline payments={payments} />
+      </CollapsibleCard>
 
       {/* Refund Requests */}
 
@@ -157,7 +232,20 @@ export default function AppointmentDetailsPage() {
 
       {/* Pricing History */}
 
-      <PricingHistoryCard history={pricingHistory} />
+      <CollapsibleCard
+        title="Pricing History"
+        description="View every pricing change made to this appointment."
+      >
+        <PricingHistoryCard history={pricingHistory} />
+      </CollapsibleCard>
+
+      <AppointmentRefundRequestModal
+        appointment={appointment}
+        isOpen={refundModalOpen}
+        loading={refundLoading}
+        onClose={() => setRefundModalOpen(false)}
+        onSubmit={handleRefundRequest}
+      />
     </div>
   );
 }

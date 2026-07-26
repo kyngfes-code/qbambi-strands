@@ -29,7 +29,7 @@ export async function POST(req) {
 
     const supabase = createSupabaseAdmin();
 
-    const { data, error } = await supabase.rpc("refund_order_payment", {
+    const { data, error } = await supabase.rpc("create_order_refund_request", {
       p_order_id: orderId,
       p_admin_id: session.user.id,
       p_amount: Number(amount),

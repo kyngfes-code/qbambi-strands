@@ -87,12 +87,13 @@ export async function POST(req) {
       .from("appointments")
       .select(
         `
-        id,
-        user_id,
-        status,
-        amount_paid,
-        refunded_amount
-      `,
+  id,
+  service_name,
+  user_id,
+  status,
+  amount_paid,
+  refunded_amount
+`,
       )
       .eq("id", appointmentId)
       .single();
@@ -207,6 +208,19 @@ export async function POST(req) {
         },
       );
     }
+
+    /*
+==========================================
+Create Admin Notification
+==========================================
+*/
+
+    await supabase.from("admin_notifications").insert({
+      type: "appointment_refund_request",
+      title: "Appointment Refund Request",
+      message: `A customer requested a refund for ${appointment.service_name}.`,
+      reference_id: data.id,
+    });
 
     /*
     ==========================================

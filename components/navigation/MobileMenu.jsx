@@ -152,7 +152,11 @@ export default function MobileMenu({ open, onClose, session }) {
                   Refunds
                 </NavLink>
 
-                <NavLink href="/cart" onClick={onClose} className="py-3">
+                <NavLink
+                  href="/account/cart"
+                  onClick={onClose}
+                  className="py-3"
+                >
                   Shopping Cart
                 </NavLink>
               </nav>

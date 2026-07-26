@@ -11,7 +11,7 @@ export default async function UserActions() {
   return (
     <div className="hidden lg:flex items-center gap-4">
       <Link
-        href="/cart"
+        href="/account/cart"
         className="rounded-xl p-2 transition hover:bg-neutral-100"
       >
         🛒

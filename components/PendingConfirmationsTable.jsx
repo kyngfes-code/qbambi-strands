@@ -21,7 +21,7 @@ export default function PendingConfirmationsTable({
   return (
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-[1300px] w-full text-sm">
+        <table className="min-w-[1550px] w-full text-sm">
           <thead className="bg-neutral-100">
             <tr className="text-left">
               <th className="px-4 py-3 font-semibold">Order</th>
@@ -30,6 +30,8 @@ export default function PendingConfirmationsTable({
               <th className="px-4 py-3 font-semibold">Payment</th>
               <th className="px-4 py-3 font-semibold">Order Status</th>
               <th className="px-4 py-3 font-semibold text-right">Amount</th>
+              <th className="px-4 py-3 font-semibold">Confirmed By</th>
+              <th className="px-4 py-3 font-semibold">Confirmed At</th>
               <th className="px-4 py-3 font-semibold">Receipt</th>
               <th className="px-4 py-3 font-semibold">Actions</th>
             </tr>
@@ -52,21 +54,6 @@ export default function PendingConfirmationsTable({
 
               const isTransactionVerified = o.transaction_status === "verified";
 
-              /**
-               * Button Rules
-               *
-               * BANK TRANSFER
-               * pending tx + awaiting_confirmation order
-               *      -> Confirm Payment
-               *
-               * verified tx + paid order
-               *      -> Confirm Delivery
-               *
-               * PAYSTACK
-               * verified tx + paid order
-               *      -> Confirm Delivery
-               */
-
               const showConfirmPayment =
                 !isInstalment &&
                 isBankTransfer &&
@@ -77,6 +64,7 @@ export default function PendingConfirmationsTable({
                 isInstalment && isAwaitingConfirmation && isTransactionPending;
 
               const showConfirmDelivery = isPaid && isTransactionVerified;
+              const showCancelOrder = isPaid && isTransactionVerified;
 
               return (
                 <tr
@@ -153,6 +141,48 @@ export default function PendingConfirmationsTable({
                     ).toLocaleString()}
                   </td>
 
+                  {/* Payment Confirmed By */}
+                  <td className="px-4 py-4 align-top">
+                    {o.payment_confirmed_admin ? (
+                      <div>
+                        <div className="font-medium">
+                          {o.payment_confirmed_admin.name}
+                        </div>
+
+                        <div className="text-xs text-neutral-500">
+                          {o.payment_confirmed_admin.email}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-neutral-400">—</span>
+                    )}
+                  </td>
+
+                  {/* Payment Confirmed At */}
+                  <td className="px-4 py-4 whitespace-nowrap align-top">
+                    {o.payment_confirmed_at ? (
+                      <>
+                        <div>
+                          {new Date(
+                            o.payment_confirmed_at,
+                          ).toLocaleDateString()}
+                        </div>
+
+                        <div className="text-xs text-neutral-500">
+                          {new Date(o.payment_confirmed_at).toLocaleTimeString(
+                            [],
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-neutral-400">—</span>
+                    )}
+                  </td>
+
                   {/* Receipt */}
                   <td className="px-4 py-4 align-top">
                     {o.receipt_url ? (
@@ -189,13 +219,6 @@ export default function PendingConfirmationsTable({
                           >
                             Reject
                           </button>
-
-                          <button
-                            onClick={() => onCancel(o.id)}
-                            className="rounded-lg bg-neutral-700 px-3 py-2 text-white hover:bg-neutral-800"
-                          >
-                            Cancel
-                          </button>
                         </>
                       )}
 
@@ -210,6 +233,14 @@ export default function PendingConfirmationsTable({
                           className="rounded-lg bg-orange-600 px-3 py-2 text-white hover:bg-orange-700"
                         >
                           Confirm Instalment
+                        </button>
+                      )}
+                      {showCancelOrder && (
+                        <button
+                          onClick={() => onCancel(o.id)}
+                          className="rounded-lg bg-neutral-700 px-3 py-2 text-white hover:bg-neutral-800"
+                        >
+                          Cancel Order
                         </button>
                       )}
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import NavBarCart from "@/components/NavBarCart";
 import OfflineNotice from "@/components/OfflineNotice";
 import { useOnlineStatus } from "@/app/OnlineStatusProvider";
-
+import Link from "next/link";
 import OrderCard from "@/components/orders/OrderCard";
 
 import CustomerOrderDetailsModal from "@/components/admin/order/CustomerOrderDetailsModal";
@@ -20,6 +20,7 @@ export default function OrdersPage() {
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [refundOrder, setRefundOrder] = useState(null);
+  const [expandedOrder, setExpandedOrder] = useState(null);
 
   async function loadOrders() {
     try {
@@ -119,11 +120,37 @@ export default function OrdersPage() {
           <p className="mt-2 text-neutral-500">
             View your orders, payment history and delivery progress.
           </p>
+          <Link
+            href="/store"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-black px-5 py-3 font-medium text-white transition hover:opacity-90"
+          >
+            Continue Shopping
+            <span aria-hidden>→</span>
+          </Link>
         </div>
 
         {orders.length === 0 ? (
-          <div className="rounded-2xl border bg-white p-12 text-center">
-            No orders found.
+          <div className="rounded-3xl border bg-white px-8 py-16 text-center">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-neutral-100 text-4xl">
+              🛍️
+            </div>
+
+            <h2 className="text-2xl font-semibold">
+              You haven't placed any orders yet
+            </h2>
+
+            <p className="mx-auto mt-3 max-w-md text-neutral-500">
+              Discover our premium hair collections and beauty products. Your
+              next favourite look is waiting for you.
+            </p>
+
+            <Link
+              href="/store"
+              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-black px-6 py-3 font-medium text-white transition hover:opacity-90"
+            >
+              Shop Hair Collection
+              <span>→</span>
+            </Link>
           </div>
         ) : (
           <div className="space-y-8">
@@ -131,6 +158,12 @@ export default function OrdersPage() {
               <OrderCard
                 key={order.id}
                 order={order}
+                expanded={expandedOrder === order.id}
+                onToggle={() =>
+                  setExpandedOrder((current) =>
+                    current === order.id ? null : order.id,
+                  )
+                }
                 onReload={loadOrders}
                 onOpenOrder={setSelectedOrder}
                 onRefund={setRefundOrder}

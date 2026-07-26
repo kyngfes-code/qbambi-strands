@@ -9,6 +9,7 @@ export async function POST(req) {
     Authenticate Admin
     ==========================================
     */
+
     const session = await auth();
 
     if (!session?.user) {
@@ -21,61 +22,48 @@ export async function POST(req) {
 
     /*
     ==========================================
-    Parse Request
+    Parse Body
     ==========================================
     */
+
     const {
       appointmentId,
       requestedAmount,
-      approvedAmount,
       reason,
       customerMessage = null,
-      refundMethod,
-      refundReference = null,
       adminNote = null,
     } = await req.json();
 
     if (!appointmentId) {
       return NextResponse.json(
-        { error: "Appointment ID is required." },
-        { status: 400 },
+        {
+          error: "Appointment ID is required.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
     if (!requestedAmount || Number(requestedAmount) <= 0) {
       return NextResponse.json(
-        { error: "Requested amount must be greater than zero." },
-        { status: 400 },
-      );
-    }
-
-    if (!approvedAmount || Number(approvedAmount) <= 0) {
-      return NextResponse.json(
-        { error: "Approved amount must be greater than zero." },
-        { status: 400 },
-      );
-    }
-
-    if (Number(approvedAmount) > Number(requestedAmount)) {
-      return NextResponse.json(
         {
-          error: "Approved amount cannot exceed the requested amount.",
+          error: "Refund amount must be greater than zero.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
 
     if (!reason?.trim()) {
       return NextResponse.json(
-        { error: "Refund reason is required." },
-        { status: 400 },
-      );
-    }
-
-    if (!refundMethod) {
-      return NextResponse.json(
-        { error: "Refund method is required." },
-        { status: 400 },
+        {
+          error: "Refund reason is required.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -84,28 +72,32 @@ export async function POST(req) {
     Execute RPC
     ==========================================
     */
+
     const supabase = createSupabaseAdmin();
 
     const { data, error } = await supabase.rpc(
-      "admin_create_and_approve_appointment_refund",
+      "admin_create_appointment_refund_request",
       {
         p_appointment_id: appointmentId,
         p_requested_by: session.user.id,
-        p_processed_by: session.user.id,
         p_requested_amount: requestedAmount,
-        p_approved_amount: approvedAmount,
         p_reason: reason.trim(),
         p_customer_message: customerMessage?.trim() || null,
-        p_refund_method: refundMethod,
-        p_refund_reference: refundReference?.trim() || null,
         p_admin_note: adminNote?.trim() || null,
       },
     );
 
     if (error) {
-      console.error("admin_create_and_approve_appointment_refund:", error);
+      console.error(error);
 
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: error.message,
+        },
+        {
+          status: 400,
+        },
+      );
     }
 
     /*
@@ -113,13 +105,14 @@ export async function POST(req) {
     Success
     ==========================================
     */
+
     return NextResponse.json({
       success: true,
-      message: "Refund processed successfully.",
+      message: "Refund request created successfully.",
       ...data,
     });
   } catch (err) {
-    console.error("Admin appointment refund:", err);
+    console.error(err);
 
     return NextResponse.json(
       {

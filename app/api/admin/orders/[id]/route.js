@@ -34,10 +34,16 @@ export async function GET(req, { params }) {
         email
       ),
       confirmed_admin:users!orders_confirmed_by_fkey(
-        id,
-        name,
-        email
-      ),
+  id,
+  name,
+  email
+),
+payment_confirmed_at,
+payment_confirmed_admin:users!orders_payment_confirmed_by_fkey(
+  id,
+  name,
+  email
+),
       payment_rejections:payment_rejections!payment_rejections_order_id_fkey(
         id,
         rejection_reason,

@@ -71,7 +71,7 @@ export default function useOrderActions(loadAdminData) {
         return;
       }
 
-      const res = await fetch("/api/admin/refund-order", {
+      const res = await fetch("/api/admin/refunds/orders/request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -4,6 +4,36 @@ import { useState } from "react";
 
 export default function useOrderRefundActions(refreshRefunds) {
   const [processingRefund, setProcessingRefund] = useState(false);
+  const [rejectingRefund, setRejectingRefund] = useState(false);
+
+  async function handleRejectRefundRequest(payload, onSuccess) {
+    try {
+      setRejectingRefund(true);
+
+      const res = await fetch("/api/admin/refunds/orders/reject-refunds", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error);
+      }
+
+      await refreshRefunds();
+
+      onSuccess?.(data);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    } finally {
+      setRejectingRefund(false);
+    }
+  }
 
   async function handleProcessRefund(payload, onSuccess) {
     try {
@@ -36,6 +66,8 @@ export default function useOrderRefundActions(refreshRefunds) {
 
   return {
     processingRefund,
+    rejectingRefund,
     handleProcessRefund,
+    handleRejectRefundRequest,
   };
 }
