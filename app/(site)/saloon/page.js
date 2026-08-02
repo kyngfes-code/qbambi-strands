@@ -1,9 +1,8 @@
 import FloatingClickMe from "@/components/FloatingClickMe";
-import NavBar from "@/components/NavBar";
 import SaloonImageCard from "@/components/SaloonImageCard";
-import SpinnerMini from "@/components/PageSpinner";
 import { getSaloonData } from "@/lib/data-service";
 import { CheckCheckIcon } from "lucide-react";
+import BackButton from "./BackButton";
 
 export const metadata = {
   title: "Saloon",
@@ -12,73 +11,79 @@ export const metadata = {
 export default async function Page() {
   const data = await getSaloonData();
   const images = data.slice(0, 4);
-  return (
-    <div className="h-screen flex flex-col text-white overflow-x-hidden">
-      <NavBar className="border-0" />
 
-      {/* TOP SECTION — HERO */}
-      <section className="h-2/3 flex flex-col items-center justify-center pl-4 pr-6 text-center">
-        <h1 className="text-[#C6A667] text-3xl sm:text-5xl font-bold leading-tight drop-shadow-lg">
+  const services = [
+    "Wig Installation",
+    "Luxe Braids",
+    "Elegant Packing Gel Styles",
+    "Professional Wigging",
+    "Custom Wig Making",
+    "Re-vamping & Restyling",
+    "Lash Extension Services",
+    "Nail Glam & Manicure Artistry",
+  ];
+
+  return (
+    <main className="min-h-screen overflow-x-hidden bg-gradient-to-br from-black via-[#171717] to-[#3d2a14] text-white">
+      <BackButton />
+      {/* Hero */}
+      <section className="mx-auto flex max-w-7xl flex-col items-center px-6 py-20 text-center lg:py-28">
+        <h1 className="max-w-5xl text-4xl font-bold leading-tight text-[#C6A667] sm:text-5xl lg:text-6xl">
           Luxury Hair • Flawless Glam • Premium Care
         </h1>
 
-        <p className="text-[#f3e8c9] mt-3 text-lg sm:text-xl max-w-2xl drop-shadow">
+        <p className="mt-6 max-w-3xl text-base leading-8 text-[#f3e8c9] sm:text-xl">
           We enhance your natural beauty with world-class salon services crafted
           with precision, artistry, and luxury.
         </p>
 
-        <ul className="flex flex-wrap gap-4 justify-center mt-6 max-w-3xl">
-          {[
-            "Wig Installation",
-            "Luxe Braids",
-            "Elegant Packing Gel Styles",
-            "Professional Wigging",
-            "Custom Wig Making",
-            "Re-vamping & Restyling",
-            "Lash Extension Services",
-            "Nail Glam & Manicure Artistry",
-          ].map((service, index) => (
-            <li
-              key={index}
-              className="flex items-center gap-2 text-white font-semibold text-base sm:text-lg 
-                         drop-shadow-[0_3px_6px_rgba(0,0,0,0.9)]"
+        <div className="mt-10 grid w-full max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {services.map((service) => (
+            <div
+              key={service}
+              className="flex items-center gap-3 rounded-2xl border border-[#C6A667]/20 bg-white/5 p-4 backdrop-blur"
             >
-              <CheckCheckIcon className="w-4 h-4 text-[#C6A667]" />
-              {service}
-            </li>
+              <CheckCheckIcon className="h-5 w-5 shrink-0 text-[#C6A667]" />
+
+              <span className="text-left text-sm font-medium sm:text-base">
+                {service}
+              </span>
+            </div>
           ))}
-        </ul>
+        </div>
       </section>
 
-      <section className="h-1/3 flex flex-wrap overflow-hidden">
-        <div className="w-2/3 flex p-2 min-w-0 ">
+      {/* Gallery + Stats */}
+      <section className="mx-auto mb-16 grid max-w-7xl gap-8 px-6 lg:grid-cols-[2fr_1fr]">
+        {/* Images */}
+        <div className="grid grid-cols-2 gap-4">
           {images.map((item) => (
             <SaloonImageCard
+              key={item.id}
               noBg
               href="/saloon/images"
               src={item.images}
-              key={item.id}
             />
           ))}
         </div>
 
-        <div className="w-1/3 min-w-0 flex flex-col mb-2 items-center justify-center px-2 bg-[#1a1a1a]/60 backdrop-blur-sm rounded-l-2xl">
-          <h2 className="text-[#C6A667] text-4xl sm:text-5xl font-bold drop-shadow">
-            10+
-          </h2>
+        {/* Stats Card */}
+        <div className="flex flex-col justify-center rounded-3xl border border-[#C6A667]/20 bg-white/5 p-8 backdrop-blur">
+          <h2 className="text-center text-6xl font-bold text-[#C6A667]">10+</h2>
 
-          <p className="text-lg sm:text-xl text-center mt-2 text-[#f3e8c9]">
-            Years of Exceptional Salon Experience
+          <p className="mt-4 text-center text-2xl font-semibold text-[#f3e8c9]">
+            Years of Experience
           </p>
 
-          <p className="text-sm sm:text-base  text-gray-200 mt-2 leading-relaxed text-center max-w-xs">
+          <p className="mt-6 text-center leading-8 text-gray-300">
             Delivering premium beauty services trusted by hundreds of clients.
             Our mastery in haircare, wig craftsmanship, and glam styling sets us
             apart.
           </p>
         </div>
       </section>
+
       <FloatingClickMe className="z-50" />
-    </div>
+    </main>
   );
 }

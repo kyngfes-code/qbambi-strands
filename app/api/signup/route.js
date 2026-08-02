@@ -1,99 +1,228 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { z } from "zod";
+
 import { signupSchema } from "@/lib/validations/signupSchema";
+import { createSupabaseAdmin } from "@/lib/supabase-admin";
+
+import { hashPassword } from "@/lib/auth/hashPassword";
+import { generateVerificationToken } from "@/lib/auth/generateVerificationToken";
+import { sendVerificationEmail } from "@/lib/auth/sendVerificationEmail";
 
 export async function POST(req) {
-  const body = await req.json();
-
-  /* ---------------------------
-     Validate input
-  ---------------------------- */
-  const parsed = signupSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.flatten().fieldErrors },
-      { status: 400 }
-    );
-  }
-
-  const { firstName, lastName, phone, email, password, street, city, state } =
-    parsed.data;
-  const fullName = `${firstName} ${lastName}`;
-
   const supabase = createSupabaseAdmin();
 
-  /* ---------------------------
-     Check if user already exists
-     (auth.users is the source of truth)
-  ---------------------------- */
-  const { data: existingUser } = await supabase
-    .from("auth.users")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
+  let createdUserId = null;
+  let createdAddressId = null;
+  let createdTokenId = null;
 
-  if (existingUser) {
+  try {
+    //--------------------------------------------------
+    // Validate Body
+    //--------------------------------------------------
+
+    const body = await req.json();
+
+    const values = signupSchema.parse(body);
+
+    //--------------------------------------------------
+    // Check existing email
+    //--------------------------------------------------
+
+    const { data: existingUser, error: existingError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", values.email.toLowerCase())
+      .maybeSingle();
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    if (existingUser) {
+      return NextResponse.json(
+        {
+          error: "An account already exists with this email.",
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+    //--------------------------------------------------
+    // Hash password
+    //--------------------------------------------------
+
+    const passwordHash = await hashPassword(values.password);
+
+    //--------------------------------------------------
+    // Create user
+    //--------------------------------------------------
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .insert({
+        first_name: values.firstName,
+        middle_name: values.middleName || null,
+        last_name: values.lastName,
+        name: `${values.firstName} ${values.middleName ?? ""} ${values.lastName}`
+          .replace(/\s+/g, " ")
+          .trim(),
+
+        email: values.email.toLowerCase(),
+
+        phone: values.phone,
+
+        password_hash: passwordHash,
+
+        role: "user",
+
+        is_admin: false,
+
+        email_verified: false,
+
+        account_status: "pending",
+      })
+      .select()
+      .single();
+
+    if (userError) {
+      throw userError;
+    }
+
+    createdUserId = user.id;
+
+    //--------------------------------------------------
+    // Create default address
+    //--------------------------------------------------
+
+    const { data: address, error: addressError } = await supabase
+      .from("addresses")
+      .insert({
+        user_id: user.id,
+
+        full_name:
+          `${values.firstName} ${values.middleName ?? ""} ${values.lastName}`
+            .replace(/\s+/g, " ")
+            .trim(),
+
+        phone: values.phone,
+
+        street: values.shippingStreet,
+
+        city: values.shippingCity,
+
+        state: values.shippingState,
+
+        country: values.shippingCountry,
+
+        landmark: values.shippingLandmark || null,
+
+        is_default: true,
+      })
+      .select()
+      .single();
+
+    if (addressError) {
+      throw addressError;
+    }
+
+    createdAddressId = address.id;
+
+    //--------------------------------------------------
+    // Verification Token
+    //--------------------------------------------------
+
+    const verification = generateVerificationToken();
+
+    const { data: tokenRecord, error: tokenError } = await supabase
+      .from("email_verification_tokens")
+      .insert({
+        user_id: user.id,
+
+        token: verification.token,
+
+        expires_at: verification.expiresAt,
+      })
+      .select()
+      .single();
+
+    if (tokenError) {
+      throw tokenError;
+    }
+
+    createdTokenId = tokenRecord.id;
+
+    //--------------------------------------------------
+    // Send email
+    //--------------------------------------------------
+
+    await sendVerificationEmail({
+      email: user.email,
+
+      firstName: user.first_name,
+
+      token: verification.token,
+    });
+
+    //--------------------------------------------------
+
     return NextResponse.json(
-      { error: "User with this email already exists" },
-      { status: 409 } // Conflict
+      {
+        success: true,
+
+        message:
+          "Your account has been created successfully. Please verify your email before signing in.",
+      },
+      {
+        status: 201,
+      },
+    );
+  } catch (err) {
+    console.error("SIGNUP ERROR");
+    console.error(err);
+
+    //--------------------------------------------------
+    // Rollback
+    //--------------------------------------------------
+
+    if (createdTokenId) {
+      await supabase
+        .from("email_verification_tokens")
+        .delete()
+        .eq("id", createdTokenId);
+    }
+
+    if (createdAddressId) {
+      await supabase.from("addresses").delete().eq("id", createdAddressId);
+    }
+
+    if (createdUserId) {
+      await supabase.from("users").delete().eq("id", createdUserId);
+    }
+
+    //--------------------------------------------------
+
+    if (err instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "Validation failed.",
+
+          issues: err.flatten(),
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error: err.message || "Unable to create account.",
+      },
+      {
+        status: 500,
+      },
     );
   }
-
-  /* ---------------------------
-     Create auth user
-  ---------------------------- */
-  const { data, error } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
-
-  if (error || !data?.user) {
-    return NextResponse.json(
-      { error: error?.message || "User creation failed" },
-      { status: 400 }
-    );
-  }
-
-  /* ---------------------------
-     Insert into public.users
-  ---------------------------- */
-  const { error: profileError } = await supabase.from("users").insert({
-    id: data.user.id,
-    email,
-    name: fullName,
-    phone,
-    role: "user",
-  });
-
-  if (profileError) {
-    return NextResponse.json(
-      { error: "User created but profile insert failed" },
-      { status: 500 }
-    );
-  }
-
-  /* ---------------------------
-   Insert default address
----------------------------- */
-  const { error: addressError } = await supabase.from("addresses").insert({
-    user_id: data.user.id,
-    full_name: fullName,
-    phone,
-    street,
-    city,
-    state,
-    country: "Nigeria",
-    is_default: true,
-  });
-
-  if (addressError) {
-    return NextResponse.json(
-      { error: "User created but address insert failed" },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({ success: true }, { status: 201 });
 }

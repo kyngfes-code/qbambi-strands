@@ -9,39 +9,55 @@ export default function SaloonImageCard({
   noBg = false,
   noClick = false,
   noHref = false,
-  href,
+  href = "#",
 }) {
+  const image = (
+    <div className="group relative aspect-[4/5] w-full overflow-hidden rounded-2xl">
+      {!noClick && (
+        <span className="absolute left-3 top-3 z-20 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur animate-pulse">
+          Click Me
+        </span>
+      )}
+
+      <Image
+        src={src}
+        alt={title || "Salon image"}
+        fill
+        sizes="(max-width:768px) 50vw, 25vw"
+        className="object-cover object-center transition duration-500 group-hover:scale-105"
+      />
+    </div>
+  );
+
   return (
     <div
-      className={`h-40 w-full flex flex-col gap-2 px-2 ${
-        noBg ? "" : "backdrop-blur-sm bg-white/10"
-      } rounded-xl overflow-hidden ${className}`}
+      className={`flex h-full flex-col rounded-2xl p-2 ${
+        noBg ? "" : "border border-white/10 bg-white/10 backdrop-blur-md"
+      } ${className}`}
     >
-      <div className="relative h-50 rounded-lg overflow-hidden">
-        <Link href={`${noHref ? "" : href}`} className="block w-full h-full">
-          <span
-            className={`${
-              noClick
-                ? "hidden"
-                : "absolute top-2 left-2 z-20 text-white text-sm font-semibold bg-black/50 px-2 py-1 rounded animate-pulse"
-            }`}
-          >
-            click me
-          </span>
-
-          <Image
-            src={src}
-            alt={`${title} ?? "salon image"`}
-            fill
-            className="object-cover opacity-90 hover:opacity-100 transition-all duration-300"
-          />
+      {noHref ? (
+        image
+      ) : (
+        <Link href={href} className="block">
+          {image}
         </Link>
-      </div>
+      )}
 
-      <div className="flex flex-col justify-center text-white w-40 overflow-hidden">
-        <h2 className="font-semibold text-sm">{title}</h2>
-        <p className="text-xs opacity-80">{description}</p>
-      </div>
+      {(title || description) && (
+        <div className="mt-3 text-center text-white">
+          {title && (
+            <h3 className="line-clamp-1 text-sm font-semibold sm:text-base">
+              {title}
+            </h3>
+          )}
+
+          {description && (
+            <p className="mt-1 line-clamp-2 text-xs text-white/80 sm:text-sm">
+              {description}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

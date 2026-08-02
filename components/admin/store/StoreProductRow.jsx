@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Pencil, Images, Trash2, Eye } from "lucide-react";
+import { deleteStoreItem } from "@/lib/actions";
 
 export default function StoreProductRow({
   product,
@@ -17,10 +18,28 @@ export default function StoreProductRow({
     wigType,
     quantity,
     price,
-    status,
     main_image,
     extra_images = [],
   } = product;
+
+  async function handleDelete() {
+    await deleteStoreItem(id);
+  }
+
+  const stockBadge =
+    quantity > 5 ? (
+      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+        In Stock
+      </span>
+    ) : quantity > 0 ? (
+      <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-700">
+        Low Stock
+      </span>
+    ) : (
+      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+        Out of Stock
+      </span>
+    );
 
   // ---------------- MOBILE CARD ----------------
   if (mobile) {
@@ -51,20 +70,12 @@ export default function StoreProductRow({
               ₦{Number(price).toLocaleString()}
             </p>
 
-            <div className="mt-2 flex items-center gap-2">
-              <span className="rounded-full bg-neutral-100 px-2 py-1 text-xs">
-                Qty {quantity}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium">
+                Qty: {quantity}
               </span>
 
-              <span
-                className={`rounded-full px-2 py-1 text-xs ${
-                  status
-                    ? "bg-green-100 text-green-700"
-                    : "bg-neutral-200 text-neutral-700"
-                }`}
-              >
-                {status ? "Live" : "Hidden"}
-              </span>
+              {stockBadge}
             </div>
           </div>
         </div>
@@ -72,7 +83,7 @@ export default function StoreProductRow({
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={() => onOpenImages(product)}
-            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
           >
             <Images className="h-4 w-4" />
             {extra_images.length + 1} Images
@@ -93,7 +104,7 @@ export default function StoreProductRow({
           </button>
 
           <button
-            onClick={() => onDelete?.(product)}
+            onClick={handleDelete}
             className="rounded-lg border p-2 text-red-600 hover:bg-red-50"
           >
             <Trash2 className="h-4 w-4" />
@@ -106,6 +117,7 @@ export default function StoreProductRow({
   // ---------------- DESKTOP TABLE ROW ----------------
   return (
     <tr className="border-b transition hover:bg-neutral-50">
+      {/* Image */}
       <td className="p-4">
         <Link href={`/admin/shop/${id}`}>
           <div className="relative h-16 w-16 overflow-hidden rounded-xl border">
@@ -114,34 +126,31 @@ export default function StoreProductRow({
         </Link>
       </td>
 
+      {/* Product */}
       <td className="p-4">
         <h3 className="font-semibold">{title}</h3>
         <p className="text-sm text-neutral-500">{wigType || "No wig type"}</p>
       </td>
 
+      {/* Category */}
       <td className="p-4">{category || "-"}</td>
 
-      <td className="p-4 text-center">{quantity}</td>
+      {/* Quantity */}
+      <td className="p-4 text-center font-medium">{quantity}</td>
 
+      {/* Price */}
       <td className="p-4 font-medium">₦{Number(price).toLocaleString()}</td>
 
-      <td className="p-4">
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            status
-              ? "bg-green-100 text-green-700"
-              : "bg-neutral-200 text-neutral-700"
-          }`}
-        >
-          {status ? "Live" : "Hidden"}
-        </span>
-      </td>
+      {/* Stock Status */}
+      <td className="p-4">{stockBadge}</td>
 
+      {/* Actions */}
       <td className="p-4">
         <div className="flex justify-end gap-2">
           <button
             onClick={() => onOpenImages(product)}
             className="rounded-lg p-2 hover:bg-neutral-100"
+            title="Images"
           >
             <Images className="h-4 w-4" />
           </button>
@@ -149,6 +158,7 @@ export default function StoreProductRow({
           <Link
             href={`/admin/shop/${id}`}
             className="rounded-lg p-2 hover:bg-neutral-100"
+            title="Edit"
           >
             <Pencil className="h-4 w-4" />
           </Link>
@@ -156,13 +166,15 @@ export default function StoreProductRow({
           <button
             onClick={() => onOpenImages(product)}
             className="rounded-lg p-2 hover:bg-neutral-100"
+            title="Preview"
           >
             <Eye className="h-4 w-4" />
           </button>
 
           <button
-            onClick={() => onDelete?.(product)}
+            onClick={handleDelete}
             className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+            title="Delete"
           >
             <Trash2 className="h-4 w-4" />
           </button>

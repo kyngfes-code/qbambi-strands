@@ -1,3 +1,4 @@
+import BackButton from "@/app/(site)/saloon/BackButton";
 import AddOrUpdateRow from "@/components/AddorUpdateRow";
 import { createClient } from "@supabase/supabase-js";
 
@@ -7,11 +8,12 @@ export default async function AdminImagePage({ params }) {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY // safe on server
+    process.env.SUPABASE_SERVICE_ROLE_KEY, // safe on server
   );
 
   return (
     <div className="p-6">
+      <BackButton />
       <h1 className="text-2xl font-semibold mb-6">Editing Image #{id}</h1>
 
       <AddOrUpdateRow

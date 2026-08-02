@@ -1,3 +1,4 @@
+import BackButton from "@/app/(site)/saloon/BackButton";
 import FetchImage from "@/components/FetchImge";
 import FormSaloonImages from "@/components/FormSaloonImages";
 import SaloonImageCard from "@/components/SaloonImageCard";
@@ -14,6 +15,7 @@ async function page() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
+          <BackButton />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.map((item) => (
               <SaloonImageCard

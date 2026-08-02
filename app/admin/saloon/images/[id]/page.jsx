@@ -1,3 +1,4 @@
+import BackButton from "@/app/(site)/saloon/BackButton";
 import AddOrUpdateRow from "@/components/AddorUpdateRow";
 import { Button } from "@/components/ui/button";
 import { deleteSaloonWorkImages } from "@/lib/actions";
@@ -9,7 +10,7 @@ export default async function MakeupStudioImagePage({ params }) {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY // safe on server
+    process.env.SUPABASE_SERVICE_ROLE_KEY, // safe on server
   );
 
   // Fetch this specific  image row
@@ -25,6 +26,7 @@ export default async function MakeupStudioImagePage({ params }) {
 
   return (
     <div className="p-6 flex flex-col items-center justify-between">
+      <BackButton />
       <h1 className="text-2xl font-semibold mb-6">Editing Image #{id}</h1>
       <div className="flex gap-x-4">
         <AddOrUpdateRow
