@@ -7,8 +7,9 @@ export default function useAcademyPricing(courses = []) {
   // State
   //----------------------------------------------------------
 
-  const [learningMode, setLearningMode] = useState("");
+  const [learningModeFilter, setLearningModeFilter] = useState("all");
 
+  const [learningMode, setLearningMode] = useState("");
   const [selectedCourses, setSelectedCourses] = useState([]);
 
   // NEW
@@ -27,6 +28,24 @@ export default function useAcademyPricing(courses = []) {
   );
 
   //----------------------------------------------------------
+  // Visible Courses
+  //----------------------------------------------------------
+
+  const visibleCourses = useMemo(() => {
+    if (learningModeFilter === "all") {
+      return courses;
+    }
+
+    return courses.filter((course) =>
+      (course.pricing ?? []).some(
+        (pricing) =>
+          pricing.learning_mode === learningModeFilter &&
+          pricing.active !== false,
+      ),
+    );
+  }, [courses, learningModeFilter]);
+
+  //----------------------------------------------------------
   // Pricing Helpers
   //----------------------------------------------------------
 
@@ -39,9 +58,10 @@ export default function useAcademyPricing(courses = []) {
       if (!course) return null;
 
       return (
-        course.pricing?.find(
+        (course.pricing ?? []).find(
           (pricing) =>
             pricing.learning_mode === mode &&
+            pricing.active !== false &&
             Number(pricing.duration_months) === Number(duration),
         ) || null
       );
@@ -111,6 +131,7 @@ export default function useAcademyPricing(courses = []) {
             duration,
             pricingId: pricing?.id ?? null,
             price: Number(pricing?.price ?? 0),
+            currency: pricing?.currency ?? "NGN",
           };
         }),
       );
@@ -150,6 +171,7 @@ export default function useAcademyPricing(courses = []) {
             duration,
             pricingId: pricing?.id ?? null,
             price: Number(pricing?.price ?? 0),
+            currency: pricing?.currency ?? "NGN",
           },
         ];
       });
@@ -170,12 +192,13 @@ export default function useAcademyPricing(courses = []) {
           if (course.courseId !== courseId) return course;
 
           const pricing = findPricing(courseId, learningMode, Number(duration));
-
+          console.log("Pricing Object", pricing);
           return {
             ...course,
             duration: Number(duration),
             pricingId: pricing?.id ?? null,
             price: Number(pricing?.price ?? 0),
+            currency: pricing?.currency ?? "NGN",
           };
         }),
       );
@@ -275,52 +298,52 @@ export default function useAcademyPricing(courses = []) {
   //----------------------------------------------------------
 
   const paymentBreakdown = useMemo(() => {
-    if (!selectedPaymentPlan)
+    if (!selectedPaymentPlan) {
       return {
-        courseFee: totalFee,
-        adjustedTotal: totalFee,
-        additionalFee: 0,
+        courseFee: Number(totalFee),
+        adjustedTotal: Number(totalFee),
+        extraPercentage: 0,
+        extraAmount: 0,
         deposit: 0,
-        remaining: totalFee,
+        remaining: Number(totalFee),
         remainingPayments: 0,
         installmentAmount: 0,
+        paymentFrequency: 1,
       };
+    }
 
-    const interest = Number(selectedPaymentPlan.additional_fee_percentage) || 0;
+    const extraPercentage = Number(selectedPaymentPlan.extra_percentage ?? 0);
 
-    const adjustedTotal = Number(totalFee * (1 + interest / 100)).toFixed(2);
+    const extraAmount = (Number(totalFee) * extraPercentage) / 100;
+
+    const adjustedTotal = Number(totalFee) + extraAmount;
 
     const deposit =
       adjustedTotal *
-      (Number(selectedPaymentPlan.initial_payment_percentage) / 100);
+      (Number(selectedPaymentPlan.initial_payment_percentage ?? 0) / 100);
 
-    const remaining = Number(adjustedTotal - deposit).toFixed(2);
+    const remaining = adjustedTotal - deposit;
 
     const remainingPayments = Math.max(
       Number(selectedPaymentPlan.number_of_payments) - 1,
       0,
     );
 
-    const installmentAmount = remainingPayments
-      ? Number((remaining / remainingPayments).toFixed(2))
-      : 0;
+    const installmentAmount =
+      remainingPayments > 0 ? remaining / remainingPayments : 0;
 
     return {
-      courseFee: totalFee,
-
-      additionalFee: interest,
-
-      adjustedTotal,
-
-      deposit,
-
-      remaining,
-
+      courseFee: Number(totalFee),
+      extraPercentage,
+      extraAmount: Number(extraAmount),
+      adjustedTotal: Number(adjustedTotal),
+      deposit: Number(deposit),
+      remaining: Number(remaining),
       remainingPayments,
-
-      installmentAmount,
-
-      paymentFrequency: selectedPaymentPlan.monthly_interval,
+      installmentAmount: Number(installmentAmount),
+      paymentFrequency: Number(
+        selectedPaymentPlan.payment_interval_months ?? 1,
+      ),
     };
   }, [selectedPaymentPlan, totalFee]);
   //----------------------------------------------------------
@@ -349,8 +372,18 @@ export default function useAcademyPricing(courses = []) {
 
   //----------------------------------------------------------
 
+  const currency = useMemo(() => {
+    return selectedCourses[0]?.currency ?? "NGN";
+  }, [selectedCourses]);
+
   return {
     learningMode,
+
+    learningModeFilter,
+    setLearningModeFilter,
+
+    visibleCourses,
+
     selectedCourses,
 
     totalFee,
@@ -367,6 +400,7 @@ export default function useAcademyPricing(courses = []) {
     setSelectedPaymentPlan,
     selectPaymentPlan,
 
+    currency,
     paymentBreakdown,
 
     updateLearningMode,

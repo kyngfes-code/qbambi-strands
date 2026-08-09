@@ -22,6 +22,7 @@ export async function GET() {
         },
       );
     }
+    const supabase = createSupabaseAdmin();
 
     /*
     ---------------------------------------------------------
@@ -29,21 +30,20 @@ export async function GET() {
     ---------------------------------------------------------
     */
 
-    const supabase = createSupabaseAdmin();
-
     const { data, error } = await supabase.rpc("get_customer_appointments", {
       p_user_id: session.user.id,
     });
 
     if (error) {
-      console.error("get_customer_appointments:", error);
+      console.error("GET CUSTOMER APPOINTMENTS RPC");
+      console.error(error);
 
       return NextResponse.json(
         {
-          error: error.message,
+          error: "Unable to load appointments.",
         },
         {
-          status: 400,
+          status: 500,
         },
       );
     }

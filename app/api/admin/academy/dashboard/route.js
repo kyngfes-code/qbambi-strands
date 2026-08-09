@@ -127,11 +127,11 @@ export async function GET() {
       0,
     );
 
-    //////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
     // Enrollment Status
-    //////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
 
-    const pendingApprovals = enrollments.filter(
+    const pendingEnrollments = enrollments.filter(
       (e) => e.status === "pending",
     ).length;
 
@@ -395,7 +395,7 @@ export async function GET() {
 
       activeStudents,
 
-      pendingApprovals,
+      pendingEnrollments,
 
       totalCourses: courseResult.data.length,
 

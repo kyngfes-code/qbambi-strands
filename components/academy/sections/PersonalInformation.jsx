@@ -110,6 +110,7 @@ export default function PersonalInformation() {
           <Input
             id="date_of_birth"
             type="date"
+            max={new Date().toISOString().split("T")[0]}
             className="h-14 text-base"
             {...register("date_of_birth")}
           />

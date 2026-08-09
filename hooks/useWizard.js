@@ -20,7 +20,7 @@ export default function useWizard({
   const [currentStep, setCurrentStep] = useState(() => {
     if (typeof window === "undefined") return 0;
 
-    const saved = localStorage.getItem(persistKey);
+    const saved = sessionStorage.getItem(persistKey);
 
     return saved ? Number(saved) : 0;
   });
@@ -34,7 +34,7 @@ export default function useWizard({
       setCurrentStep(step);
 
       if (typeof window !== "undefined") {
-        localStorage.setItem(persistKey, String(step));
+        sessionStorage.setItem(persistKey, String(step));
       }
     },
     [persistKey],
@@ -103,7 +103,7 @@ export default function useWizard({
     saveStep(0);
 
     if (typeof window !== "undefined") {
-      localStorage.removeItem(persistKey);
+      sessionStorage.removeItem(persistKey);
     }
   }, [persistKey, saveStep]);
 

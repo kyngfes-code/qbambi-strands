@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { supabaseWithAuth } from "@/lib/supabase";
+import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 /* =========================
    CREATE ORDER (CHECKOUT)
@@ -8,11 +8,11 @@ import { supabaseWithAuth } from "@/lib/supabase";
 export async function POST() {
   const session = await auth();
 
-  if (!session?.user?.id || !session?.supabaseAccessToken) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = supabaseWithAuth(session.supabaseAccessToken);
+  const supabase = createSupabaseAdmin();
 
   const { data: cart, error: cartError } = await supabase
     .from("carts")
@@ -76,11 +76,11 @@ export async function POST() {
 export async function GET() {
   const session = await auth();
 
-  if (!session?.user?.id || !session?.supabaseAccessToken) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = supabaseWithAuth(session.supabaseAccessToken);
+  const supabase = createSupabaseAdmin();
 
   const { data, error } = await supabase
     .from("orders")

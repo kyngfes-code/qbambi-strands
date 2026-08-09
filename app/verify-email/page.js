@@ -16,7 +16,7 @@ const STATUS = {
     description:
       "Your email address has been successfully verified. Your account is now active and you can sign in.",
     button: "Go to Login",
-    href: "/login",
+    href: "/signin",
   },
 
   expired: {
@@ -38,7 +38,7 @@ const STATUS = {
     description:
       "This verification link has already been used. You can sign in to your account.",
     button: "Go to Login",
-    href: "/login",
+    href: "/signin",
   },
 
   invalid: {

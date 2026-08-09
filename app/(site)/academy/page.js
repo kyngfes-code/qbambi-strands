@@ -1,8 +1,15 @@
-import { CheckCheckIcon, GraduationCap, Sparkles, Star } from "lucide-react";
+import {
+  CheckCheckIcon,
+  ChevronDown,
+  GraduationCap,
+  Sparkles,
+  Star,
+} from "lucide-react";
 
 import AcadamyPageCard from "@/components/AcadamyPageCard";
 import AcademyEnrollmentForm from "@/components/academy/AcademyEnrollmentForm";
 import { getAcademyCourses } from "@/lib/data-service";
+import AcademyProgramsAccordion from "@/components/academy/AcademyProgramsAccordion";
 
 export const metadata = {
   title: "Qbambi Academy",
@@ -18,7 +25,7 @@ export default function Page() {
         {/* HERO */}
         {/* ===================================================== */}
 
-        <section className="grid gap-10 xl:grid-cols-[minmax(0,1.1fr)_480px] xl:items-start">
+        <section className="grid gap-12 xl:grid-cols-[minmax(0,1fr)_600px] xl:items-start">
           {/* ================================= */}
           {/* LEFT */}
           {/* ================================= */}
@@ -45,26 +52,7 @@ export default function Page() {
 
             {/* Courses */}
 
-            <div className="mt-10">
-              <h3 className="mb-5 text-xl font-bold text-neutral-900">
-                Available Training Programs
-              </h3>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                {courses.map((course) => (
-                  <div
-                    key={course.id}
-                    className="flex items-start gap-3 rounded-2xl border border-[#C6A667]/15 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-                  >
-                    <CheckCheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-[#C6A667]" />
-
-                    <span className="font-medium text-neutral-700">
-                      {course.title}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <AcademyProgramsAccordion courses={courses} />
 
             {/* Why Choose */}
 

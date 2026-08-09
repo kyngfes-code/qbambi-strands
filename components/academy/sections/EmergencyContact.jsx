@@ -11,31 +11,45 @@ export default function EmergencyContact() {
   } = useFormContext();
 
   return (
-    <section className="space-y-6 rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
+    <section className="space-y-8">
+      {/* ================================================= */}
       {/* Header */}
+      {/* ================================================= */}
+
       <div>
-        <h2 className="text-xl font-bold text-neutral-900 sm:text-2xl">
+        <h2 className="text-2xl font-bold text-neutral-900">
           Emergency Contact
         </h2>
 
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-neutral-500">
           Please provide someone we can contact in case of an emergency during
           your training.
         </p>
       </div>
 
+      {/* ================================================= */}
       {/* Form */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+      {/* ================================================= */}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* ================================================= */}
         {/* Full Name */}
+        {/* ================================================= */}
+
         <div className="space-y-2">
-          <Label htmlFor="emergency_contact_name">
+          <Label
+            htmlFor="emergency_contact_name"
+            className="text-sm font-medium text-neutral-700"
+          >
             Full Name <span className="text-red-500">*</span>
           </Label>
 
           <Input
             id="emergency_contact_name"
+            type="text"
             placeholder="John Doe"
             {...register("emergency_contact_name")}
+            className="h-14 w-full rounded-xl border-neutral-300 px-4 text-base shadow-sm transition focus:border-[#C6A667] focus:ring-2 focus:ring-[#C6A667]/20"
           />
 
           {errors.emergency_contact_name && (
@@ -45,16 +59,24 @@ export default function EmergencyContact() {
           )}
         </div>
 
+        {/* ================================================= */}
         {/* Phone */}
+        {/* ================================================= */}
+
         <div className="space-y-2">
-          <Label htmlFor="emergency_contact_phone">
+          <Label
+            htmlFor="emergency_contact_phone"
+            className="text-sm font-medium text-neutral-700"
+          >
             Phone Number <span className="text-red-500">*</span>
           </Label>
 
           <Input
             id="emergency_contact_phone"
+            type="tel"
             placeholder="+234..."
             {...register("emergency_contact_phone")}
+            className="h-14 w-full rounded-xl border-neutral-300 px-4 text-base shadow-sm transition focus:border-[#C6A667] focus:ring-2 focus:ring-[#C6A667]/20"
           />
 
           {errors.emergency_contact_phone && (
@@ -64,16 +86,22 @@ export default function EmergencyContact() {
           )}
         </div>
 
+        {/* ================================================= */}
         {/* Relationship */}
-        <div className="space-y-2 md:col-span-2 xl:col-span-1">
-          <Label htmlFor="emergency_contact_relationship">
+        {/* ================================================= */}
+
+        <div className="space-y-2">
+          <Label
+            htmlFor="emergency_contact_relationship"
+            className="text-sm font-medium text-neutral-700"
+          >
             Relationship <span className="text-red-500">*</span>
           </Label>
 
           <select
             id="emergency_contact_relationship"
             {...register("emergency_contact_relationship")}
-            className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#C6A667] focus:ring-2 focus:ring-[#C6A667]/20"
+            className="h-14 w-full rounded-xl border border-neutral-300 bg-white px-4 text-base shadow-sm outline-none transition focus:border-[#C6A667] focus:ring-2 focus:ring-[#C6A667]/20"
           >
             <option value="">Select Relationship</option>
             <option value="Parent">Parent</option>

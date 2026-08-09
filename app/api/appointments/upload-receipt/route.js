@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import crypto from "crypto";
+import { z } from "zod";
 
 export async function POST(req) {
   try {
@@ -28,21 +29,62 @@ export async function POST(req) {
     */
 
     const formData = await req.formData();
-
     const appointmentId = formData.get("appointmentId");
+
+    const appointmentIdSchema = z.string().uuid();
+
+    const parsed = appointmentIdSchema.safeParse(appointmentId);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid appointment." },
+        { status: 400 },
+      );
+    }
     const receipt = formData.get("receipt");
-    const amount = formData.get("amount");
+
     const customerMessage = formData.get("customerMessage");
     let paymentType;
 
-    if (!appointmentId || !receipt || !amount) {
+    if (!appointmentId || !receipt) {
       console.timeEnd("appointment-receipt");
 
       return NextResponse.json(
         {
-          error: "appointmentId, receipt and amount are required",
+          error: "appointmentId and receipt are required",
         },
         { status: 400 },
+      );
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+    ];
+
+    if (!allowedTypes.includes(receipt.type)) {
+      return NextResponse.json(
+        {
+          error: "Invalid receipt type.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
+    if (receipt.size > MAX_SIZE) {
+      return NextResponse.json(
+        {
+          error: "Receipt exceeds the maximum file size of 5MB.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -112,6 +154,16 @@ export async function POST(req) {
       );
     }
 
+    let amount = 0;
+
+    if (paymentType === "deposit") {
+      amount = Number(appointment.deposit_required);
+    }
+
+    if (paymentType === "outstanding_payment") {
+      amount = Number(appointment.balance_due);
+    }
+
     /*
     ==========================================
     4️⃣ Check Existing Payment
@@ -142,7 +194,7 @@ export async function POST(req) {
     Prevent duplicate submissions
     */
 
-    if (existing) {
+    if (existing && existing.status !== "rejected") {
       switch (existing.status) {
         case "pending":
           return NextResponse.json(
@@ -199,32 +251,6 @@ export async function POST(req) {
 
     /*
     ==========================================
-    6️⃣ Generate Signed URL
-    ==========================================
-    */
-
-    const { data: signed, error: signedError } = await supabase.storage
-      .from("receipts")
-      .createSignedUrl(
-        filePath,
-        60 * 60 * 24 * 30, // 30 days
-      );
-
-    if (signedError || !signed?.signedUrl) {
-      console.error(signedError);
-
-      console.timeEnd("appointment-receipt");
-
-      return NextResponse.json(
-        {
-          error: "Failed to generate receipt URL",
-        },
-        { status: 500 },
-      );
-    }
-
-    /*
-    ==========================================
     7️⃣ Handle Rejected Resubmissions
     ==========================================
     */
@@ -233,7 +259,7 @@ export async function POST(req) {
       const { error: updateError } = await supabase
         .from("appointment_payments")
         .update({
-          receipt_url: signed.signedUrl,
+          receipt_path: filePath,
           amount: Number(amount),
           payment_type: paymentType,
           status: "pending",
@@ -246,6 +272,8 @@ export async function POST(req) {
       if (updateError) {
         console.error(updateError);
 
+        await supabase.storage.from("receipts").remove([filePath]);
+
         console.timeEnd("appointment-receipt");
 
         return NextResponse.json(
@@ -254,7 +282,7 @@ export async function POST(req) {
         );
       }
 
-      await supabase
+      const { error: transactionUpdateError } = await supabase
         .from("payment_transactions")
         .update({
           status: "pending",
@@ -263,10 +291,13 @@ export async function POST(req) {
           metadata: {
             uploadedReceipt: true,
             resubmitted: true,
+            receipt_path: filePath,
           },
         })
         .eq("source_record_id", existing.id);
-
+      if (transactionUpdateError) {
+        throw transactionUpdateError;
+      }
       /*
       Notify Admin
       */
@@ -280,7 +311,7 @@ export async function POST(req) {
 
       return NextResponse.json({
         success: true,
-        receipt_url: signed.signedUrl,
+        receipt_path: filePath,
       });
     }
 
@@ -303,7 +334,7 @@ export async function POST(req) {
         payment_method: "bank_transfer",
         payment_channel: "offline",
 
-        receipt_url: signed.signedUrl,
+        receipt_path: filePath,
 
         customer_message: customerMessage || null,
 
@@ -314,6 +345,8 @@ export async function POST(req) {
 
     if (paymentError) {
       console.error(paymentError);
+
+      await supabase.storage.from("receipts").remove([filePath]);
 
       console.timeEnd("appointment-receipt");
 
@@ -352,12 +385,16 @@ export async function POST(req) {
 
         metadata: {
           uploadedReceipt: true,
-          receipt_url: signed.signedUrl,
+          receipt_path: filePath,
           customerMessage,
         },
       });
 
     if (transactionError) {
+      await supabase.from("appointment_payments").delete().eq("id", payment.id);
+
+      await supabase.storage.from("receipts").remove([filePath]);
+
       throw transactionError;
     }
 
@@ -382,7 +419,6 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      receipt_url: signed.signedUrl,
     });
   } catch (err) {
     console.error("Appointment receipt handler crashed:", err);

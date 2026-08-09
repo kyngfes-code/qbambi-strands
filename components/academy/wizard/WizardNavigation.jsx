@@ -15,23 +15,12 @@ export default function WizardNavigation({
 
   return (
     <div className="rounded-3xl border bg-white p-5 shadow-lg">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {/* Left */}
+      <div className="flex flex-col gap-5">
+        {/* ================================================= */}
+        {/* RIGHT / ACTION BUTTONS */}
+        {/* ================================================= */}
 
-        <div className="text-center sm:text-left">
-          <p className="text-sm text-neutral-500">
-            Step <span className="font-semibold">{wizard.currentStep + 1}</span>{" "}
-            of <span className="font-semibold">{wizard.totalSteps}</span>
-          </p>
-
-          <p className="mt-1 text-sm text-neutral-400">
-            Complete each section before continuing.
-          </p>
-        </div>
-
-        {/* Right */}
-
-        <div className="flex flex-col-reverse gap-3 sm:flex-row">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="outline"
@@ -65,6 +54,21 @@ export default function WizardNavigation({
               {loading ? "Submitting..." : "Submit Enrollment"}
             </Button>
           )}
+        </div>
+
+        {/* ================================================= */}
+        {/* STEP INFORMATION */}
+        {/* ================================================= */}
+
+        <div className="border-t border-neutral-100 pt-4 text-center sm:text-left">
+          <p className="text-sm text-neutral-500">
+            Step <span className="font-semibold">{wizard.currentStep + 1}</span>{" "}
+            of <span className="font-semibold">{wizard.totalSteps}</span>
+          </p>
+
+          <p className="mt-1 text-sm text-neutral-400">
+            Complete each section before continuing.
+          </p>
         </div>
       </div>
     </div>

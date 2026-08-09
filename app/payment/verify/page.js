@@ -35,9 +35,11 @@ export default function PaymentVerifyPage() {
         throw new Error(data.error || "Verification failed.");
       }
 
+      console.log("Verification Response:", data);
+
       setResult(data);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Verification failed.");
     } finally {
       setLoading(false);
     }
@@ -46,10 +48,10 @@ export default function PaymentVerifyPage() {
   if (loading) {
     return (
       <main className="max-w-xl mx-auto py-16 px-6">
-        <div className="bg-white rounded-xl border p-8 text-center">
+        <div className="rounded-xl border bg-white p-8 text-center">
           <h1 className="text-xl font-semibold">Verifying payment...</h1>
 
-          <p className="text-neutral-500 mt-3">
+          <p className="mt-3 text-neutral-500">
             Please wait while we verify your payment.
           </p>
         </div>
@@ -60,7 +62,7 @@ export default function PaymentVerifyPage() {
   if (error) {
     return (
       <main className="max-w-xl mx-auto py-16 px-6">
-        <div className="bg-white rounded-xl border p-8 text-center">
+        <div className="rounded-xl border bg-white p-8 text-center">
           <h1 className="text-xl font-semibold text-red-600">
             Verification Failed
           </h1>
@@ -69,7 +71,7 @@ export default function PaymentVerifyPage() {
 
           <button
             onClick={() => router.push("/")}
-            className="mt-8 rounded-lg bg-black text-white px-5 py-2"
+            className="mt-8 rounded-lg bg-black px-5 py-2 text-white"
           >
             Go Home
           </button>
@@ -78,61 +80,112 @@ export default function PaymentVerifyPage() {
     );
   }
 
-  const transaction = result.transaction;
-  const isAppointment = transaction.entity_type === "appointment";
+  if (!result) {
+    return null;
+  }
+
+  const transaction = result.transaction ?? null;
+
+  const isAppointment = transaction?.entity_type === "appointment";
+
+  /* ----------------------------------------
+     VERIFIED BUT NO TRANSACTION
+  ----------------------------------------- */
+
+  if (!transaction) {
+    return (
+      <main className="max-w-xl mx-auto py-16 px-6">
+        <div className="rounded-xl border bg-white p-8 text-center">
+          <h1
+            className={`text-2xl font-bold ${
+              result.verified ? "text-green-600" : "text-yellow-600"
+            }`}
+          >
+            {result.verified ? "Payment Successful" : "Payment Pending"}
+          </h1>
+
+          <p className="mt-4 text-neutral-600">
+            {result.verified
+              ? "Your payment was verified, but we couldn't retrieve the transaction details."
+              : "Your payment has not yet been fully verified. Please check again in a few moments."}
+          </p>
+
+          <div className="mt-8 flex justify-center gap-3">
+            <button
+              onClick={() => router.push("/account/orders")}
+              className="rounded-lg bg-black px-5 py-2 text-white"
+            >
+              My Orders
+            </button>
+
+            <button
+              onClick={() => router.push("/")}
+              className="rounded-lg border px-5 py-2"
+            >
+              Home
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  /* ----------------------------------------
+     FULL SUCCESS
+  ----------------------------------------- */
 
   return (
     <main className="max-w-xl mx-auto py-16 px-6">
-      <div className="bg-white rounded-xl border p-8">
-        {result.verified ? (
-          <>
-            <h1 className="text-2xl font-bold text-green-600">
-              Payment Successful
-            </h1>
+      <div className="rounded-xl border bg-white p-8">
+        <h1
+          className={`text-2xl font-bold ${
+            result.verified ? "text-green-600" : "text-yellow-600"
+          }`}
+        >
+          {result.verified ? "Payment Successful" : "Payment Pending"}
+        </h1>
 
-            <p className="mt-3 text-neutral-600">
-              Your payment has been verified successfully.
-            </p>
-          </>
-        ) : (
-          <>
-            <h1 className="text-2xl font-bold text-yellow-600">
-              Payment Pending
-            </h1>
+        <p className="mt-3 text-neutral-600">
+          {result.verified
+            ? "Your payment has been verified successfully."
+            : "Your payment has been received and is awaiting confirmation."}
+        </p>
 
-            <p className="mt-3 text-neutral-600">
-              Your payment has been received but is still awaiting confirmation.
-            </p>
-          </>
-        )}
-
-        <div className="mt-8 border rounded-lg p-5 bg-neutral-50 space-y-3">
+        <div className="mt-8 space-y-3 rounded-lg border bg-neutral-50 p-5">
           <div className="flex justify-between">
             <span>Reference</span>
-            <span className="font-medium">{transaction.reference}</span>
+
+            <span className="font-medium">
+              {transaction.reference ?? reference}
+            </span>
           </div>
 
           <div className="flex justify-between">
             <span>Amount</span>
+
             <span className="font-medium">
-              ₦{Number(transaction.amount).toLocaleString()}
+              ₦{Number(transaction.amount ?? 0).toLocaleString()}
             </span>
           </div>
 
           <div className="flex justify-between">
             <span>Payment Type</span>
+
             <span className="capitalize">
-              {transaction.payment_type.replaceAll("_", " ")}
+              {(transaction.payment_type ?? "-").replaceAll("_", " ")}
             </span>
           </div>
 
           <div className="flex justify-between">
             <span>Status</span>
-            <span className="capitalize font-medium">{transaction.status}</span>
+
+            <span className="font-medium capitalize">
+              {transaction.status ?? "-"}
+            </span>
           </div>
         </div>
 
-        <div className="flex gap-3 mt-8">
+        <div className="mt-8 flex gap-3">
           <button
             onClick={() =>
               router.push(
@@ -141,7 +194,7 @@ export default function PaymentVerifyPage() {
                   : "/account/orders",
               )
             }
-            className="rounded-lg bg-black text-white px-5 py-2"
+            className="rounded-lg bg-black px-5 py-2 text-white"
           >
             {isAppointment ? "View Appointment" : "View Orders"}
           </button>

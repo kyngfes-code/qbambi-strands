@@ -31,6 +31,23 @@ export async function GET() {
 
     const supabase = createSupabaseAdmin();
 
+    const { data: user } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", session.user.id)
+      .maybeSingle();
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
     /*
     ---------------------------------------------------------
     Fetch Customer Dashboard Summary
@@ -42,15 +59,16 @@ export async function GET() {
     });
 
     if (error) {
-      console.error("get_customer_account_summary:", error);
+      console.error("GET CUSTOMER ACCOUNT SUMMARY RPC");
+      console.error(error);
 
       return NextResponse.json(
         {
           success: false,
-          error: error.message,
+          error: "Unable to load account summary.",
         },
         {
-          status: 400,
+          status: 500,
         },
       );
     }

@@ -16,7 +16,7 @@ export async function GET(req) {
 
     if (!token) {
       return NextResponse.redirect(
-        new URL("/email-verification?status=invalid", req.url),
+        new URL("/verify-email?status=invalid", req.url),
       );
     }
 
@@ -36,7 +36,7 @@ export async function GET(req) {
 
     if (!verification) {
       return NextResponse.redirect(
-        new URL("/email-verification?status=invalid", req.url),
+        new URL("/verify-email?status=invalid", req.url),
       );
     }
 
@@ -46,7 +46,7 @@ export async function GET(req) {
 
     if (verification.used_at) {
       return NextResponse.redirect(
-        new URL("/email-verification?status=used", req.url),
+        new URL("/verify-email?status=used", req.url),
       );
     }
 
@@ -60,7 +60,7 @@ export async function GET(req) {
 
     if (expires < now) {
       return NextResponse.redirect(
-        new URL("/email-verification?status=expired", req.url),
+        new URL("/verify-email?status=expired", req.url),
       );
     }
 
@@ -103,14 +103,14 @@ export async function GET(req) {
     //--------------------------------------------------
 
     return NextResponse.redirect(
-      new URL("/email-verification?status=success", req.url),
+      new URL("/verify-email?status=success", req.url),
     );
   } catch (err) {
     console.error("VERIFY EMAIL ERROR");
     console.error(err);
 
     return NextResponse.redirect(
-      new URL("/email-verification?status=error", req.url),
+      new URL("/verify-email?status=error", req.url),
     );
   }
 }

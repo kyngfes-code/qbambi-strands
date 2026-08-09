@@ -2,19 +2,82 @@
 
 import { CreditCard, Receipt, Wallet } from "lucide-react";
 
-export default function PaymentHistoryCard({ payments = [], totalFee = 0 }) {
-  const totalPaid = payments.reduce(
-    (sum, payment) => sum + Number(payment.amount || 0),
+export default function PaymentHistoryCard({ payments = [], enrollment }) {
+  if (!enrollment) return null;
+
+  ////////////////////////////////////////////////////////////
+  // Currency
+  ////////////////////////////////////////////////////////////
+
+  const currency =
+    enrollment.currency ||
+    enrollment.student_payment_plan?.payment_plan?.currency ||
+    enrollment.payment_plan?.currency ||
+    enrollment.courses?.find((course) => course?.pricing?.currency)?.pricing
+      ?.currency ||
+    "NGN";
+
+  ////////////////////////////////////////////////////////////
+  // Currency Formatter
+  ////////////////////////////////////////////////////////////
+
+  function formatCurrency(amount) {
+    const numericAmount = Number(amount || 0);
+
+    try {
+      return new Intl.NumberFormat("en", {
+        style: "currency",
+        currency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(numericAmount);
+    } catch {
+      return `${currency} ${numericAmount.toLocaleString("en")}`;
+    }
+  }
+
+  ////////////////////////////////////////////////////////////
+  // Total Tuition
+  ////////////////////////////////////////////////////////////
+
+  const totalFee = Number(
+    enrollment.total_tuition ??
+      enrollment.total_payable ??
+      enrollment.total_course_fee ??
+      0,
+  );
+
+  ////////////////////////////////////////////////////////////
+  // Amount Paid
+  ////////////////////////////////////////////////////////////
+
+  const totalPaid = Number(enrollment.amount_paid ?? 0);
+
+  ////////////////////////////////////////////////////////////
+  // Balance
+  ////////////////////////////////////////////////////////////
+
+  const balance = Math.max(
+    Number(enrollment.balance_due ?? totalFee - totalPaid),
     0,
   );
 
-  const balance = Math.max(Number(totalFee) - totalPaid, 0);
+  ////////////////////////////////////////////////////////////
+  // Payment Progress
+  ////////////////////////////////////////////////////////////
+
+  const progress =
+    totalFee > 0 ? Math.min((totalPaid / totalFee) * 100, 100) : 0;
+
+  ////////////////////////////////////////////////////////////
 
   return (
-    <div className="rounded-3xl border bg-white p-8 shadow-sm">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="rounded-2xl border bg-white p-6 shadow-sm">
+      <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold">Payment History</h2>
+          <h2 className="text-xl font-semibold text-neutral-900">
+            Payment History
+          </h2>
 
           <p className="mt-1 text-sm text-neutral-500">
             Academy payment records.
@@ -24,20 +87,18 @@ export default function PaymentHistoryCard({ payments = [], totalFee = 0 }) {
         <Receipt className="h-6 w-6 text-[#b48a5a]" />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl bg-neutral-100 p-5">
           <p className="text-xs uppercase text-neutral-500">Tuition</p>
 
-          <p className="mt-2 text-2xl font-bold">
-            ₦{Number(totalFee).toLocaleString()}
-          </p>
+          <p className="mt-2 text-2xl font-bold">{formatCurrency(totalFee)}</p>
         </div>
 
         <div className="rounded-2xl bg-green-50 p-5">
           <p className="text-xs uppercase text-green-600">Paid</p>
 
           <p className="mt-2 text-2xl font-bold text-green-700">
-            ₦{totalPaid.toLocaleString()}
+            {formatCurrency(totalPaid)}
           </p>
         </div>
 
@@ -45,7 +106,7 @@ export default function PaymentHistoryCard({ payments = [], totalFee = 0 }) {
           <p className="text-xs uppercase text-red-600">Balance</p>
 
           <p className="mt-2 text-2xl font-bold text-red-700">
-            ₦{balance.toLocaleString()}
+            {formatCurrency(balance)}
           </p>
         </div>
       </div>
@@ -69,7 +130,7 @@ export default function PaymentHistoryCard({ payments = [], totalFee = 0 }) {
 
                   <div>
                     <h4 className="font-semibold">
-                      ₦{Number(payment.amount).toLocaleString()}
+                      {formatCurrency(payment.amount)}
                     </h4>
 
                     <p className="text-sm text-neutral-500">
@@ -104,7 +165,7 @@ export default function PaymentHistoryCard({ payments = [], totalFee = 0 }) {
 
             <p className="mt-1 font-semibold">
               {totalFee > 0
-                ? `${Math.round((totalPaid / totalFee) * 100)}% Complete`
+                ? `${Math.round(progress)}% Complete`
                 : "0% Complete"}
             </p>
           </div>
@@ -114,9 +175,7 @@ export default function PaymentHistoryCard({ payments = [], totalFee = 0 }) {
           <div
             className="h-full rounded-full bg-[#b48a5a]"
             style={{
-              width: `${
-                totalFee > 0 ? Math.min((totalPaid / totalFee) * 100, 100) : 0
-              }%`,
+              width: `${progress}%`,
             }}
           />
         </div>

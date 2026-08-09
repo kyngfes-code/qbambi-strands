@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import NavBarCart from "@/components/NavBarCart";
 import OfflineNotice from "@/components/OfflineNotice";
 import { useOnlineStatus } from "@/app/OnlineStatusProvider";
 import Link from "next/link";
@@ -95,8 +94,6 @@ export default function OrdersPage() {
   if (loading)
     return (
       <div className="min-h-screen bg-neutral-50">
-        <NavBarCart />
-
         <div className="mt-20">
           <PageSpinner text="Loading orders..." />
         </div>
@@ -106,7 +103,6 @@ export default function OrdersPage() {
   if (error)
     return (
       <div className="min-h-screen bg-neutral-50">
-        <NavBarCart />
         <p className="mt-20 text-center text-red-500">{error}</p>
       </div>
     );

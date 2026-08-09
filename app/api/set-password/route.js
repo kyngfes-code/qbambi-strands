@@ -4,7 +4,15 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req) {
   try {
-    const { token, password } = await req.json();
+    //--------------------------------------------------
+    // Request
+    //--------------------------------------------------
+
+    const body = await req.json();
+
+    const token = typeof body.token === "string" ? body.token.trim() : "";
+
+    const password = typeof body.password === "string" ? body.password : "";
 
     //--------------------------------------------------
     // Validation
@@ -21,7 +29,18 @@ export async function POST(req) {
       );
     }
 
-    if (!password || password.length < 8) {
+    if (!password) {
+      return NextResponse.json(
+        {
+          error: "Password is required.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (password.length < 8) {
       return NextResponse.json(
         {
           error: "Password must be at least 8 characters long.",
@@ -39,16 +58,44 @@ export async function POST(req) {
     const supabase = createSupabaseAdmin();
 
     //--------------------------------------------------
-    // Load invitation
+    // Find invitation
+    //
+    // IMPORTANT:
+    // user_invites uses "token", not "invite_token".
     //--------------------------------------------------
 
     const { data: invite, error: inviteError } = await supabase
       .from("user_invites")
-      .select("*")
-      .eq("invite_token", token)
-      .single();
+      .select(
+        `
+          id,
+          user_id,
+          email,
+          token,
+          purpose,
+          expires_at,
+          used_at,
+          metadata
+        `,
+      )
+      .eq("token", token)
+      .eq("purpose", "account_setup")
+      .maybeSingle();
 
-    if (inviteError || !invite) {
+    if (inviteError) {
+      console.error("Set Password - Invite lookup:", inviteError);
+
+      return NextResponse.json(
+        {
+          error: "Unable to verify invitation.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+    if (!invite) {
       return NextResponse.json(
         {
           error: "Invalid invitation link.",
@@ -60,10 +107,14 @@ export async function POST(req) {
     }
 
     //--------------------------------------------------
-    // Status check
+    // Already used
+    //
+    // user_invites has no status column.
+    // used_at determines whether the invitation
+    // has already been consumed.
     //--------------------------------------------------
 
-    if (invite.status !== "pending") {
+    if (invite.used_at) {
       return NextResponse.json(
         {
           error: "This invitation has already been used.",
@@ -78,7 +129,10 @@ export async function POST(req) {
     // Expiration
     //--------------------------------------------------
 
-    if (new Date(invite.expires_at) < new Date()) {
+    if (
+      !invite.expires_at ||
+      new Date(invite.expires_at).getTime() < Date.now()
+    ) {
       return NextResponse.json(
         {
           error: "This invitation has expired.",
@@ -90,22 +144,57 @@ export async function POST(req) {
     }
 
     //--------------------------------------------------
-    // Verify user exists
+    // Verify user
     //--------------------------------------------------
 
-    const { data: user, error: userLookupError } = await supabase
+    const { data: user, error: userError } = await supabase
       .from("users")
-      .select("id")
+      .select(
+        `
+          id,
+          email,
+          role,
+          account_status
+        `,
+      )
       .eq("id", invite.user_id)
-      .single();
+      .maybeSingle();
 
-    if (userLookupError || !user) {
+    if (userError) {
+      console.error("Set Password - User lookup:", userError);
+
       return NextResponse.json(
         {
-          error: "User account no longer exists.",
+          error: "Unable to verify student account.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Student account no longer exists.",
         },
         {
           status: 404,
+        },
+      );
+    }
+
+    //--------------------------------------------------
+    // Make sure this is a student account
+    //--------------------------------------------------
+
+    if (user.role !== "student") {
+      return NextResponse.json(
+        {
+          error: "This invitation is not valid for a student account.",
+        },
+        {
+          status: 403,
         },
       );
     }
@@ -117,7 +206,7 @@ export async function POST(req) {
     const passwordHash = await bcrypt.hash(password, 12);
 
     //--------------------------------------------------
-    // Update user
+    // Update password
     //--------------------------------------------------
 
     const { error: updateUserError } = await supabase
@@ -137,14 +226,15 @@ export async function POST(req) {
     // Mark invitation as used
     //--------------------------------------------------
 
+    const usedAt = new Date().toISOString();
+
     const { error: updateInviteError } = await supabase
       .from("user_invites")
       .update({
-        status: "used",
-        used_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        used_at: usedAt,
       })
-      .eq("id", invite.id);
+      .eq("id", invite.id)
+      .is("used_at", null);
 
     if (updateInviteError) {
       throw updateInviteError;
@@ -158,12 +248,12 @@ export async function POST(req) {
       success: true,
       message: "Password has been created successfully.",
     });
-  } catch (err) {
-    console.error("Set Password:", err);
+  } catch (error) {
+    console.error("Set Password:", error);
 
     return NextResponse.json(
       {
-        error: err.message || "Unable to set password.",
+        error: error.message || "Unable to create your password.",
       },
       {
         status: 500,

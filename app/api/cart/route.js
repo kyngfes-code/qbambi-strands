@@ -1,18 +1,146 @@
+// import { NextResponse } from "next/server";
+// import { auth } from "@/lib/auth";
+// import { supabaseWithAuth } from "@/lib/supabase";
+// import { createSupabaseAdmin } from "@/lib/supabase-admin";
+
+// /* ---------------- GET CART ---------------- */
+// export async function GET() {
+
+//   const session = await auth();
+
+//   if (!session?.user?.id) {
+//     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//   }
+
+//   const supabase = createSupabaseAdmin();
+//   // const supabase = supabaseWithAuth(session.supabaseAccessToken);
+
+//   const { data, error } = await supabase.from("carts").select(`
+//       id,
+//       quantity,
+//       price,
+//       store (
+//         id,
+//         title,
+//         image
+//       )
+//     `);
+
+//   if (error) {
+//     return NextResponse.json({ error: error.message }, { status: 400 });
+//   }
+
+//   return NextResponse.json(data);
+// }
+
+// /* ---------------- ADD TO CART ---------------- */
+// export async function POST(req) {
+//   const session = await auth();
+
+//   if (!session?.user?.id || !session?.supabaseAccessToken) {
+//     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//   }
+
+//   const { storeId } = await req.json();
+
+//   if (!storeId) {
+//     return NextResponse.json({ error: "storeId is required" }, { status: 400 });
+//   }
+
+//   const supabase = supabaseWithAuth(session.supabaseAccessToken);
+
+//   const { error } = await supabase.from("carts").upsert(
+//     {
+//       user_id: session.user.id,
+//       store_id: storeId,
+//       quantity: 1,
+//     },
+//     {
+//       onConflict: "user_id,store_id",
+//     },
+//   );
+
+//   if (error) {
+//     return NextResponse.json({ error: error.message }, { status: 400 });
+//   }
+
+//   return NextResponse.json({ success: true });
+// }
+
+// /* ---------------- REMOVE ITEM ---------------- */
+// export async function DELETE(req) {
+//   const session = await auth();
+
+//   if (!session?.supabaseAccessToken) {
+//     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//   }
+
+//   const { id } = await req.json();
+
+//   if (!id) {
+//     return NextResponse.json({ error: "id is required" }, { status: 400 });
+//   }
+
+//   const supabase = supabaseWithAuth(session.supabaseAccessToken);
+
+//   const { error } = await supabase.from("carts").delete().eq("id", id);
+
+//   if (error) {
+//     return NextResponse.json({ error: error.message }, { status: 400 });
+//   }
+
+//   return NextResponse.json({ success: true });
+// }
+
+// /* ---------------- UPDATE QUANTITY ---------------- */
+// export async function PATCH(req) {
+//   const session = await auth();
+
+//   if (!session?.supabaseAccessToken) {
+//     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//   }
+
+//   const { id, quantity } = await req.json();
+
+//   if (!id || typeof quantity !== "number" || quantity < 1) {
+//     return NextResponse.json(
+//       { error: "Valid id and quantity are required" },
+//       { status: 400 },
+//     );
+//   }
+
+//   const supabase = supabaseWithAuth(session.supabaseAccessToken);
+
+//   const { error } = await supabase
+//     .from("carts")
+//     .update({ quantity })
+//     .eq("id", id);
+
+//   if (error) {
+//     return NextResponse.json({ error: error.message }, { status: 400 });
+//   }
+
+//   return NextResponse.json({ success: true });
+// }
+
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { supabaseWithAuth } from "@/lib/supabase";
+import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 /* ---------------- GET CART ---------------- */
 export async function GET() {
   const session = await auth();
 
-  if (!session?.user?.id || !session?.supabaseAccessToken) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = supabaseWithAuth(session.supabaseAccessToken);
+  const supabase = createSupabaseAdmin();
 
-  const { data, error } = await supabase.from("carts").select(`
+  const { data, error } = await supabase
+    .from("carts")
+    .select(
+      `
       id,
       quantity,
       price,
@@ -21,7 +149,9 @@ export async function GET() {
         title,
         image
       )
-    `);
+    `,
+    )
+    .eq("user_id", session.user.id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -34,7 +164,7 @@ export async function GET() {
 export async function POST(req) {
   const session = await auth();
 
-  if (!session?.user?.id || !session?.supabaseAccessToken) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -44,7 +174,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "storeId is required" }, { status: 400 });
   }
 
-  const supabase = supabaseWithAuth(session.supabaseAccessToken);
+  const supabase = createSupabaseAdmin();
 
   const { error } = await supabase.from("carts").upsert(
     {
@@ -54,7 +184,7 @@ export async function POST(req) {
     },
     {
       onConflict: "user_id,store_id",
-    }
+    },
   );
 
   if (error) {
@@ -68,7 +198,7 @@ export async function POST(req) {
 export async function DELETE(req) {
   const session = await auth();
 
-  if (!session?.supabaseAccessToken) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -78,9 +208,13 @@ export async function DELETE(req) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  const supabase = supabaseWithAuth(session.supabaseAccessToken);
+  const supabase = createSupabaseAdmin();
 
-  const { error } = await supabase.from("carts").delete().eq("id", id);
+  const { error } = await supabase
+    .from("carts")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", session.user.id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -93,7 +227,7 @@ export async function DELETE(req) {
 export async function PATCH(req) {
   const session = await auth();
 
-  if (!session?.supabaseAccessToken) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -102,16 +236,17 @@ export async function PATCH(req) {
   if (!id || typeof quantity !== "number" || quantity < 1) {
     return NextResponse.json(
       { error: "Valid id and quantity are required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const supabase = supabaseWithAuth(session.supabaseAccessToken);
+  const supabase = createSupabaseAdmin();
 
   const { error } = await supabase
     .from("carts")
     .update({ quantity })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", session.user.id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

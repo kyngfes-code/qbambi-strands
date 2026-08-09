@@ -23,10 +23,12 @@ export default function SignUpPage() {
       phone: "",
       password: "",
       confirmPassword: "",
+
       street: "",
       city: "",
       state: "",
       country: "",
+      landmark: "",
     },
   });
 
@@ -110,7 +112,7 @@ export default function SignUpPage() {
               </p>
 
               <button
-                onClick={() => router.push("/login")}
+                onClick={() => router.push("/signin")}
                 className="mt-8 w-full rounded-xl bg-black px-6 py-3 text-white font-medium transition hover:bg-neutral-800"
               >
                 Continue to Login

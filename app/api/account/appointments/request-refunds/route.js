@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { z } from "zod";
 
-export async function POST(req) {
+export async function GET(req, { params }) {
   try {
-    /*
-    ==========================================
-    Authenticate User
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Authentication
+    //////////////////////////////////////////////////////
 
     const session = await auth();
 
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         {
-          error: "Unauthorized.",
+          error: "Unauthorized",
         },
         {
           status: 401,
@@ -23,20 +22,13 @@ export async function POST(req) {
       );
     }
 
-    /*
-    ==========================================
-    Parse Request
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Params
+    //////////////////////////////////////////////////////
 
-    const {
-      appointmentId,
-      requestedAmount,
-      reason,
-      customerMessage = null,
-    } = await req.json();
+    const { id } = await params;
 
-    if (!appointmentId) {
+    if (!id) {
       return NextResponse.json(
         {
           error: "Appointment ID is required.",
@@ -47,56 +39,32 @@ export async function POST(req) {
       );
     }
 
-    if (!requestedAmount || Number(requestedAmount) <= 0) {
+    const uuidSchema = z.string().uuid();
+
+    const parsed = uuidSchema.safeParse(id);
+
+    if (!parsed.success) {
       return NextResponse.json(
-        {
-          error: "Requested amount must be greater than zero.",
-        },
-        {
-          status: 400,
-        },
+        { error: "Invalid appointment ID." },
+        { status: 400 },
       );
     }
 
-    if (!reason?.trim()) {
-      return NextResponse.json(
-        {
-          error: "Reason is required.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    /*
-    ==========================================
-    Supabase
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Supabase
+    //////////////////////////////////////////////////////
 
     const supabase = createSupabaseAdmin();
 
-    /*
-    ==========================================
-    Verify Appointment Ownership
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Verify Appointment Ownership
+    //////////////////////////////////////////////////////
 
     const { data: appointment, error: appointmentError } = await supabase
       .from("appointments")
-      .select(
-        `
-  id,
-  service_name,
-  user_id,
-  status,
-  amount_paid,
-  refunded_amount
-`,
-      )
-      .eq("id", appointmentId)
-      .single();
+      .select("id,user_id")
+      .eq("id", id)
+      .maybeSingle();
 
     if (appointmentError || !appointment) {
       return NextResponse.json(
@@ -112,8 +80,7 @@ export async function POST(req) {
     if (appointment.user_id !== session.user.id) {
       return NextResponse.json(
         {
-          error:
-            "You do not have permission to request a refund for this appointment.",
+          error: "Forbidden.",
         },
         {
           status: 403,
@@ -121,124 +88,53 @@ export async function POST(req) {
       );
     }
 
-    /*
-    ==========================================
-    Prevent Duplicate Pending Request
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Fetch Appointment Details
+    //////////////////////////////////////////////////////
 
-    const { data: existing } = await supabase
-      .from("appointment_refund_requests")
-      .select("id")
-      .eq("appointment_id", appointmentId)
-      .eq("status", "pending")
-      .maybeSingle();
+    const { data, error } = await supabase.rpc(
+      "get_customer_appointment_details",
+      {
+        p_user_id: session.user.id,
+        p_appointment_id: id,
+      },
+    );
 
-    if (existing) {
+    if (!data) {
       return NextResponse.json(
         {
-          error: "A refund request is already pending.",
+          error: "Appointment not found.",
         },
         {
-          status: 409,
+          status: 404,
         },
       );
     }
-
-    /*
-    ==========================================
-    Calculate Maximum Refundable
-    ==========================================
-    */
-
-    const amountPaid = Number(appointment.amount_paid || 0);
-    const refunded = Number(appointment.refunded_amount || 0);
-
-    const refundable = Math.max(amountPaid - refunded, 0);
-
-    if (refundable <= 0) {
-      return NextResponse.json(
-        {
-          error: "No refundable balance is available.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    if (Number(requestedAmount) > refundable) {
-      return NextResponse.json(
-        {
-          error: `Maximum refundable amount is ₦${refundable.toLocaleString()}.`,
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    /*
-    ==========================================
-    Create Refund Request
-    ==========================================
-    */
-
-    const { data, error } = await supabase
-      .from("appointment_refund_requests")
-      .insert({
-        appointment_id: appointmentId,
-        requested_by: session.user.id,
-        requested_amount: Number(requestedAmount),
-        reason,
-        customer_message: customerMessage,
-      })
-      .select()
-      .single();
 
     if (error) {
-      console.error(error);
-
-      return NextResponse.json(
-        {
-          error: error.message,
-        },
-        {
-          status: 400,
-        },
-      );
+      throw error;
     }
 
-    /*
-==========================================
-Create Admin Notification
-==========================================
-*/
-
-    await supabase.from("admin_notifications").insert({
-      type: "appointment_refund_request",
-      title: "Appointment Refund Request",
-      message: `A customer requested a refund for ${appointment.service_name}.`,
-      reference_id: data.id,
-    });
-
-    /*
-    ==========================================
-    Success
-    ==========================================
-    */
-
-    return NextResponse.json({
-      success: true,
-      message: "Refund request submitted successfully.",
-      refundRequest: data,
-    });
-  } catch (err) {
-    console.error(err);
+    //////////////////////////////////////////////////////
+    // Response
+    //////////////////////////////////////////////////////
 
     return NextResponse.json(
       {
-        error: "Internal server error.",
+        success: true,
+        appointment: data,
+      },
+      {
+        status: 200,
+      },
+    );
+  } catch (error) {
+    console.error("CUSTOMER APPOINTMENT DETAILS ERROR");
+    console.error(error);
+
+    return NextResponse.json(
+      {
+        error: "Unable to load appointment details.",
       },
       {
         status: 500,

@@ -92,7 +92,7 @@ export default function PaymentPlansTable({
               </TableCell>
 
               <TableCell className="text-center">
-                {plan.interest_percentage}%
+                {plan.extra_percentage}%
               </TableCell>
 
               <TableCell className="text-center capitalize">

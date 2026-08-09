@@ -101,7 +101,7 @@ export default function MobileMenu({ open, onClose, session }) {
                   Sign In
                 </NavLink>
 
-                <NavLink href="/user" onClick={onClose} className="py-3">
+                <NavLink href="/signup" onClick={onClose} className="py-3">
                   Create Account
                 </NavLink>
               </nav>

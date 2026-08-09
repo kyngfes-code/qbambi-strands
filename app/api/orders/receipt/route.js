@@ -2,146 +2,218 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import crypto from "crypto";
+import { z } from "zod";
+
+const uploadSchema = z.object({
+  entityType: z.enum(["order", "instalment"]),
+  entityId: z.string().uuid(),
+  paymentType: z.string().min(1),
+  customerMessage: z.string().optional().nullable(),
+});
 
 export async function POST(req) {
+  let filePath = null;
+
   try {
     console.time("order-receipt");
 
-    /*
-    ==========================================
-    Authenticate User
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Authenticate
+    //////////////////////////////////////////////////////
 
     const session = await auth();
 
     if (!session?.user?.id) {
       console.timeEnd("order-receipt");
 
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    /*
-    ==========================================
-    Read Form Data
-    ==========================================
-    */
-
-    const formData = await req.formData();
-
-    const entityType = formData.get("entityType");
-    const entityId = formData.get("entityId");
-    const paymentType = formData.get("paymentType");
-
-    const receipt = formData.get("receipt");
-    const amount = Number(formData.get("amount"));
-    const customerMessage = formData.get("customerMessage");
-
-    if (
-      !entityType ||
-      !entityId ||
-      !paymentType ||
-      !receipt ||
-      Number.isNaN(amount) ||
-      amount <= 0
-    ) {
       return NextResponse.json(
         {
-          error:
-            "entityType, entityId, paymentType, receipt and amount are required.",
+          error: "Unauthorized",
         },
-        { status: 400 },
+        {
+          status: 401,
+        },
       );
     }
 
-    console.log({
-      entityType,
-      entityId,
-      paymentType,
-      amount,
-      userId: session.user.id,
+    //////////////////////////////////////////////////////
+    // Read Form
+    //////////////////////////////////////////////////////
+
+    const formData = await req.formData();
+
+    const parsed = uploadSchema.safeParse({
+      entityType: formData.get("entityType"),
+      entityId: formData.get("entityId"),
+      paymentType: formData.get("paymentType"),
+      customerMessage: formData.get("customerMessage"),
     });
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid request.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const { entityType, entityId, paymentType, customerMessage } = parsed.data;
+
+    const receipt = formData.get("receipt");
+
+    if (!receipt) {
+      return NextResponse.json(
+        {
+          error: "Receipt is required.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    //////////////////////////////////////////////////////
+    // Validate File
+    //////////////////////////////////////////////////////
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+    ];
+
+    if (!allowedTypes.includes(receipt.type)) {
+      return NextResponse.json(
+        {
+          error: "Invalid receipt type.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    const MAX_SIZE = 5 * 1024 * 1024;
+
+    if (receipt.size > MAX_SIZE) {
+      return NextResponse.json(
+        {
+          error: "Receipt exceeds 5MB.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    //////////////////////////////////////////////////////
+    // Supabase
+    //////////////////////////////////////////////////////
 
     const supabase = createSupabaseAdmin();
 
-    /*
-    ==========================================
-    Verify Order Ownership
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Verify Ownership
+    //////////////////////////////////////////////////////
 
     let order;
+    let amount = 0;
 
     if (entityType === "order") {
       const { data, error } = await supabase
         .from("orders")
         .select(
           `
-      id,
-      user_id,
-      total_amount,
-      receipt_url,
-      user:users!orders_user_id_fkey(email)
-    `,
+          id,
+          user_id,
+          total_amount,
+          user:users!orders_user_id_fkey(
+            email
+          )
+        `,
         )
         .eq("id", entityId)
         .single();
 
-      console.log({
-        orderData: data,
-        orderError: error,
-      });
+      if (data) {
+        console.log("Order User:", data.user_id);
+      }
 
       if (error || !data || data.user_id !== session.user.id) {
+        return NextResponse.json(
+          {
+            error: "Order not found.",
+          },
+          {
+            status: 404,
+          },
+        );
+      }
+
+      order = data;
+
+      amount = Number(data.total_amount ?? 0);
+      if (amount <= 0) {
+        return NextResponse.json(
+          {
+            error: "This order has no outstanding balance.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("instalments")
+        .select(
+          `
+          id,
+          amount,
+          payment_plan_id,
+          payment_plans(
+            order_id,
+            orders(
+              id,
+              user_id,
+              user:users(email)
+            )
+          )
+        `,
+        )
+        .eq("id", entityId)
+        .single();
+
+      if (error) {
+        console.error(error);
+
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      if (!data) {
         return NextResponse.json(
           { error: "Order not found." },
           { status: 404 },
         );
       }
 
-      order = data;
-    } else if (entityType === "instalment") {
-      const { data, error } = await supabase
-        .from("instalments")
-        .select(
-          `
-      id,
-      amount,
-      payment_plan_id,
-      payment_plans(
-        order_id,
-        orders(
-          id,
-          user_id,
-          user:users(email)
-        )
-      )
-    `,
-        )
-        .eq("id", entityId)
-        .single();
-
-      if (
-        error ||
-        !data ||
-        data.payment_plans.orders.user_id !== session.user.id
-      ) {
-        return NextResponse.json(
-          { error: "Instalment not found." },
-          { status: 404 },
-        );
+      if (data.user_id !== session.user.id) {
+        return NextResponse.json({ error: "Forbidden." }, { status: 403 });
       }
-
       order = data.payment_plans.orders;
+
+      amount = Number(data.amount);
     }
 
-    /*
-    ==========================================
-    Check Existing Transaction
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Existing Transaction
+    //////////////////////////////////////////////////////
 
-    const { data: existingTransaction } = await supabase
+    const { data: existingTransaction, error: existingError } = await supabase
       .from("payment_transactions")
       .select("*")
       .eq("entity_type", entityType)
@@ -154,9 +226,11 @@ export async function POST(req) {
       .limit(1)
       .maybeSingle();
 
-    if (existingTransaction?.status === "pending") {
-      console.timeEnd("order-receipt");
+    if (existingError) {
+      throw existingError;
+    }
 
+    if (existingTransaction?.status === "pending") {
       return NextResponse.json(
         {
           error: "Payment is already under review.",
@@ -168,106 +242,160 @@ export async function POST(req) {
     }
 
     if (existingTransaction?.status === "verified") {
-      console.timeEnd("order-receipt");
-
       return NextResponse.json(
         {
           error: "Payment has already been confirmed.",
         },
         {
-          status: 400,
+          status: 409,
         },
       );
     }
 
-    /*
-    ==========================================
-    Upload Receipt
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Upload Receipt
+    //////////////////////////////////////////////////////
 
-    const extension = receipt.name?.split(".").pop()?.toLowerCase() || "file";
+    const extension = receipt.name?.split(".").pop()?.toLowerCase() ?? "file";
 
-    const filePath =
-      entityType === "instalment"
-        ? `instalments/${entityId}-${Date.now()}.${extension}`
-        : `orders/${entityId}-${Date.now()}.${extension}`;
+    filePath =
+      entityType === "order"
+        ? `orders/${entityId}-${Date.now()}.${extension}`
+        : `instalments/${entityId}-${Date.now()}.${extension}`;
 
     const { error: uploadError } = await supabase.storage
       .from("receipts")
-      .upload(filePath, receipt);
+      .upload(filePath, receipt, {
+        upsert: false,
+      });
 
     if (uploadError) {
       throw uploadError;
     }
-
-    /*
-    ==========================================
-    Signed URL
-    ==========================================
-    */
-
-    const { data: signed } = await supabase.storage
-      .from("receipts")
-      .createSignedUrl(filePath, 60 * 60 * 24 * 30);
-
-    /*
-    ==========================================
-    Update Business Record
-    ==========================================
-    */
-
-    if (entityType === "instalment") {
-      await supabase
-        .from("instalments")
-        .update({
-          receipt_url: signed.signedUrl,
-          status: "awaiting_confirmation",
-        })
-        .eq("id", entityId);
-    } else {
-      await supabase
-        .from("orders")
-        .update({
-          receipt_url: signed.signedUrl,
-          status: "awaiting_confirmation",
-        })
-        .eq("id", entityId);
-    }
-
-    /*
-    ==========================================
-    Resubmission
-    ==========================================
-    */
+    //////////////////////////////////////////////////////
+    // Handle Resubmission
+    //////////////////////////////////////////////////////
 
     if (existingTransaction?.status === "failed") {
-      await supabase
+      const { error: updateError } = await supabase
         .from("payment_transactions")
         .update({
           amount,
           status: "pending",
           updated_at: new Date().toISOString(),
           metadata: {
+            ...(existingTransaction.metadata ?? {}),
             uploadedReceipt: true,
             resubmitted: true,
+            receipt_path: filePath,
+            customerMessage,
           },
         })
         .eq("id", existingTransaction.id);
-    } else {
-      await supabase.from("payment_transactions").insert({
-        provider: "bank_transfer",
 
+      if (updateError) {
+        await supabase.storage.from("receipts").remove([filePath]);
+
+        throw updateError;
+      }
+
+      if (entityType === "order") {
+        const { error } = await supabase
+          .from("orders")
+          .update({
+            receipt_path: filePath,
+            status: "awaiting_confirmation",
+          })
+          .eq("id", entityId);
+
+        if (error) {
+          await supabase.storage.from("receipts").remove([filePath]);
+
+          throw error;
+        }
+      } else {
+        const { error } = await supabase
+          .from("instalments")
+          .update({
+            receipt_path: filePath,
+            status: "awaiting_confirmation",
+          })
+          .eq("id", entityId);
+
+        if (error) {
+          await supabase.storage.from("receipts").remove([filePath]);
+
+          throw error;
+        }
+      }
+
+      await supabase.from("admin_notifications").insert({
+        type: "receipt_uploaded",
+        order_id: entityType === "order" ? entityId : order.id,
+        instalment_id: entityType === "instalment" ? entityId : null,
+        message:
+          entityType === "instalment"
+            ? "Instalment receipt resubmitted"
+            : "Order receipt resubmitted",
+      });
+
+      console.timeEnd("order-receipt");
+
+      return NextResponse.json({
+        success: true,
+      });
+    }
+
+    //////////////////////////////////////////////////////
+    // Update Business Record
+    //////////////////////////////////////////////////////
+
+    if (entityType === "order") {
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          receipt_path: filePath,
+          status: "awaiting_confirmation",
+        })
+        .eq("id", entityId);
+
+      if (error) {
+        await supabase.storage.from("receipts").remove([filePath]);
+
+        throw error;
+      }
+    } else {
+      const { error } = await supabase
+        .from("instalments")
+        .update({
+          receipt_path: filePath,
+          status: "awaiting_confirmation",
+        })
+        .eq("id", entityId);
+
+      if (error) {
+        await supabase.storage.from("receipts").remove([filePath]);
+
+        throw error;
+      }
+    }
+
+    //////////////////////////////////////////////////////
+    // Create Transaction
+    //////////////////////////////////////////////////////
+
+    const { data: transaction, error: transactionError } = await supabase
+      .from("payment_transactions")
+      .insert({
+        provider: "bank_transfer",
         provider_reference: crypto.randomUUID(),
 
         entity_type: entityType,
-
         entity_id: entityId,
 
         payment_type: paymentType,
 
         user_id: session.user.id,
-
         email: order.user.email,
 
         amount,
@@ -280,42 +408,119 @@ export async function POST(req) {
 
         metadata: {
           uploadedReceipt: true,
-          receipt_url: signed.signedUrl,
+          receipt_path: filePath,
           customerMessage,
         },
+      })
+      .select()
+      .single();
+
+    if (transactionError) {
+      if (entityType === "order") {
+        await supabase
+          .from("orders")
+          .update({
+            receipt_path: null,
+          })
+          .eq("id", entityId);
+      } else {
+        await supabase
+          .from("instalments")
+          .update({
+            receipt_path: null,
+          })
+          .eq("id", entityId);
+      }
+
+      await supabase.storage.from("receipts").remove([filePath]);
+
+      throw transactionError;
+    }
+    //////////////////////////////////////////////////////
+    // Notify Admin
+    //////////////////////////////////////////////////////
+
+    const { error: notificationError } = await supabase
+      .from("admin_notifications")
+      .insert({
+        type: "receipt_uploaded",
+
+        order_id: entityType === "order" ? entityId : order.id,
+
+        instalment_id: entityType === "instalment" ? entityId : null,
+
+        message:
+          entityType === "instalment"
+            ? "Instalment receipt uploaded"
+            : "Order receipt uploaded",
       });
+
+    if (notificationError) {
+      if (transaction?.id) {
+        await supabase
+          .from("payment_transactions")
+          .delete()
+          .eq("id", transaction.id);
+      }
+
+      if (entityType === "order") {
+        await supabase
+          .from("orders")
+          .update({
+            receipt_path: null,
+          })
+          .eq("id", entityId);
+      } else {
+        await supabase
+          .from("instalments")
+          .update({
+            receipt_path: null,
+          })
+          .eq("id", entityId);
+      }
+
+      await supabase.storage.from("receipts").remove([filePath]);
+
+      throw notificationError;
     }
 
-    /*
-    ==========================================
-    Notify Admin
-    ==========================================
-    */
-
-    await supabase.from("admin_notifications").insert({
-      type: "receipt_uploaded",
-
-      order_id: entityType === "order" ? entityId : order.id,
-      instalment_id: entityType === "instalment" ? entityId : null,
-
-      message:
-        entityType === "instalment"
-          ? "Instalment receipt uploaded"
-          : "Order receipt uploaded",
-    });
+    //////////////////////////////////////////////////////
+    // Success
+    //////////////////////////////////////////////////////
 
     console.timeEnd("order-receipt");
 
-    return NextResponse.json({
-      success: true,
-      receipt_url: signed.signedUrl,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+      },
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
-    console.error("Order receipt upload failed:", error);
+    console.error("Order receipt upload failed:");
+    console.error(error);
+
+    //////////////////////////////////////////////////////
+    // Cleanup Uploaded File
+    //////////////////////////////////////////////////////
+
+    if (filePath) {
+      try {
+        const supabase = createSupabaseAdmin();
+
+        await supabase.storage.from("receipts").remove([filePath]);
+      } catch (cleanupError) {
+        console.error("Failed to cleanup uploaded receipt:", cleanupError);
+      }
+    }
+
+    console.timeEnd("order-receipt");
 
     return NextResponse.json(
       {
-        error: error.message || "Internal server error",
+        error: error.message ?? "Internal server error.",
       },
       {
         status: 500,

@@ -108,15 +108,15 @@ export async function POST(req) {
 
         phone: values.phone,
 
-        street: values.shippingStreet,
+        street: values.street,
 
-        city: values.shippingCity,
+        city: values.city,
 
-        state: values.shippingState,
+        state: values.state,
 
-        country: values.shippingCountry,
+        country: values.country,
 
-        landmark: values.shippingLandmark || null,
+        landmark: values.landmark || null,
 
         is_default: true,
       })

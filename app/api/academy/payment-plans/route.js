@@ -1,39 +1,89 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+
+const querySchema = z.object({
+  courses: z
+    .string()
+    .min(1)
+    .transform((value) => [
+      ...new Set(
+        value
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    ])
+    .refine((ids) => ids.length > 0, {
+      message: "No courses supplied.",
+    })
+    .refine((ids) => ids.length <= 20, {
+      message: "Too many courses selected.",
+    }),
+});
 
 export async function GET(req) {
   try {
+    //////////////////////////////////////////////////////
+    // Validate Query
+    //////////////////////////////////////////////////////
+
     const { searchParams } = new URL(req.url);
 
-    const coursesParam = searchParams.get("courses");
+    const parsed = querySchema.safeParse({
+      courses: searchParams.get("courses") ?? "",
+    });
 
-    if (!coursesParam) {
+    if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "No courses supplied.",
+          error: parsed.error.issues[0].message,
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
 
-    const courseIds = coursesParam
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean);
+    const courseIds = parsed.data.courses;
 
-    if (!courseIds.length) {
-      return NextResponse.json({
-        paymentPlans: [],
-      });
-    }
+    //////////////////////////////////////////////////////
+    // Database
+    //////////////////////////////////////////////////////
 
     const supabase = createSupabaseAdmin();
 
-    /**
-     * Get all plan assignments
-     */
+    //////////////////////////////////////////////////////
+    // Verify submitted courses exist
+    //////////////////////////////////////////////////////
 
-    const { data: assignments, error } = await supabase
+    const { data: existingCourses, error: courseError } = await supabase
+      .from("academy_courses")
+      .select("id")
+      .eq("active", true)
+      .in("id", courseIds);
+
+    if (courseError) {
+      throw courseError;
+    }
+
+    if (!existingCourses || existingCourses.length !== courseIds.length) {
+      return NextResponse.json(
+        {
+          error: "One or more selected courses are invalid.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    //////////////////////////////////////////////////////
+    // Payment Plan Assignments
+    //////////////////////////////////////////////////////
+
+    const { data: assignments, error: assignmentError } = await supabase
       .from("academy_course_payment_plans")
       .select(
         `
@@ -44,69 +94,82 @@ export async function GET(req) {
           name,
           number_of_payments,
           initial_payment_percentage,
-          additional_fee_percentage,
-          monthly_interval,
-          active
+          extra_percentage,
+          payment_interval_months,
+          description,
+          is_active
         )
       `,
       )
       .in("course_id", courseIds);
 
-    if (error) throw error;
+    if (assignmentError) {
+      throw assignmentError;
+    }
 
-    /**
-     * Keep only active plans
-     */
+    //////////////////////////////////////////////////////
+    // Find plans common to every selected course
+    //////////////////////////////////////////////////////
 
-    const rows = assignments.filter((row) => row.payment_plan?.active === true);
+    const plans = {};
 
-    /**
-     * Find plans common to every selected course
-     */
+    for (const row of assignments ?? []) {
+      const paymentPlan = Array.isArray(row.payment_plan)
+        ? row.payment_plan[0]
+        : row.payment_plan;
 
-    const counts = {};
+      if (!paymentPlan || paymentPlan.is_active !== true) {
+        continue;
+      }
 
-    rows.forEach((row) => {
-      const id = row.payment_plan.id;
+      const id = paymentPlan.id;
 
-      if (!counts[id]) {
-        counts[id] = {
-          plan: row.payment_plan,
+      if (!plans[id]) {
+        plans[id] = {
+          plan: paymentPlan,
           count: 0,
-          isDefault: row.is_default,
+          isDefault: false,
         };
       }
 
-      counts[id].count += 1;
+      plans[id].count++;
 
       if (row.is_default) {
-        counts[id].isDefault = true;
+        plans[id].isDefault = true;
       }
-    });
+    }
 
-    const paymentPlans = Object.values(counts)
+    //////////////////////////////////////////////////////
+    // Response
+    //////////////////////////////////////////////////////
+
+    const paymentPlans = Object.values(plans)
       .filter((item) => item.count === courseIds.length)
-      .sort((a, b) => {
-        if (a.isDefault === b.isDefault) return 0;
-
-        return a.isDefault ? -1 : 1;
-      })
+      .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
       .map((item) => ({
         ...item.plan,
         is_default: item.isDefault,
       }));
 
-    return NextResponse.json({
-      paymentPlans,
-    });
-  } catch (err) {
-    console.error(err);
+    return NextResponse.json(
+      {
+        paymentPlans,
+      },
+      {
+        status: 200,
+      },
+    );
+  } catch (error) {
+    console.error("ACADEMY PAYMENT PLANS ERROR");
+    console.error(error);
 
     return NextResponse.json(
       {
-        error: err.message || "Unable to load payment plans.",
+        error: "Unable to load payment plans.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }

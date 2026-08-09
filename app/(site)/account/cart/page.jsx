@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 
-import NavBarCart from "@/components/NavBarCart";
 import OfflineNotice from "@/components/OfflineNotice";
 
 import { getUserCart } from "@/lib/data-service";
@@ -113,8 +112,6 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <NavBarCart />
-
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Your Cart</h1>

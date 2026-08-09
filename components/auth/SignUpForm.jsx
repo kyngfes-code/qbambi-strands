@@ -306,6 +306,21 @@ export default function SignUpForm({ form, onSubmit, loading = false }) {
                 <p className="text-sm text-red-500">{errors.country.message}</p>
               )}
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="landmark">Landmark (Optional)</Label>
+
+              <Input
+                id="landmark"
+                placeholder="Nearest bus stop, estate, building..."
+                {...register("landmark")}
+              />
+
+              {errors.landmark && (
+                <p className="text-sm text-red-500">
+                  {errors.landmark.message}
+                </p>
+              )}
+            </div>
           </section>
         </CardContent>
 

@@ -12,7 +12,7 @@ export async function GET() {
 
     const session = await auth();
 
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         {
           error: "Unauthorized",
@@ -41,12 +41,25 @@ export async function GET() {
       `,
       )
       .eq("user_id", session.user.id)
-      .single();
+      .maybeSingle();
 
-    if (studentError || !student) {
+    if (studentError) throw studentError;
+
+    if (!student) {
       return NextResponse.json(
         {
           error: "Student record not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    if (!student.enrollment_id) {
+      return NextResponse.json(
+        {
+          error: "Enrollment not found.",
         },
         {
           status: 404,

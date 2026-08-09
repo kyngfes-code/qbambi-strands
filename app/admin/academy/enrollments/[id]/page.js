@@ -98,40 +98,64 @@ export default function EnrollmentDetailsPage() {
     try {
       setActionLoading(true);
 
-      const res = await fetch(`/api/admin/academy/enrollments/${params.id}`, {
-        method: "PATCH",
+      let url = `/api/admin/academy/enrollments/${params.id}`;
+      let method = "PATCH";
 
+      ////////////////////////////////////////////////////////////
+      // Dedicated Approve Route
+      ////////////////////////////////////////////////////////////
+
+      if (action === "approve") {
+        url = `/api/admin/academy/enrollments/${params.id}/approve`;
+        method = "POST";
+      }
+
+      ////////////////////////////////////////////////////////////
+      // Dedicated Reject Route
+      ////////////////////////////////////////////////////////////
+
+      if (action === "reject") {
+        url = `/api/admin/academy/enrollments/${params.id}/reject`;
+        method = "POST";
+      }
+
+      ////////////////////////////////////////////////////////////
+      // Request
+      ////////////////////////////////////////////////////////////
+
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
-
-        body: JSON.stringify({
-          action,
-          ...payload,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error);
+        throw new Error(data.error || "Unable to process enrollment action.");
       }
 
+      ////////////////////////////////////////////////////////////
+      // Close Dialogs
+      ////////////////////////////////////////////////////////////
+
       setApproveOpen(false);
-
       setRejectOpen(false);
-
       setPricingOpen(false);
-
       setPaymentOpen(false);
-
       setNoteOpen(false);
+
+      ////////////////////////////////////////////////////////////
+      // Reload Enrollment
+      ////////////////////////////////////////////////////////////
 
       await loadEnrollment();
     } catch (err) {
       console.error(err);
 
-      alert(err.message);
+      alert(err.message || "Unable to process enrollment action.");
     } finally {
       setActionLoading(false);
     }
@@ -184,9 +208,11 @@ export default function EnrollmentDetailsPage() {
 
             <TrainingInformationCard enrollment={enrollment} />
 
+            <PaymentHistoryCard
+              payments={enrollment.payment_history || []}
+              enrollment={enrollment}
+            />
             <AdditionalInformationCard enrollment={enrollment} />
-
-            <PaymentHistoryCard payments={enrollment.payment_history || []} />
 
             <EnrollmentNotesCard notes={enrollment.admin_notes || []} />
 

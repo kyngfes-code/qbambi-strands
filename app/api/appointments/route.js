@@ -1,59 +1,123 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { supabaseWithAuth } from "@/lib/supabase";
+import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { z } from "zod";
 
-/* =========================
-   CREATE APPOINTMENT
-========================= */
+const appointmentSchema = z.object({
+  service_name: z.string().trim().min(1),
+  appointment_date: z.string(),
+  appointment_time: z.string(),
+  notes: z.string().optional().nullable(),
+});
+
 export async function POST(request) {
   try {
+    //////////////////////////////////////////////////////
+    // Authenticate
+    //////////////////////////////////////////////////////
+
     const session = await auth();
 
-    if (!session?.user?.id || !session?.supabaseAccessToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+        },
+        {
+          status: 401,
+        },
+      );
     }
+
+    //////////////////////////////////////////////////////
+    // Validate Input
+    //////////////////////////////////////////////////////
 
     const body = await request.json();
 
-    const { service_name, appointment_date, appointment_time, notes } = body;
+    const parsed = appointmentSchema.safeParse(body);
 
-    /* Validation */
-    if (!service_name) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Service is required" },
-        { status: 400 },
+        {
+          error: "Invalid appointment details.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
-    if (!appointment_date) {
-      return NextResponse.json(
-        { error: "Appointment date is required" },
-        { status: 400 },
-      );
-    }
+    const { service_name, appointment_date, appointment_time, notes } =
+      parsed.data;
 
-    if (!appointment_time) {
-      return NextResponse.json(
-        { error: "Appointment time is required" },
-        { status: 400 },
-      );
-    }
+    //////////////////////////////////////////////////////
+    // Prevent booking in the past
+    //////////////////////////////////////////////////////
 
-    /* Prevent booking in the past */
     const selectedDateTime = new Date(
       `${appointment_date}T${appointment_time}`,
     );
 
-    if (selectedDateTime < new Date()) {
+    if (Number.isNaN(selectedDateTime.getTime())) {
       return NextResponse.json(
         {
-          error: "Appointment cannot be booked in the past",
+          error: "Invalid appointment date or time.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
 
-    const supabase = supabaseWithAuth(session.supabaseAccessToken);
+    if (selectedDateTime <= new Date()) {
+      return NextResponse.json(
+        {
+          error: "Appointment cannot be booked in the past.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    //////////////////////////////////////////////////////
+    // Supabase
+    //////////////////////////////////////////////////////
+
+    const supabase = createSupabaseAdmin();
+
+    //////////////////////////////////////////////////////
+    // Optional:
+    // Prevent multiple active appointments
+    //////////////////////////////////////////////////////
+
+    const { data: existingAppointment, error: existingError } = await supabase
+      .from("appointments")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .in("status", ["pending", "pending_confirmation", "confirmed"])
+      .limit(1)
+      .maybeSingle();
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    if (existingAppointment) {
+      return NextResponse.json(
+        {
+          error: "You already have an active appointment request.",
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+    //////////////////////////////////////////////////////
+    // Create Appointment
+    //////////////////////////////////////////////////////
 
     const { data, error } = await supabase
       .from("appointments")
@@ -62,39 +126,40 @@ export async function POST(request) {
         service_name,
         appointment_date,
         appointment_time,
-        notes: notes || null,
+        notes: notes ?? null,
         status: "pending",
       })
       .select()
       .single();
 
     if (error) {
-      console.error("Create appointment error:", error);
-
-      return NextResponse.json(
-        {
-          error: error.message,
-          details: error,
-        },
-        { status: 400 },
-      );
+      throw error;
     }
+
+    //////////////////////////////////////////////////////
+    // Success
+    //////////////////////////////////////////////////////
 
     return NextResponse.json(
       {
+        success: true,
         message: "Appointment booked successfully. Awaiting confirmation.",
         appointment: data,
       },
-      { status: 201 },
+      {
+        status: 201,
+      },
     );
   } catch (error) {
-    console.error("POST /api/appointments error:", error);
+    console.error("POST /api/appointments", error);
 
     return NextResponse.json(
       {
-        error: "Internal server error",
+        error: "Internal server error.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }
