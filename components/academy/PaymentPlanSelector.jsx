@@ -1,16 +1,98 @@
 "use client";
 
+import { useEffect } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 export default function PaymentPlanSelector({ pricing, setValue }) {
+  // ======================================================
+  // DEBUG: EVERYTHING COMING FROM PRICING
+  // ======================================================
+
+  console.log("================ PAYMENT PLAN SELECTOR ================");
+
+  console.log("[PaymentPlanSelector] pricing:", pricing);
+
+  console.log(
+    "[PaymentPlanSelector] availablePaymentPlans:",
+    pricing?.availablePaymentPlans,
+  );
+
+  console.log(
+    "[PaymentPlanSelector] availablePaymentPlans length:",
+    pricing?.availablePaymentPlans?.length,
+  );
+
+  console.log(
+    "[PaymentPlanSelector] loadingPaymentPlans:",
+    pricing?.loadingPaymentPlans,
+  );
+
+  console.log(
+    "[PaymentPlanSelector] selectedPaymentPlan:",
+    pricing?.selectedPaymentPlan,
+  );
+
+  console.log(
+    "[PaymentPlanSelector] paymentBreakdown:",
+    pricing?.paymentBreakdown,
+  );
+
+  console.log("[PaymentPlanSelector] currency:", pricing?.currency);
+
+  console.log("========================================================");
+
+  // ======================================================
+  // EXTRACT PRICING DATA
+  // ======================================================
+
   const {
     availablePaymentPlans = [],
+    loadingPaymentPlans = false,
+    selectedPaymentPlan = null,
+    selectPaymentPlan,
+    paymentBreakdown = null,
+    currency = "NGN",
+  } = pricing ?? {};
+
+  // ======================================================
+  // DEBUG: NORMALIZED VALUES
+  // ======================================================
+
+  useEffect(() => {
+    console.log(
+      "[PaymentPlanSelector] NORMALIZED availablePaymentPlans:",
+      availablePaymentPlans,
+    );
+
+    console.log(
+      "[PaymentPlanSelector] NORMALIZED plan count:",
+      availablePaymentPlans.length,
+    );
+
+    console.log(
+      "[PaymentPlanSelector] NORMALIZED loading:",
+      loadingPaymentPlans,
+    );
+
+    console.log(
+      "[PaymentPlanSelector] NORMALIZED selected plan:",
+      selectedPaymentPlan,
+    );
+
+    console.log(
+      "[PaymentPlanSelector] NORMALIZED paymentBreakdown:",
+      paymentBreakdown,
+    );
+  }, [
+    availablePaymentPlans,
     loadingPaymentPlans,
     selectedPaymentPlan,
-    selectPaymentPlan,
     paymentBreakdown,
-    currency,
-  } = pricing;
+  ]);
+
+  // ======================================================
+  // CURRENCY
+  // ======================================================
 
   const currencySymbols = {
     NGN: "₦",
@@ -21,23 +103,25 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
 
   const symbol = currencySymbols[currency] ?? currency;
 
-  // ------------------------------------------------------
-  // Loading
-  // ------------------------------------------------------
+  // ======================================================
+  // LOADING
+  // ======================================================
 
   if (loadingPaymentPlans) {
+    console.log("[PaymentPlanSelector] Rendering LOADING state");
+
     return (
       <section className="space-y-6">
-        {" "}
         <div>
-          {" "}
           <h3 className="text-xl font-bold text-neutral-900">
-            Choose Payment Plan{" "}
+            Choose Payment Plan
           </h3>
+
           <p className="mt-2 text-sm leading-7 text-neutral-500">
             Select how you would like to pay for your training.
           </p>
         </div>
+
         <div className="rounded-3xl border border-neutral-200 bg-white p-10 text-center text-sm text-neutral-500">
           Loading payment plans...
         </div>
@@ -45,19 +129,27 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
     );
   }
 
-  // ------------------------------------------------------
-  // No plans
-  // ------------------------------------------------------
+  // ======================================================
+  // NO PLANS
+  // ======================================================
 
   if (!availablePaymentPlans.length) {
+    console.warn("[PaymentPlanSelector] NO PAYMENT PLANS TO DISPLAY", {
+      availablePaymentPlans,
+      length: availablePaymentPlans.length,
+      loadingPaymentPlans,
+      selectedPaymentPlan,
+      paymentBreakdown,
+      currency,
+    });
+
     return (
       <section className="space-y-6">
-        {" "}
         <div>
-          {" "}
           <h3 className="text-xl font-bold text-neutral-900">
-            Choose Payment Plan{" "}
+            Choose Payment Plan
           </h3>
+
           <p className="mt-2 text-sm leading-7 text-neutral-500">
             No payment plans are currently available for the selected training.
           </p>
@@ -66,16 +158,18 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
     );
   }
 
-  // ------------------------------------------------------
-  // Render
-  // ------------------------------------------------------
+  // ======================================================
+  // DEBUG EACH PLAN
+  // ======================================================
+
+  console.log("[PaymentPlanSelector] Rendering plans:", availablePaymentPlans);
+
+  // ======================================================
+  // RENDER
+  // ======================================================
 
   return (
     <section className="space-y-6">
-      {/* ================================================= */}
-      {/* Header */}
-      {/* ================================================= */}
-
       <div>
         <h3 className="text-xl font-bold text-neutral-900">
           Choose Payment Plan
@@ -86,12 +180,10 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
         </p>
       </div>
 
-      {/* ================================================= */}
-      {/* Plans */}
-      {/* ================================================= */}
-
       <div className="space-y-5">
         {availablePaymentPlans.map((plan) => {
+          console.log("[PaymentPlanSelector] Rendering individual plan:", plan);
+
           const selected = selectedPaymentPlan?.id === plan.id;
 
           const courseFee = Number(paymentBreakdown?.courseFee ?? 0);
@@ -124,6 +216,8 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
               key={plan.id}
               type="button"
               onClick={() => {
+                console.log("[PaymentPlanSelector] PLAN SELECTED:", plan);
+
                 selectPaymentPlan(plan);
 
                 setValue("payment_plan_id", plan.id, {
@@ -137,9 +231,7 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
                   : "border-neutral-200 bg-white hover:border-[#C6A667]/60 hover:shadow-lg"
               }`}
             >
-              {/* ================================================= */}
-              {/* Plan Header */}
-              {/* ================================================= */}
+              {/* PLAN HEADER */}
 
               <div className="flex items-start justify-between gap-5">
                 <div className="min-w-0">
@@ -159,13 +251,9 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
                 )}
               </div>
 
-              {/* ================================================= */}
-              {/* Financial Details */}
-              {/* ================================================= */}
+              {/* FINANCIAL DETAILS */}
 
               <div className="mt-8 grid gap-5 sm:grid-cols-2">
-                {/* Total Tuition */}
-
                 <div className="rounded-2xl bg-[#C6A667]/10 p-5">
                   <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                     Total Tuition
@@ -179,8 +267,6 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
                     })}
                   </h4>
                 </div>
-
-                {/* Initial Payment */}
 
                 <div className="rounded-2xl bg-neutral-50 p-5">
                   <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -200,8 +286,6 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
                   </p>
                 </div>
 
-                {/* Extra Charge */}
-
                 <div className="rounded-2xl bg-neutral-50 p-5">
                   <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
                     Administrative Charge
@@ -211,8 +295,6 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
                     {extraPercentage}%
                   </h4>
                 </div>
-
-                {/* Remaining */}
 
                 <div className="rounded-2xl bg-neutral-50 p-5">
                   <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -243,10 +325,6 @@ export default function PaymentPlanSelector({ pricing, setValue }) {
                   )}
                 </div>
               </div>
-
-              {/* ================================================= */}
-              {/* Selected State */}
-              {/* ================================================= */}
 
               {selected && (
                 <div className="mt-6 rounded-2xl border border-[#C6A667]/20 bg-white/70 px-5 py-4">

@@ -4,172 +4,360 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export default function useAcademyCourses() {
-  //--------------------------------------------------
-  // Data
-  //--------------------------------------------------
+  ////////////////////////////////////////////////////////////
+  // DATA
+  ////////////////////////////////////////////////////////////
 
   const [courses, setCourses] = useState([]);
 
-  //--------------------------------------------------
-  // Loading
-  //--------------------------------------------------
+  ////////////////////////////////////////////////////////////
+  // LOADING
+  ////////////////////////////////////////////////////////////
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  //--------------------------------------------------
-  // Filters
-  //--------------------------------------------------
+  ////////////////////////////////////////////////////////////
+  // FILTERS
+  ////////////////////////////////////////////////////////////
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
 
-  //--------------------------------------------------
-  // Dialogs
-  //--------------------------------------------------
+  ////////////////////////////////////////////////////////////
+  // DIALOG STATE
+  ////////////////////////////////////////////////////////////
 
   const [selectedCourse, setSelectedCourse] = useState(null);
+
   const [courseModalOpen, setCourseModalOpen] = useState(false);
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  //--------------------------------------------------
-  // Fetch Courses
-  //--------------------------------------------------
+  ////////////////////////////////////////////////////////////
+  // FETCH COURSES
+  ////////////////////////////////////////////////////////////
 
   const fetchCourses = useCallback(async () => {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/admin/academy/courses", {
+      const params = new URLSearchParams();
+
+      if (search.trim()) {
+        params.set("search", search.trim());
+      }
+
+      if (status !== "all") {
+        params.set("status", status);
+      }
+
+      const queryString = params.toString();
+
+      const url = queryString
+        ? `/api/admin/academy/courses?${queryString}`
+        : "/api/admin/academy/courses";
+
+      const res = await fetch(url, {
+        method: "GET",
         cache: "no-store",
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to load courses.");
+        throw new Error(data?.error || "Failed to load academy courses.");
       }
 
-      setCourses(data.courses || []);
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message);
+      setCourses(data?.courses ?? []);
+
+      return data?.courses ?? [];
+    } catch (error) {
+      console.error("Academy courses fetch error:", error);
+
+      toast.error(error?.message || "Failed to load academy courses.");
+
+      return [];
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, status]);
+
+  ////////////////////////////////////////////////////////////
+  // INITIAL FETCH
+  ////////////////////////////////////////////////////////////
 
   useEffect(() => {
     fetchCourses();
   }, [fetchCourses]);
 
-  //--------------------------------------------------
-  // Filtered Courses
-  //--------------------------------------------------
+  ////////////////////////////////////////////////////////////
+  // FILTERED COURSES
+  //
+  // Keep this as a second layer so the UI remains responsive
+  // even if the API returns the full course list.
+  ////////////////////////////////////////////////////////////
 
   const filteredCourses = useMemo(() => {
     const term = search.trim().toLowerCase();
 
     return courses.filter((course) => {
+      //////////////////////////////////////////////////////////
+      // SEARCH
+      //////////////////////////////////////////////////////////
+
       const matchesSearch =
         !term ||
+        course.course_code?.toLowerCase().includes(term) ||
         course.title?.toLowerCase().includes(term) ||
         course.slug?.toLowerCase().includes(term) ||
-        course.level?.toLowerCase().includes(term);
+        course.description?.toLowerCase().includes(term);
 
-      const matchesStatus =
-        status === "all"
-          ? true
-          : status === "active"
-            ? course.active
-            : !course.active;
+      //////////////////////////////////////////////////////////
+      // STATUS
+      //////////////////////////////////////////////////////////
+
+      const matchesStatus = status === "all" ? true : course.status === status;
 
       return matchesSearch && matchesStatus;
     });
   }, [courses, search, status]);
 
-  //--------------------------------------------------
-  // Create
-  //--------------------------------------------------
+  ////////////////////////////////////////////////////////////
+  // CREATE COURSE
+  ////////////////////////////////////////////////////////////
 
-  async function createCourse(values) {
-    try {
-      setSaving(true);
+  const createCourse = useCallback(
+    async (values) => {
+      try {
+        setSaving(true);
 
-      const res = await fetch("/api/admin/academy/courses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(values),
-      });
+        const payload = {
+          course_code: values?.course_code?.trim() || "",
 
-      const data = await res.json();
+          title: values?.title?.trim() || "",
 
-      if (!res.ok) {
-        throw new Error(data.error);
+          slug: values?.slug?.trim() || "",
+
+          description: values?.description?.trim() || null,
+
+          thumbnail_path: values?.thumbnail_path?.trim() || null,
+
+          duration_minutes:
+            values?.duration_minutes === "" ||
+            values?.duration_minutes === null ||
+            values?.duration_minutes === undefined
+              ? null
+              : Number(values.duration_minutes),
+
+          status: values?.status || "draft",
+
+          sort_order:
+            values?.sort_order === "" ||
+            values?.sort_order === null ||
+            values?.sort_order === undefined
+              ? 0
+              : Number(values.sort_order),
+        };
+
+        ////////////////////////////////////////////////////////
+        // BASIC CLIENT VALIDATION
+        ////////////////////////////////////////////////////////
+
+        if (!payload.course_code) {
+          throw new Error("Course code is required.");
+        }
+
+        if (!payload.title) {
+          throw new Error("Course title is required.");
+        }
+
+        if (!payload.slug) {
+          throw new Error("Course slug is required.");
+        }
+
+        ////////////////////////////////////////////////////////
+        // REQUEST
+        ////////////////////////////////////////////////////////
+
+        const res = await fetch("/api/admin/academy/courses", {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data?.error || "Failed to create academy course.");
+        }
+
+        ////////////////////////////////////////////////////////
+        // UPDATE LOCAL DATA
+        ////////////////////////////////////////////////////////
+
+        if (data?.course) {
+          setCourses((current) => [...current, data.course]);
+        } else {
+          await fetchCourses();
+        }
+
+        ////////////////////////////////////////////////////////
+        // CLOSE DIALOG
+        ////////////////////////////////////////////////////////
+
+        setCourseModalOpen(false);
+        setSelectedCourse(null);
+
+        toast.success(data?.message || "Academy course created successfully.");
+
+        return true;
+      } catch (error) {
+        console.error("Create academy course error:", error);
+
+        toast.error(error?.message || "Failed to create academy course.");
+
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [fetchCourses],
+  );
+
+  ////////////////////////////////////////////////////////////
+  // UPDATE COURSE
+  ////////////////////////////////////////////////////////////
+
+  const updateCourse = useCallback(
+    async (id, values) => {
+      if (!id) {
+        toast.error("Course ID is required.");
+        return false;
       }
 
-      await fetchCourses();
+      try {
+        setSaving(true);
 
-      setCourseModalOpen(false);
-      setSelectedCourse(null);
+        const payload = {};
 
-      return true;
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message);
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }
+        ////////////////////////////////////////////////////////
+        // ONLY SEND PROVIDED FIELDS
+        ////////////////////////////////////////////////////////
 
-  //--------------------------------------------------
-  // Update
-  //--------------------------------------------------
+        if (values?.course_code !== undefined) {
+          payload.course_code = values.course_code?.trim() || "";
+        }
 
-  async function updateCourse(id, values) {
-    try {
-      setSaving(true);
+        if (values?.title !== undefined) {
+          payload.title = values.title?.trim() || "";
+        }
 
-      const res = await fetch(`/api/admin/academy/courses/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(values),
-      });
+        if (values?.slug !== undefined) {
+          payload.slug = values.slug?.trim() || "";
+        }
 
-      const data = await res.json();
+        if (values?.description !== undefined) {
+          payload.description = values.description?.trim() || null;
+        }
 
-      if (!res.ok) {
-        throw new Error(data.error);
+        if (values?.thumbnail_path !== undefined) {
+          payload.thumbnail_path = values.thumbnail_path?.trim() || null;
+        }
+
+        if (values?.duration_minutes !== undefined) {
+          payload.duration_minutes =
+            values.duration_minutes === "" || values.duration_minutes === null
+              ? null
+              : Number(values.duration_minutes);
+        }
+
+        if (values?.status !== undefined) {
+          payload.status = values.status;
+        }
+
+        if (values?.sort_order !== undefined) {
+          payload.sort_order = Number(values.sort_order);
+        }
+
+        ////////////////////////////////////////////////////////
+        // REQUEST
+        ////////////////////////////////////////////////////////
+
+        const res = await fetch(`/api/admin/academy/courses/${id}`, {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data?.error || "Failed to update academy course.");
+        }
+
+        ////////////////////////////////////////////////////////
+        // UPDATE LOCAL STATE
+        ////////////////////////////////////////////////////////
+
+        if (data?.course) {
+          setCourses((current) =>
+            current.map((course) => (course.id === id ? data.course : course)),
+          );
+        } else {
+          await fetchCourses();
+        }
+
+        ////////////////////////////////////////////////////////
+        // UPDATE SELECTED COURSE
+        ////////////////////////////////////////////////////////
+
+        if (data?.course && selectedCourse?.id === id) {
+          setSelectedCourse(data.course);
+        }
+
+        ////////////////////////////////////////////////////////
+        // CLOSE EDIT DIALOG
+        ////////////////////////////////////////////////////////
+
+        setCourseModalOpen(false);
+        setSelectedCourse(null);
+
+        toast.success(data?.message || "Academy course updated successfully.");
+
+        return true;
+      } catch (error) {
+        console.error("Update academy course error:", error);
+
+        toast.error(error?.message || "Failed to update academy course.");
+
+        return false;
+      } finally {
+        setSaving(false);
       }
+    },
+    [fetchCourses, selectedCourse],
+  );
 
-      await fetchCourses();
+  ////////////////////////////////////////////////////////////
+  // DELETE COURSE
+  ////////////////////////////////////////////////////////////
 
-      toast.success(data.message || "Course updated successfully.");
-
-      setCourseModalOpen(false);
-      setSelectedCourse(null);
-
-      return true;
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message);
+  const deleteCourse = useCallback(async (id) => {
+    if (!id) {
+      toast.error("Course ID is required.");
       return false;
-    } finally {
-      setSaving(false);
     }
-  }
 
-  //--------------------------------------------------
-  // Delete
-  //--------------------------------------------------
-
-  async function deleteCourse(id) {
     try {
       setDeleting(true);
 
@@ -180,72 +368,279 @@ export default function useAcademyCourses() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error);
+        throw new Error(data?.error || "Failed to delete academy course.");
       }
 
-      await fetchCourses();
+      ////////////////////////////////////////////////////////
+      // REMOVE LOCALLY
+      ////////////////////////////////////////////////////////
+
+      setCourses((current) => current.filter((course) => course.id !== id));
+
+      ////////////////////////////////////////////////////////
+      // RESET STATE
+      ////////////////////////////////////////////////////////
 
       setDeleteDialogOpen(false);
       setSelectedCourse(null);
 
+      toast.success(data?.message || "Academy course deleted successfully.");
+
       return true;
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message);
+    } catch (error) {
+      console.error("Delete academy course error:", error);
+
+      toast.error(error?.message || "Failed to delete academy course.");
+
       return false;
     } finally {
       setDeleting(false);
     }
-  }
+  }, []);
 
-  //--------------------------------------------------
-  // Toggle Active
-  //--------------------------------------------------
+  ////////////////////////////////////////////////////////////
+  // PUBLISH COURSE
+  ////////////////////////////////////////////////////////////
 
-  function toggleCourseStatus(course) {
-    return updateCourse(course.id, {
-      active: !course.active,
-    });
-  }
+  const publishCourse = useCallback(
+    async (course) => {
+      if (!course?.id) {
+        toast.error("Course ID is required.");
+        return false;
+      }
 
-  //--------------------------------------------------
-  // Sort Order
-  //--------------------------------------------------
+      return updateCourse(course.id, {
+        status: "published",
+      });
+    },
+    [updateCourse],
+  );
 
-  function updateSortOrder(course, sortOrder) {
-    return updateCourse(course.id, {
-      sort_order: Number(sortOrder),
-    });
-  }
+  ////////////////////////////////////////////////////////////
+  // ARCHIVE COURSE
+  ////////////////////////////////////////////////////////////
 
-  //--------------------------------------------------
-  // Dialog Helpers
-  //--------------------------------------------------
+  const archiveCourse = useCallback(
+    async (course) => {
+      if (!course?.id) {
+        toast.error("Course ID is required.");
+        return false;
+      }
 
-  function openCreateModal() {
+      return updateCourse(course.id, {
+        status: "archived",
+      });
+    },
+    [updateCourse],
+  );
+
+  ////////////////////////////////////////////////////////////
+  // MOVE COURSE TO DRAFT
+  ////////////////////////////////////////////////////////////
+
+  const draftCourse = useCallback(
+    async (course) => {
+      if (!course?.id) {
+        toast.error("Course ID is required.");
+        return false;
+      }
+
+      return updateCourse(course.id, {
+        status: "draft",
+      });
+    },
+    [updateCourse],
+  );
+
+  ////////////////////////////////////////////////////////////
+  // TOGGLE PUBLISH / ARCHIVE
+  ////////////////////////////////////////////////////////////
+
+  const toggleCourseStatus = useCallback(
+    async (course) => {
+      if (!course?.id) {
+        toast.error("Course ID is required.");
+        return false;
+      }
+
+      ////////////////////////////////////////////////////////
+      // DRAFT
+      ////////////////////////////////////////////////////////
+
+      if (course.status === "draft") {
+        return publishCourse(course);
+      }
+
+      ////////////////////////////////////////////////////////
+      // PUBLISHED
+      ////////////////////////////////////////////////////////
+
+      if (course.status === "published") {
+        return archiveCourse(course);
+      }
+
+      ////////////////////////////////////////////////////////
+      // ARCHIVED
+      ////////////////////////////////////////////////////////
+
+      if (course.status === "archived") {
+        return publishCourse(course);
+      }
+
+      return false;
+    },
+    [archiveCourse, publishCourse],
+  );
+
+  ////////////////////////////////////////////////////////////
+  // SORT ORDER
+  ////////////////////////////////////////////////////////////
+
+  const updateSortOrder = useCallback(
+    async (course, sortOrder) => {
+      if (!course?.id) {
+        toast.error("Course ID is required.");
+        return false;
+      }
+
+      const numericSortOrder = Number(sortOrder);
+
+      if (Number.isNaN(numericSortOrder)) {
+        toast.error("Sort order must be a valid number.");
+
+        return false;
+      }
+
+      return updateCourse(course.id, {
+        sort_order: numericSortOrder,
+      });
+    },
+    [updateCourse],
+  );
+
+  ////////////////////////////////////////////////////////////
+  // DURATION
+  ////////////////////////////////////////////////////////////
+
+  const updateDuration = useCallback(
+    async (course, durationMinutes) => {
+      if (!course?.id) {
+        toast.error("Course ID is required.");
+        return false;
+      }
+
+      const duration =
+        durationMinutes === "" || durationMinutes === null
+          ? null
+          : Number(durationMinutes);
+
+      if (duration !== null && (Number.isNaN(duration) || duration < 0)) {
+        toast.error("Duration must be a valid positive number.");
+
+        return false;
+      }
+
+      return updateCourse(course.id, {
+        duration_minutes: duration,
+      });
+    },
+    [updateCourse],
+  );
+
+  ////////////////////////////////////////////////////////////
+  // DIALOG HELPERS
+  ////////////////////////////////////////////////////////////
+
+  const openCreateModal = useCallback(() => {
     setSelectedCourse(null);
     setCourseModalOpen(true);
-  }
+  }, []);
 
-  function openEditModal(course) {
+  ////////////////////////////////////////////////////////////
+
+  const openEditModal = useCallback((course) => {
     setSelectedCourse(course);
     setCourseModalOpen(true);
-  }
+  }, []);
 
-  function openDeleteDialog(course) {
+  ////////////////////////////////////////////////////////////
+
+  const openDeleteDialog = useCallback((course) => {
     setSelectedCourse(course);
     setDeleteDialogOpen(true);
-  }
+  }, []);
 
-  //--------------------------------------------------
+  ////////////////////////////////////////////////////////////
+  // CLOSE COURSE MODAL
+  ////////////////////////////////////////////////////////////
+
+  const closeCourseModal = useCallback(() => {
+    if (saving) return;
+
+    setCourseModalOpen(false);
+    setSelectedCourse(null);
+  }, [saving]);
+
+  ////////////////////////////////////////////////////////////
+  // CLOSE DELETE DIALOG
+  ////////////////////////////////////////////////////////////
+
+  const closeDeleteDialog = useCallback(() => {
+    if (deleting) return;
+
+    setDeleteDialogOpen(false);
+    setSelectedCourse(null);
+  }, [deleting]);
+
+  ////////////////////////////////////////////////////////////
+  // COURSE COUNTS
+  ////////////////////////////////////////////////////////////
+
+  const courseStats = useMemo(() => {
+    const total = courses.length;
+
+    const drafts = courses.filter((course) => course.status === "draft").length;
+
+    const published = courses.filter(
+      (course) => course.status === "published",
+    ).length;
+
+    const archived = courses.filter(
+      (course) => course.status === "archived",
+    ).length;
+
+    return {
+      total,
+      drafts,
+      published,
+      archived,
+    };
+  }, [courses]);
+
+  ////////////////////////////////////////////////////////////
+  // RETURN
+  ////////////////////////////////////////////////////////////
 
   return {
+    //////////////////////////////////////////////////////////
+    // DATA
+    //////////////////////////////////////////////////////////
+
     courses,
     filteredCourses,
+    courseStats,
+
+    //////////////////////////////////////////////////////////
+    // LOADING
+    //////////////////////////////////////////////////////////
 
     loading,
     saving,
     deleting,
+
+    //////////////////////////////////////////////////////////
+    // FILTERS
+    //////////////////////////////////////////////////////////
 
     search,
     setSearch,
@@ -253,7 +648,15 @@ export default function useAcademyCourses() {
     status,
     setStatus,
 
+    //////////////////////////////////////////////////////////
+    // SELECTED COURSE
+    //////////////////////////////////////////////////////////
+
     selectedCourse,
+
+    //////////////////////////////////////////////////////////
+    // DIALOGS
+    //////////////////////////////////////////////////////////
 
     courseModalOpen,
     deleteDialogOpen,
@@ -261,17 +664,45 @@ export default function useAcademyCourses() {
     setCourseModalOpen,
     setDeleteDialogOpen,
 
+    closeCourseModal,
+    closeDeleteDialog,
+
+    //////////////////////////////////////////////////////////
+    // FETCH
+    //////////////////////////////////////////////////////////
+
     fetchCourses,
+
+    //////////////////////////////////////////////////////////
+    // DIALOG HELPERS
+    //////////////////////////////////////////////////////////
 
     openCreateModal,
     openEditModal,
     openDeleteDialog,
 
+    //////////////////////////////////////////////////////////
+    // CRUD
+    //////////////////////////////////////////////////////////
+
     createCourse,
     updateCourse,
     deleteCourse,
 
+    //////////////////////////////////////////////////////////
+    // STATUS
+    //////////////////////////////////////////////////////////
+
+    publishCourse,
+    archiveCourse,
+    draftCourse,
     toggleCourseStatus,
+
+    //////////////////////////////////////////////////////////
+    // SORT / METADATA
+    //////////////////////////////////////////////////////////
+
     updateSortOrder,
+    updateDuration,
   };
 }

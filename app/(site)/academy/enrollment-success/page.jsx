@@ -22,7 +22,7 @@ export default function AcademyEnrollmentSuccessPage() {
             </h1>
 
             <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-neutral-600">
-              Thank you for choosing <strong>QBambi Academy</strong>. Your
+              Thank you for choosing <strong>Q-Bambi Academy</strong>. Your
               enrollment application has been received and is now awaiting
               review by our admissions team.
             </p>

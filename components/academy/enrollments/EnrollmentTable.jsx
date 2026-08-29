@@ -1,15 +1,17 @@
 "use client";
 
-import { Eye, Pencil, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Eye, Trash2, CheckCircle2, XCircle } from "lucide-react";
+
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+
 import EnrollmentStatusBadge from "./EnrollmentStatusBadge";
 
 export default function EnrollmentTable({
   enrollments = [],
   loading = false,
-  onView,
-  onEdit,
+  saving = false,
   onApprove,
   onReject,
   onDelete,
@@ -20,10 +22,8 @@ export default function EnrollmentTable({
 
   if (loading) {
     return (
-      <div className="rounded-2xl border bg-white">
-        <div className="p-16 text-center text-neutral-500">
-          Loading enrollments...
-        </div>
+      <div className="rounded-2xl border bg-white p-10 text-center">
+        <p className="text-neutral-500">Loading enrollments...</p>
       </div>
     );
   }
@@ -34,22 +34,52 @@ export default function EnrollmentTable({
 
   if (!enrollments.length) {
     return (
-      <div className="rounded-2xl border bg-white">
-        <div className="p-16 text-center">
-          <h3 className="text-lg font-semibold">No enrollments found</h3>
+      <div className="rounded-2xl border bg-white p-10 text-center">
+        <h3 className="text-lg font-semibold text-neutral-900">
+          No enrollments found
+        </h3>
 
-          <p className="mt-2 text-neutral-500">
-            No enrollment matches your current filters.
-          </p>
-        </div>
+        <p className="mt-2 text-neutral-500">
+          No enrollment matches your current filters.
+        </p>
       </div>
     );
   }
 
   //----------------------------------------------------------
+  // Approve
+  //----------------------------------------------------------
+
+  function handleApprove(enrollment) {
+    if (saving) return;
+
+    if (!enrollment?.id) {
+      return;
+    }
+
+    onApprove?.(enrollment);
+  }
+
+  //----------------------------------------------------------
+  // Reject
+  //----------------------------------------------------------
+
+  function handleReject(enrollment) {
+    if (saving) return;
+
+    if (!enrollment?.id) {
+      return;
+    }
+
+    onReject?.(enrollment);
+  }
+
+  //----------------------------------------------------------
+  // Render
+  //----------------------------------------------------------
 
   return (
-    <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border bg-white">
       {/* Desktop */}
 
       <div className="hidden overflow-x-auto lg:block">
@@ -100,9 +130,15 @@ export default function EnrollmentTable({
 
                 <td className="px-6 py-5">
                   <div className="space-y-1">
-                    {(enrollment.courses || []).map((course) => (
-                      <div key={course.course_id} className="text-sm">
-                        {course.course_title ?? course.title ?? "Course"}
+                    {(enrollment.courses || []).map((course, index) => (
+                      <div
+                        key={course.id ?? course.course_id ?? index}
+                        className="text-sm"
+                      >
+                        {course.course_title ??
+                          course.title ??
+                          course.course?.title ??
+                          "Course"}
                       </div>
                     ))}
                   </div>
@@ -111,13 +147,13 @@ export default function EnrollmentTable({
                 {/* Learning */}
 
                 <td className="px-6 py-5 capitalize">
-                  {enrollment.learning_mode}
+                  {enrollment.learning_mode || "-"}
                 </td>
 
                 {/* Payment */}
 
                 <td className="px-6 py-5 capitalize">
-                  {enrollment.payment_plan}
+                  {enrollment.payment_plan || "-"}
                 </td>
 
                 {/* Tuition */}
@@ -134,56 +170,75 @@ export default function EnrollmentTable({
 
                 {/* Date */}
 
-                <td className="px-6 py-5 whitespace-nowrap text-sm text-neutral-500">
-                  {new Date(enrollment.created_at).toLocaleDateString()}
+                <td className="whitespace-nowrap px-6 py-5 text-sm text-neutral-500">
+                  {enrollment.created_at
+                    ? new Date(enrollment.created_at).toLocaleDateString(
+                        "en-NG",
+                        {
+                          dateStyle: "medium",
+                        },
+                      )
+                    : "-"}
                 </td>
 
                 {/* Actions */}
 
                 <td className="px-6 py-5">
                   <div className="flex justify-end gap-2">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={() => onView?.(enrollment)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    {/* View */}
 
                     <Button
+                      asChild
                       size="icon"
                       variant="outline"
-                      onClick={() => onEdit?.(enrollment)}
+                      title="View enrollment"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Link
+                        href={`/admin/academy/enrollments/${enrollment.id}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Link>
                     </Button>
+
+                    {/* Approve / Reject */}
 
                     {enrollment.status === "pending" && (
                       <>
                         <Button
+                          type="button"
                           size="icon"
                           variant="outline"
-                          className="text-green-600"
-                          onClick={() => onApprove?.(enrollment)}
+                          disabled={saving}
+                          className="text-green-600 hover:text-green-700"
+                          title="Approve enrollment"
+                          onClick={() => handleApprove(enrollment)}
                         >
                           <CheckCircle2 className="h-4 w-4" />
                         </Button>
 
                         <Button
+                          type="button"
                           size="icon"
                           variant="outline"
-                          className="text-orange-600"
-                          onClick={() => onReject?.(enrollment)}
+                          disabled={saving}
+                          className="text-orange-600 hover:text-orange-700"
+                          title="Reject enrollment"
+                          onClick={() => handleReject(enrollment)}
                         >
                           <XCircle className="h-4 w-4" />
                         </Button>
                       </>
                     )}
 
+                    {/* Delete */}
+
                     <Button
+                      type="button"
                       size="icon"
                       variant="outline"
-                      className="text-red-600"
+                      disabled={saving}
+                      className="text-red-600 hover:text-red-700"
+                      title="Delete enrollment"
                       onClick={() => onDelete?.(enrollment)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -220,12 +275,16 @@ export default function EnrollmentTable({
             <div className="mt-5 space-y-2 text-sm">
               <div>
                 <span className="font-medium">Learning:</span>{" "}
-                <span className="capitalize">{enrollment.learning_mode}</span>
+                <span className="capitalize">
+                  {enrollment.learning_mode || "-"}
+                </span>
               </div>
 
               <div>
                 <span className="font-medium">Payment:</span>{" "}
-                <span className="capitalize">{enrollment.payment_plan}</span>
+                <span className="capitalize">
+                  {enrollment.payment_plan || "-"}
+                </span>
               </div>
 
               <div>
@@ -235,69 +294,88 @@ export default function EnrollmentTable({
 
               <div>
                 <span className="font-medium">Submitted:</span>{" "}
-                {new Date(enrollment.created_at).toLocaleDateString()}
+                {enrollment.created_at
+                  ? new Date(enrollment.created_at).toLocaleDateString(
+                      "en-NG",
+                      {
+                        dateStyle: "medium",
+                      },
+                    )
+                  : "-"}
               </div>
 
               <div>
                 <span className="font-medium">Courses:</span>
 
                 <div className="mt-1 space-y-1">
-                  {(enrollment.courses || []).map((course) => (
-                    <div key={course.course_id}>
-                      • {course.course_title ?? course.title ?? "Course"}
+                  {(enrollment.courses || []).map((course, index) => (
+                    <div key={course.id ?? course.course_id ?? index}>
+                      •{" "}
+                      {course.course_title ??
+                        course.title ??
+                        course.course?.title ??
+                        "Course"}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
+            {/* Actions */}
+
             <div className="mt-6 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onView?.(enrollment)}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                View
+              {/* View */}
+
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/admin/academy/enrollments/${enrollment.id}`}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  View
+                </Link>
               </Button>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onEdit?.(enrollment)}
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
+              {/* Approve */}
 
               {enrollment.status === "pending" && (
                 <>
                   <Button
+                    type="button"
                     size="sm"
                     variant="outline"
+                    disabled={saving}
                     className="text-green-600"
-                    onClick={() => onApprove?.(enrollment)}
+                    onClick={() => handleApprove(enrollment)}
                   >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
                     Approve
                   </Button>
 
+                  {/* Reject */}
+
                   <Button
+                    type="button"
                     size="sm"
                     variant="outline"
+                    disabled={saving}
                     className="text-orange-600"
-                    onClick={() => onReject?.(enrollment)}
+                    onClick={() => handleReject(enrollment)}
                   >
+                    <XCircle className="mr-2 h-4 w-4" />
                     Reject
                   </Button>
                 </>
               )}
 
+              {/* Delete */}
+
               <Button
+                type="button"
                 size="sm"
                 variant="outline"
+                disabled={saving}
                 className="text-red-600"
                 onClick={() => onDelete?.(enrollment)}
               >
+                <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </Button>
             </div>

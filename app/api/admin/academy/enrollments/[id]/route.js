@@ -4,7 +4,7 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 //////////////////////////////////////////////////////////////
 // GET
-// Fetch complete single enrollment
+// Fetch complete single academy enrollment
 //////////////////////////////////////////////////////////////
 
 export async function GET(request, { params }) {
@@ -16,11 +16,25 @@ export async function GET(request, { params }) {
     const session = await auth();
 
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+        },
+        {
+          status: 401,
+        },
+      );
     }
 
     if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: "Forbidden",
+        },
+        {
+          status: 403,
+        },
+      );
     }
 
     ////////////////////////////////////////////////////////////
@@ -31,10 +45,18 @@ export async function GET(request, { params }) {
 
     if (!id) {
       return NextResponse.json(
-        { error: "Enrollment ID is required." },
-        { status: 400 },
+        {
+          error: "Enrollment ID is required.",
+        },
+        {
+          status: 400,
+        },
       );
     }
+
+    ////////////////////////////////////////////////////////////
+    // DATABASE
+    ////////////////////////////////////////////////////////////
 
     const supabase = createSupabaseAdmin();
 
@@ -49,41 +71,63 @@ export async function GET(request, { params }) {
       .single();
 
     if (enrollmentError) {
+      console.error("Enrollment fetch error:", enrollmentError);
+
       throw enrollmentError;
+    }
+
+    if (!enrollment) {
+      return NextResponse.json(
+        {
+          error: "Enrollment not found.",
+        },
+        {
+          status: 404,
+        },
+      );
     }
 
     ////////////////////////////////////////////////////////////
     // ENROLLMENT COURSES
+    //
+    // IMPORTANT:
+    // academy_courses does NOT have:
+    // - level
+    // - active
+    //
+    // Therefore only request columns that actually exist.
     ////////////////////////////////////////////////////////////
 
     const { data: enrollmentCourses, error: coursesError } = await supabase
       .from("academy_enrollment_courses")
       .select(
         `
-        *,
-        course:academy_courses(
-          id,
-          title,
-          slug,
-          level
-        ),
-        pricing:academy_course_pricing(
-          id,
-          learning_mode,
-          duration_months,
-          price,
-          currency
-        )
-      `,
+          *,
+          course:academy_courses(
+            id,
+            title,
+            slug
+          ),
+          pricing:academy_course_pricing(
+            id,
+            learning_mode,
+            duration_months,
+            price,
+            currency,
+            active
+          )
+        `,
       )
       .eq("enrollment_id", id);
 
     if (coursesError) {
+      console.error("Enrollment courses fetch error:", coursesError);
+
       throw coursesError;
     }
 
     ////////////////////////////////////////////////////////////
-    // STUDENT PAYMENT PLAN
+    // STUDENT PAYMENT PLANS
     ////////////////////////////////////////////////////////////
 
     const { data: studentPaymentPlans, error: paymentPlanError } =
@@ -91,18 +135,18 @@ export async function GET(request, { params }) {
         .from("academy_student_payment_plans")
         .select(
           `
-        *,
-        payment_plan:academy_payment_plans(
-          id,
-          name,
-          description,
-          initial_payment_percentage,
-          number_of_payments,
-          payment_interval_months,
-          extra_percentage,
-          is_active
-        )
-      `,
+          *,
+          payment_plan:academy_payment_plans(
+            id,
+            name,
+            description,
+            initial_payment_percentage,
+            number_of_payments,
+            payment_interval_months,
+            extra_percentage,
+            is_active
+          )
+        `,
         )
         .eq("enrollment_id", id)
         .order("created_at", {
@@ -110,6 +154,8 @@ export async function GET(request, { params }) {
         });
 
     if (paymentPlanError) {
+      console.error("Student payment plan fetch error:", paymentPlanError);
+
       throw paymentPlanError;
     }
 
@@ -130,8 +176,6 @@ export async function GET(request, { params }) {
 
     ////////////////////////////////////////////////////////////
     // PAYMENT SCHEDULE
-    //
-    // Fetch directly using student_payment_plan_id.
     ////////////////////////////////////////////////////////////
 
     let paymentSchedule = [];
@@ -146,6 +190,8 @@ export async function GET(request, { params }) {
         });
 
       if (scheduleError) {
+        console.error("Payment schedule fetch error:", scheduleError);
+
         throw scheduleError;
       }
 
@@ -165,6 +211,8 @@ export async function GET(request, { params }) {
       });
 
     if (paymentHistoryError) {
+      console.error("Payment history fetch error:", paymentHistoryError);
+
       throw paymentHistoryError;
     }
 
@@ -176,13 +224,13 @@ export async function GET(request, { params }) {
       .from("academy_enrollment_notes")
       .select(
         `
-        *,
-        admin:users(
-          id,
-          first_name,
-          last_name
-        )
-      `,
+          *,
+          admin:users(
+            id,
+            first_name,
+            last_name
+          )
+        `,
       )
       .eq("enrollment_id", id)
       .order("created_at", {
@@ -190,6 +238,8 @@ export async function GET(request, { params }) {
       });
 
     if (notesError) {
+      console.error("Admin notes fetch error:", notesError);
+
       throw notesError;
     }
 
@@ -201,13 +251,13 @@ export async function GET(request, { params }) {
       .from("academy_enrollment_timeline")
       .select(
         `
-        *,
-        admin:users(
-          id,
-          first_name,
-          last_name
-        )
-      `,
+          *,
+          admin:users(
+            id,
+            first_name,
+            last_name
+          )
+        `,
       )
       .eq("enrollment_id", id)
       .order("created_at", {
@@ -215,24 +265,32 @@ export async function GET(request, { params }) {
       });
 
     if (timelineError) {
+      console.error("Enrollment timeline fetch error:", timelineError);
+
       throw timelineError;
     }
 
     ////////////////////////////////////////////////////////////
     // PRICING OPTIONS
+    //
+    // IMPORTANT:
+    // Do NOT request academy_courses.active.
+    //
+    // academy_course_pricing.active is used here because
+    // pricing itself has the active flag.
     ////////////////////////////////////////////////////////////
 
     const { data: pricingOptions, error: pricingError } = await supabase
       .from("academy_course_pricing")
       .select(
         `
-        *,
-        course:academy_courses(
-          id,
-          title,
-          active
-        )
-      `,
+          *,
+          course:academy_courses(
+            id,
+            title,
+            slug
+          )
+        `,
       )
       .eq("active", true)
       .order("price", {
@@ -240,8 +298,14 @@ export async function GET(request, { params }) {
       });
 
     if (pricingError) {
+      console.error("Pricing options fetch error:", pricingError);
+
       throw pricingError;
     }
+
+    ////////////////////////////////////////////////////////////
+    // FINANCIAL CALCULATIONS
+    ////////////////////////////////////////////////////////////
 
     const baseTuition = Number(enrollment.total_course_fee ?? 0);
 
@@ -257,12 +321,6 @@ export async function GET(request, { params }) {
 
     ////////////////////////////////////////////////////////////
     // PAYMENT PLAN DISPLAY VALUE
-    //
-    // IMPORTANT:
-    // payment_plan must be a string for the UI.
-    //
-    // Keep the complete object separately as
-    // payment_plan_details.
     ////////////////////////////////////////////////////////////
 
     const paymentPlanName = paymentPlanDetails?.name ?? null;
@@ -282,7 +340,7 @@ export async function GET(request, { params }) {
         courses: enrollmentCourses ?? [],
 
         ////////////////////////////////////////////////////////
-        // Payment plan
+        // Student payment plan
         ////////////////////////////////////////////////////////
 
         student_payment_plan: studentPaymentPlan,
@@ -306,20 +364,36 @@ export async function GET(request, { params }) {
         total_tuition: totalTuition,
 
         ////////////////////////////////////////////////////////
-        // Other enrollment data
+        // Payment history
         ////////////////////////////////////////////////////////
 
         payment_history: paymentHistory ?? [],
 
+        ////////////////////////////////////////////////////////
+        // Admin notes
+        ////////////////////////////////////////////////////////
+
         admin_notes: adminNotes ?? [],
+
+        ////////////////////////////////////////////////////////
+        // Timeline
+        ////////////////////////////////////////////////////////
 
         timeline: timeline ?? [],
       },
 
+      //////////////////////////////////////////////////////////
+      // Available pricing options
+      //////////////////////////////////////////////////////////
+
       pricingOptions: pricingOptions ?? [],
     });
   } catch (error) {
-    console.error("Academy enrollment details error:", error);
+    console.error("========== ACADEMY ENROLLMENT DETAILS ERROR ==========");
+
+    console.error(error);
+
+    console.error("=======================================================");
 
     return NextResponse.json(
       {

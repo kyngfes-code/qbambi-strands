@@ -1,294 +1,348 @@
 import { NextResponse } from "next/server";
+
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+function getPlanName(paymentPlan) {
+  if (!paymentPlan) {
+    return "Academy Payment Plan";
+  }
 
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-];
+  return (
+    paymentPlan.name ||
+    paymentPlan.plan_name ||
+    paymentPlan.title ||
+    paymentPlan.label ||
+    "Academy Payment Plan"
+  );
+}
 
-export async function POST(req) {
-  const supabase = createSupabaseAdmin();
-
-  let uploadedFilePath = null;
-
+export async function GET() {
   try {
-    //////////////////////////////////////////////////////
+    // --------------------------------------------------
     // Authentication
-    //////////////////////////////////////////////////////
+    // --------------------------------------------------
 
     const session = await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
         {
-          error: "Unauthorized",
+          error: "Unauthorized.",
+          code: "UNAUTHORIZED",
         },
-        {
-          status: 401,
-        },
+        { status: 401 },
       );
     }
 
-    //////////////////////////////////////////////////////
-    // Form Data
-    //////////////////////////////////////////////////////
+    // --------------------------------------------------
+    // Must be a student
+    // --------------------------------------------------
 
-    const formData = await req.formData();
-
-    const paymentScheduleId = formData.get("payment_schedule_id");
-
-    const paymentMethod = formData.get("payment_method") || "bank_transfer";
-
-    const paymentReference = formData.get("payment_reference") || null;
-
-    const receipt = formData.get("receipt");
-
-    //////////////////////////////////////////////////////
-    // Validation
-    //////////////////////////////////////////////////////
-
-    if (!paymentScheduleId) {
+    if (session.user.role !== "student") {
       return NextResponse.json(
         {
-          error: "Payment schedule is required.",
+          error: "Academy student access required.",
+          code: "NOT_A_STUDENT",
         },
-        {
-          status: 400,
-        },
+        { status: 403 },
       );
     }
 
-    if (!(receipt instanceof File)) {
-      return NextResponse.json(
-        {
-          error: "Receipt is required.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
+    const supabase = createSupabaseAdmin();
 
-    if (!ALLOWED_TYPES.includes(receipt.type)) {
-      return NextResponse.json(
-        {
-          error: "Only JPG, PNG, WEBP and PDF receipts are allowed.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    if (receipt.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        {
-          error: "Receipt must not exceed 5MB.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    //////////////////////////////////////////////////////
-    // Get Student Enrollment
-    //////////////////////////////////////////////////////
+    // --------------------------------------------------
+    // Find current enrollment
+    // --------------------------------------------------
 
     const { data: enrollment, error: enrollmentError } = await supabase
       .from("academy_enrollments")
-      .select("id,user_id")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (enrollmentError || !enrollment) {
-      return NextResponse.json(
-        {
-          error: "Enrollment not found.",
-        },
-        {
-          status: 404,
-        },
-      );
-    }
-
-    //////////////////////////////////////////////////////
-    // Verify Payment Schedule Ownership
-    //////////////////////////////////////////////////////
-
-    const { data: schedule, error: scheduleError } = await supabase
-      .from("academy_student_payment_schedule")
       .select(
         `
-          *,
-          payment_plan:academy_student_payment_plans(
-            id,
-            enrollment_id
-          )
-        `,
+        id,
+        user_id,
+        enrollment_number,
+        first_name,
+        last_name,
+        email,
+        status,
+        payment_status,
+        total_course_fee,
+        total_payable,
+        amount_paid,
+        balance_due,
+        initial_payment_amount,
+        initial_payment_percentage,
+        payment_plan_id
+      `,
       )
-      .eq("id", paymentScheduleId)
-      .single();
+      .eq("user_id", session.user.id)
+      .in("status", ["confirmed", "payment_verified", "enrolled"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (scheduleError || !schedule) {
+    if (enrollmentError) {
+      console.error(
+        "Academy payment enrollment lookup error:",
+        enrollmentError,
+      );
+
       return NextResponse.json(
         {
-          error: "Payment schedule not found.",
+          error: "Unable to load your academy enrollment.",
+          code: "ENROLLMENT_LOOKUP_FAILED",
         },
-        {
-          status: 404,
-        },
+        { status: 500 },
       );
     }
 
-    if (schedule.payment_plan?.enrollment_id !== enrollment.id) {
+    if (!enrollment) {
       return NextResponse.json(
         {
-          error: "Unauthorized payment schedule.",
+          error: "No active academy enrollment was found.",
+          code: "ENROLLMENT_NOT_FOUND",
         },
-        {
-          status: 403,
-        },
+        { status: 404 },
       );
     }
 
-    //////////////////////////////////////////////////////
-    // Prevent Duplicate Pending Payments
-    //////////////////////////////////////////////////////
+    // --------------------------------------------------
+    // Already enrolled
+    // --------------------------------------------------
 
-    const { data: existingPayment, error: existingPaymentError } =
-      await supabase
-        .from("academy_enrollment_payments")
-        .select("id")
-        .eq("payment_schedule_id", paymentScheduleId)
-        .eq("status", "pending_review")
+    if (enrollment.status === "enrolled") {
+      return NextResponse.json(
+        {
+          error: "Your academy enrollment is already active.",
+          code: "ALREADY_ENROLLED",
+          redirect: "/academy/dashboard",
+        },
+        { status: 409 },
+      );
+    }
+
+    // --------------------------------------------------
+    // Only confirmed/payment_verified belongs here
+    // --------------------------------------------------
+
+    if (
+      enrollment.status !== "confirmed" &&
+      enrollment.status !== "payment_verified"
+    ) {
+      return NextResponse.json(
+        {
+          error: "This enrollment is not currently ready for payment.",
+          code: "INVALID_ENROLLMENT_STATUS",
+        },
+        { status: 409 },
+      );
+    }
+
+    // --------------------------------------------------
+    // Get academy payment plan
+    // --------------------------------------------------
+
+    let paymentPlan = null;
+
+    if (enrollment.payment_plan_id) {
+      const { data: plan, error: planError } = await supabase
+        .from("academy_payment_plans")
+        .select("*")
+        .eq("id", enrollment.payment_plan_id)
         .maybeSingle();
 
-    if (existingPaymentError) {
-      throw existingPaymentError;
+      if (planError) {
+        console.error("Academy payment plan lookup error:", planError);
+
+        return NextResponse.json(
+          {
+            error: "Unable to load your payment plan.",
+            code: "PAYMENT_PLAN_LOOKUP_FAILED",
+          },
+          { status: 500 },
+        );
+      }
+
+      paymentPlan = plan;
     }
 
-    if (existingPayment) {
+    // --------------------------------------------------
+    // Get final student payment plan
+    // --------------------------------------------------
+
+    const { data: studentPaymentPlan, error: studentPlanError } = await supabase
+      .from("academy_student_payment_plans")
+      .select("*")
+      .eq("enrollment_id", enrollment.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (studentPlanError) {
+      console.error(
+        "Academy student payment plan lookup error:",
+        studentPlanError,
+      );
+
       return NextResponse.json(
         {
-          error: "A payment for this schedule is already awaiting review.",
+          error: "Unable to load your student payment plan.",
+          code: "STUDENT_PAYMENT_PLAN_LOOKUP_FAILED",
         },
-        {
-          status: 409,
-        },
+        { status: 500 },
       );
     }
 
-    //////////////////////////////////////////////////////
-    // Secure Amount
-    //////////////////////////////////////////////////////
+    // --------------------------------------------------
+    // Determine total payable
+    // --------------------------------------------------
 
-    const amount = Number(schedule.amount_due ?? schedule.amount);
+    const totalPayable = Number(
+      enrollment.total_payable ??
+        enrollment.total_course_fee ??
+        studentPaymentPlan?.total_payable ??
+        studentPaymentPlan?.total_amount ??
+        0,
+    );
 
-    //////////////////////////////////////////////////////
-    // Upload Receipt
-    //////////////////////////////////////////////////////
+    // --------------------------------------------------
+    // Determine amount already paid
+    // --------------------------------------------------
 
-    const extension = receipt.name.split(".").pop()?.toLowerCase() || "jpg";
+    const amountPaid = Number(enrollment.amount_paid || 0);
 
-    uploadedFilePath = `${enrollment.id}/${Date.now()}.${extension}`;
+    // --------------------------------------------------
+    // Determine initial payment
+    // --------------------------------------------------
 
-    const buffer = Buffer.from(await receipt.arrayBuffer());
+    const initialPaymentAmount = Number(
+      studentPaymentPlan?.initial_payment_amount ??
+        enrollment.initial_payment_amount ??
+        0,
+    );
 
-    const { error: uploadError } = await supabase.storage
-      .from("academy-payment-receipts")
-      .upload(uploadedFilePath, buffer, {
-        contentType: receipt.type,
-        upsert: false,
-      });
+    // --------------------------------------------------
+    // Determine payment plan type
+    // --------------------------------------------------
 
-    if (uploadError) {
-      throw uploadError;
-    }
+    const isInitialPaymentPlan =
+      initialPaymentAmount > 0 && initialPaymentAmount < totalPayable;
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage
-      .from("academy-payment-receipts")
-      .getPublicUrl(uploadedFilePath);
-    //////////////////////////////////////////////////////
-    // Save Payment
-    //////////////////////////////////////////////////////
+    // --------------------------------------------------
+    // Determine amount required now
+    // --------------------------------------------------
 
-    const { data: payment, error: paymentError } = await supabase
-      .from("academy_enrollment_payments")
-      .insert({
-        enrollment_id: enrollment.id,
+    const requiredAmount = isInitialPaymentPlan
+      ? Math.max(initialPaymentAmount - amountPaid, 0)
+      : Math.max(totalPayable - amountPaid, 0);
 
-        student_payment_plan_id: schedule.student_payment_plan_id,
+    // --------------------------------------------------
+    // Determine balance
+    // --------------------------------------------------
 
-        payment_schedule_id: schedule.id,
+    const calculatedBalance = Math.max(totalPayable - amountPaid, 0);
 
-        amount,
+    const balanceDue = Number(enrollment.balance_due ?? calculatedBalance);
 
-        payment_method: paymentMethod,
+    // --------------------------------------------------
+    // Payment type
+    // --------------------------------------------------
 
-        payment_reference: paymentReference,
+    const paymentType = isInitialPaymentPlan
+      ? "initial_payment"
+      : "full_payment";
 
-        receipt_url: publicUrl,
+    // --------------------------------------------------
+    // Payment already verified
+    // --------------------------------------------------
 
-        status: "pending_review",
-      })
-      .select()
-      .single();
-
-    if (paymentError) {
-      throw paymentError;
-    }
-
-    //////////////////////////////////////////////////////
-    // Success
-    //////////////////////////////////////////////////////
-
-    return NextResponse.json(
-      {
+    if (enrollment.status === "payment_verified" || requiredAmount <= 0) {
+      return NextResponse.json({
         success: true,
 
-        message: "Payment submitted successfully and is awaiting review.",
-      },
-      {
-        status: 201,
-      },
-    );
-  } catch (error) {
-    console.error("ACADEMY PAYMENT SUBMISSION ERROR");
-    console.error(error);
+        state: "payment_verified",
 
-    //////////////////////////////////////////////////////
-    // Rollback Uploaded Receipt
-    //////////////////////////////////////////////////////
+        enrollment: {
+          id: enrollment.id,
+          enrollmentNumber: enrollment.enrollment_number,
+          firstName: enrollment.first_name,
+          lastName: enrollment.last_name,
+          email: enrollment.email,
+          status: enrollment.status,
+          paymentStatus: enrollment.payment_status,
+        },
 
-    if (uploadedFilePath) {
-      try {
-        await supabase.storage
-          .from("academy-payment-receipts")
-          .remove([uploadedFilePath]);
-      } catch (rollbackError) {
-        console.error("RECEIPT ROLLBACK FAILED", rollbackError);
-      }
+        payment: {
+          planName: getPlanName(paymentPlan),
+
+          paymentType,
+
+          totalPayable,
+
+          amountPaid,
+
+          balanceDue,
+
+          initialPaymentAmount,
+
+          requiredAmount: 0,
+
+          isInitialPaymentPlan,
+        },
+      });
     }
 
-    //////////////////////////////////////////////////////
-    // Response
-    //////////////////////////////////////////////////////
+    // --------------------------------------------------
+    // Normal payment state
+    // --------------------------------------------------
+
+    return NextResponse.json({
+      success: true,
+
+      state: "payment_required",
+
+      enrollment: {
+        id: enrollment.id,
+        enrollmentNumber: enrollment.enrollment_number,
+        firstName: enrollment.first_name,
+        lastName: enrollment.last_name,
+        email: enrollment.email,
+        status: enrollment.status,
+        paymentStatus: enrollment.payment_status,
+      },
+
+      payment: {
+        planName: getPlanName(paymentPlan),
+
+        paymentType,
+
+        totalPayable,
+
+        amountPaid,
+
+        balanceDue,
+
+        initialPaymentAmount,
+
+        initialPaymentPercentage: Number(
+          enrollment.initial_payment_percentage || 0,
+        ),
+
+        requiredAmount,
+
+        isInitialPaymentPlan,
+      },
+    });
+  } catch (error) {
+    console.error("Academy payment API error:", error);
 
     return NextResponse.json(
       {
-        error: error.message ?? "Unable to submit payment.",
+        error: error?.message || "Unable to load academy payment information.",
+        code: "ACADEMY_PAYMENT_ERROR",
       },
-      {
-        status: 500,
-      },
+      { status: 500 },
     );
   }
 }

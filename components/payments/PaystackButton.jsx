@@ -14,11 +14,6 @@ export default function PaystackButton({
   async function handlePaystackPayment() {
     try {
       setLoading(true);
-      console.log({
-        entityType,
-        entityId,
-        paymentType,
-      });
 
       const response = await fetch("/api/paystack/initialize", {
         method: "POST",

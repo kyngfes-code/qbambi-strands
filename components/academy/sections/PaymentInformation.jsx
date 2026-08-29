@@ -10,6 +10,14 @@ export default function PaymentInformation({ courses = [], pricing }) {
     formState: { errors },
   } = useFormContext();
 
+  console.log("========== PAYMENT INFORMATION ==========");
+  console.log("pricing:", pricing);
+  console.log("selectedCourses:", pricing?.selectedCourses);
+  console.log("availablePaymentPlans:", pricing?.availablePaymentPlans);
+  console.log("loadingPaymentPlans:", pricing?.loadingPaymentPlans);
+  console.log("selectedPaymentPlan:", pricing?.selectedPaymentPlan);
+  console.log("paymentBreakdown:", pricing?.paymentBreakdown);
+  console.log("==========================================");
   //------------------------------------------------------
   // Payment state comes from pricing
   //------------------------------------------------------
@@ -53,13 +61,10 @@ export default function PaymentInformation({ courses = [], pricing }) {
       {/* ================================================= */}
       {/* Hidden Payment Plan Field */}
       {/* ================================================= */}
-
       <input type="hidden" {...register("payment_plan_id")} />
-
       {/* ================================================= */}
       {/* Heading */}
       {/* ================================================= */}
-
       <div>
         <h2 className="text-2xl font-bold text-neutral-900">
           Payment Information
@@ -74,17 +79,13 @@ export default function PaymentInformation({ courses = [], pricing }) {
       {/* ================================================= */}
       {/* Payment Plan Selector */}
       {/* ================================================= */}
-
       <PaymentPlanSelector pricing={pricing} setValue={setValue} />
-
       {errors.payment_plan_id && (
         <p className="text-sm text-red-500">{errors.payment_plan_id.message}</p>
       )}
-
       {/* ================================================= */}
       {/* Enrollment Summary */}
       {/* ================================================= */}
-
       <div className="rounded-3xl border bg-white p-6 shadow-sm">
         <h3 className="text-xl font-semibold text-neutral-900">
           Enrollment Summary

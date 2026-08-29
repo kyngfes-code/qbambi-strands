@@ -99,7 +99,7 @@ export default function SetPasswordPage() {
       //------------------------------------------------
 
       setTimeout(() => {
-        router.push("/login");
+        router.push("/signin");
       }, 2500);
     } catch (err) {
       console.error("Set Password:", err);

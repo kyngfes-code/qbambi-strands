@@ -1,89 +1,130 @@
 // app/academy/dashboard/page.jsx
 
-import EnrollmentOverviewCard from "@/components/academy/studentDashBoard/Enrollment Overview Card";
-import NextPaymentCard from "@/components/academy/studentDashBoard/NextPaymentCard";
-import PaymentSummaryCard from "@/components/academy/studentDashBoard/PaymentSummaryCard";
-import QuickActions from "@/components/academy/studentDashBoard/QuickActions";
-import RecentActivityCard from "@/components/academy/studentDashBoard/RecentActivityCard";
-import RecentPaymentsCard from "@/components/academy/studentDashBoard/RecentPaymentsCard";
-import { auth } from "@/lib/auth";
+import AcademyDashboardClient from "@/components/academy/studentDashBoard/AcademyDashboardClient";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
+/**
+ * ==========================================================
+ * GET ACADEMY DASHBOARD
+ * ==========================================================
+ *
+ * The API returns:
+ *
+ * {
+ *   student,
+ *   courses: [
+ *     {
+ *       enrollment,
+ *       course,
+ *       paymentPlan,
+ *       paymentSummary,
+ *       nextPayment,
+ *       upcomingPayments,
+ *       recentPayments,
+ *       timeline
+ *     }
+ *   ]
+ * }
+ *
+ * A student can have multiple enrolled courses.
+ */
+
 async function getDashboard() {
-  const session = await auth();
+  const requestHeaders = await headers();
 
-  const res = await fetch(`${process.env.NEXTAUTH_URL}/api/academy/dashboard`, {
-    headers: {
-      Cookie: session?.headers?.cookie ?? "",
-    },
-    cache: "no-store",
-  });
+  const cookie = requestHeaders.get("cookie") ?? "";
 
-  if (!res.ok) {
+  if (!process.env.NEXTAUTH_URL) {
+    console.error("Academy dashboard error: NEXTAUTH_URL is not configured.");
+
     return null;
   }
 
-  return res.json();
+  try {
+    const res = await fetch(
+      `${process.env.NEXTAUTH_URL}/api/academy/dashboard`,
+      {
+        method: "GET",
+
+        headers: {
+          Cookie: cookie,
+        },
+
+        cache: "no-store",
+      },
+    );
+
+    if (!res.ok) {
+      const errorText = await res.text();
+
+      console.error("Academy dashboard API returned:", res.status, errorText);
+
+      return null;
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("Academy dashboard fetch error:", error);
+
+    return null;
+  }
 }
 
 export default async function AcademyDashboardPage() {
-  const session = await auth();
-
-  if (!session) {
-    redirect("/academy/login");
-  }
-
-  if (session.user.role !== "student") {
-    redirect("/");
-  }
-
   const dashboard = await getDashboard();
 
-  return (
-    <main className="min-h-screen bg-neutral-50">
-      <div className="mx-auto max-w-7xl px-6 py-10">
-        {/* Header */}
+  // ==========================================================
+  // 1. DASHBOARD DATA
+  // ==========================================================
 
-        <div className="mb-10 flex flex-col gap-3">
-          <p className="text-sm uppercase tracking-[0.25em] text-[#C6A667]">
-            Student Dashboard
-          </p>
+  if (!dashboard) {
+    redirect("/account");
+  }
 
-          <h1 className="text-4xl font-bold">
-            Welcome back,
-            <span className="text-[#C6A667]"> {session.user.name}</span>
-          </h1>
+  // ==========================================================
+  // 2. STUDENT
+  // ==========================================================
 
-          <p className="text-neutral-500">
-            Student Number{" "}
-            <span className="font-semibold">{session.user.studentNumber}</span>
-          </p>
-        </div>
+  const student = dashboard.student;
 
-        {/* Top Row */}
+  if (!student) {
+    redirect("/account");
+  }
 
-        <div className="grid gap-6 xl:grid-cols-3">
-          <EnrollmentOverviewCard enrollment={dashboard?.enrollment} />
+  // ==========================================================
+  // 3. STUDENT SECURITY
+  // ==========================================================
 
-          <PaymentSummaryCard summary={dashboard?.paymentSummary} />
+  if (student.status !== "active") {
+    redirect("/account");
+  }
 
-          <NextPaymentCard payment={dashboard?.nextPayment} />
-        </div>
+  if (student.is_active !== true) {
+    redirect("/account");
+  }
 
-        {/* Middle Row */}
+  // ==========================================================
+  // 4. COURSES
+  //
+  // A student may have multiple enrolled courses.
+  // ==========================================================
 
-        <div className="mt-8 grid gap-6 xl:grid-cols-2">
-          <RecentPaymentsCard payments={dashboard?.recentPayments} />
+  const courses = Array.isArray(dashboard.courses) ? dashboard.courses : [];
 
-          <RecentActivityCard timeline={dashboard?.timeline} />
-        </div>
+  // ==========================================================
+  // 5. MUST HAVE AT LEAST ONE ACTIVE COURSE
+  // ==========================================================
 
-        {/* Quick Actions */}
+  if (!courses.length) {
+    redirect("/account");
+  }
 
-        <div className="mt-8">
-          <QuickActions />
-        </div>
-      </div>
-    </main>
-  );
+  // ==========================================================
+  // 6. RENDER CLIENT DASHBOARD
+  // ==========================================================
+
+  return <AcademyDashboardClient student={student} courses={courses} />;
 }

@@ -114,11 +114,26 @@ export default function AdditionalInformation() {
       </div>
 
       {/* Agreement */}
-      <div className="rounded-2xl border border-[#C6A667]/20 bg-[#C6A667]/10 p-5 sm:p-6">
-        <label className="flex items-start gap-3">
+      <div
+        className={`rounded-2xl border p-5 sm:p-6 ${
+          errors.terms
+            ? "border-red-300 bg-red-50"
+            : "border-[#C6A667]/20 bg-[#C6A667]/10"
+        }`}
+      >
+        <label
+          htmlFor="terms"
+          className="flex cursor-pointer items-start gap-3"
+        >
           <input
+            id="terms"
             type="checkbox"
-            {...register("terms")}
+            {...register("terms", {
+              required: "You must confirm the agreement before submitting.",
+              validate: (value) =>
+                value === true ||
+                "You must confirm the agreement before submitting.",
+            })}
             className="mt-1 h-4 w-4 shrink-0 rounded border-neutral-300 text-[#C6A667] focus:ring-[#C6A667]"
           />
 
@@ -126,12 +141,14 @@ export default function AdditionalInformation() {
             I confirm that the information provided is accurate. I understand
             that submitting this form is an application for admission and does
             not automatically guarantee enrollment until reviewed and approved
-            by Qbambi Academy.
+            by Q-bambi Academy.
           </span>
         </label>
 
         {errors.terms && (
-          <p className="mt-3 text-sm text-red-500">{errors.terms.message}</p>
+          <p className="mt-3 text-sm font-medium text-red-500">
+            {errors.terms.message}
+          </p>
         )}
       </div>
     </section>

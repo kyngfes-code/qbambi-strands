@@ -1,26 +1,25 @@
 "use client";
 
-import { toast } from "sonner";
+import { useState } from "react";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 
+import BackButton from "../BackButton";
+
 import CourseSearch from "@/components/academy/courses/CourseSearch";
-import CourseTable from "@/components/academy/courses/CourseTable";
-import CourseFormModal from "@/components/academy/courses/CourseFormModal";
-import DeleteCourseDialog from "@/components/academy/courses/DeleteCourseDialog";
 
 import useAcademyCourses from "@/hooks/useAcademyCourses";
-import BackButton from "../BackButton";
+import CourseFormDialog from "@/components/academy/courses/CourseFormDialog";
+import AcademyCoursesTable from "@/components/academy/courses/AcademyCoursesTable";
 
 export default function AcademyCoursesPage() {
   const {
     filteredCourses,
-    selectedCourse,
 
     loading,
     saving,
-    deleting,
 
     search,
     setSearch,
@@ -28,91 +27,150 @@ export default function AcademyCoursesPage() {
     status,
     setStatus,
 
-    courseModalOpen,
-    deleteDialogOpen,
+    selectedCourse,
 
+    courseModalOpen,
     setCourseModalOpen,
-    setDeleteDialogOpen,
 
     openCreateModal,
     openEditModal,
-    openDeleteDialog,
 
     createCourse,
     updateCourse,
-    deleteCourse,
-    fetchCourses,
 
     toggleCourseStatus,
     updateSortOrder,
+
+    fetchCourses,
   } = useAcademyCourses();
 
-  //////////////////////////////////////////////////////
-  // Save
-  //////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////
+  // MANAGE COURSE
+  ////////////////////////////////////////////////////////////
 
-  async function handleSave(values) {
-    let success = false;
-
-    if (selectedCourse) {
-      success = await updateCourse(selectedCourse.id, values);
-
-      if (success) {
-        toast.success("Course updated successfully.");
-      }
-    } else {
-      success = await createCourse(values);
-
-      if (success) {
-        toast.success("Course created successfully.");
-      }
+  function handleManageCourse(course) {
+    if (!course?.id) {
+      toast.error("Course ID is missing.");
+      return;
     }
 
-    if (!success) return;
+    window.location.href = `/admin/academy/courses/${course.id}`;
+  }
 
-    setCourseModalOpen(false);
+  ////////////////////////////////////////////////////////////
+  // SAVE COURSE
+  ////////////////////////////////////////////////////////////
+
+  async function handleSubmit(values) {
+    let success = false;
+
+    try {
+      if (selectedCourse?.id) {
+        success = await updateCourse(selectedCourse.id, values);
+      } else {
+        success = await createCourse(values);
+      }
+
+      if (!success) {
+        return;
+      }
+
+      setCourseModalOpen(false);
+
+      await fetchCourses();
+    } catch (error) {
+      console.error("Academy course save error:", error);
+
+      toast.error(error?.message || "Unable to save academy course.");
+    }
+  }
+
+  ////////////////////////////////////////////////////////////
+  // CREATE
+  ////////////////////////////////////////////////////////////
+
+  function handleCreateCourse() {
+    openCreateModal();
+  }
+
+  ////////////////////////////////////////////////////////////
+  // EDIT
+  ////////////////////////////////////////////////////////////
+
+  function handleEditCourse(course) {
+    if (!course?.id) {
+      toast.error("Course ID is missing.");
+      return;
+    }
+
+    openEditModal(course);
+  }
+
+  ////////////////////////////////////////////////////////////
+  // STATUS
+  ////////////////////////////////////////////////////////////
+
+  async function handleToggleStatus(course) {
+    if (!course?.id) {
+      toast.error("Course ID is missing.");
+      return;
+    }
+
+    await toggleCourseStatus(course);
 
     await fetchCourses();
   }
 
-  //////////////////////////////////////////////////////
-  // Delete
-  //////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////
+  // SORT ORDER
+  ////////////////////////////////////////////////////////////
 
-  async function handleDelete() {
-    if (!selectedCourse) return;
+  async function handleSortOrderChange(course, value) {
+    if (!course?.id) {
+      toast.error("Course ID is missing.");
+      return;
+    }
 
-    const success = await deleteCourse(selectedCourse.id);
+    const normalizedValue = Number(value);
 
-    if (!success) return;
+    if (!Number.isInteger(normalizedValue) || normalizedValue < 0) {
+      toast.error("Sort order must be a non-negative whole number.");
 
-    toast.success("Course deleted successfully.");
+      return;
+    }
 
-    setDeleteDialogOpen(false);
+    await updateSortOrder(course, normalizedValue);
 
     await fetchCourses();
   }
 
-  //////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////
+  // PAGE
+  ////////////////////////////////////////////////////////////
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-4 sm:px-6 lg:px-8 lg:space-y-8">
-      {/* Header */}
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-5 sm:px-6 lg:space-y-8 lg:px-8">
+      {/* Back */}
       <BackButton />
 
+      {/* Header */}
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
             Academy Courses
           </h1>
 
-          <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-            Create, update, organize and manage all academy courses.
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
+            Create and manage academy courses, publish or archive courses,
+            control their order, and manage course modules, videos, and
+            materials.
           </p>
         </div>
 
         <Button
-          onClick={openCreateModal}
+          type="button"
+          onClick={handleCreateCourse}
+          disabled={saving}
           className="w-full sm:w-auto lg:min-w-[180px]"
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -120,50 +178,35 @@ export default function AcademyCoursesPage() {
         </Button>
       </div>
 
-      {/* Search */}
-
-      <div className="rounded-xl border bg-background p-4 shadow-sm">
+      {/* Filters */}
+      <section className="rounded-xl border bg-background p-4 shadow-sm">
         <CourseSearch
           search={search}
           onSearchChange={setSearch}
           status={status}
           onStatusChange={setStatus}
         />
-      </div>
+      </section>
 
-      {/* Table */}
+      {/* Courses */}
+      <section className="overflow-hidden rounded-xl border bg-background shadow-sm">
+        <AcademyCoursesTable
+          courses={filteredCourses}
+          loading={loading}
+          onEdit={handleEditCourse}
+          onToggleStatus={handleToggleStatus}
+          onSortOrderChange={handleSortOrderChange}
+          onManageCourse={handleManageCourse}
+        />
+      </section>
 
-      <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
-        <div className="overflow-x-auto">
-          <CourseTable
-            loading={loading}
-            courses={filteredCourses}
-            onEdit={openEditModal}
-            onDelete={openDeleteDialog}
-            onToggleStatus={toggleCourseStatus}
-            onSortOrderChange={updateSortOrder}
-          />
-        </div>
-      </div>
-
-      {/* Create / Edit */}
-
-      <CourseFormModal
+      {/* Create / Edit Course */}
+      <CourseFormDialog
         open={courseModalOpen}
         onOpenChange={setCourseModalOpen}
         initialData={selectedCourse}
         loading={saving}
-        onSubmit={handleSave}
-      />
-
-      {/* Delete */}
-
-      <DeleteCourseDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        course={selectedCourse}
-        loading={deleting}
-        onDelete={handleDelete}
+        onSubmit={handleSubmit}
       />
     </div>
   );

@@ -16,6 +16,10 @@ export async function GET(req) {
   try {
     const session = await auth();
 
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     if (session.user.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -30,23 +34,22 @@ export async function GET(req) {
 
     let query = supabase.from("academy_course_pricing").select(
       `
-        *,
-        course:academy_courses(
-          id,
-          title,
-          slug,
-          level,
-          active,
-          sort_order
-        )
-      `,
+          *,
+          course:academy_courses(
+            id,
+            title,
+            slug,
+            status,
+            sort_order
+          )
+        `,
       {
         count: "exact",
       },
     );
 
     //----------------------------------------------------
-    // Status Filter
+    // Pricing Status Filter
     //----------------------------------------------------
 
     if (filters.status === "active") {
@@ -72,13 +75,6 @@ export async function GET(req) {
     if (filters.courseId) {
       query = query.eq("course_id", filters.courseId);
     }
-
-    //----------------------------------------------------
-    // Search
-    //
-    // Supabase cannot search joined table columns directly
-    // with ilike, so we filter after fetch if necessary.
-    //----------------------------------------------------
 
     //----------------------------------------------------
     // Sorting
@@ -119,10 +115,12 @@ export async function GET(req) {
 
     const { data, error, count } = await paginatedQuery;
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     //----------------------------------------------------
-    // Client-side search on joined course fields
+    // Client-side Course Search
     //----------------------------------------------------
 
     let pricing = data ?? [];
@@ -135,11 +133,14 @@ export async function GET(req) {
 
         return (
           course.title?.toLowerCase().includes(keyword) ||
-          course.slug?.toLowerCase().includes(keyword) ||
-          course.level?.toLowerCase().includes(keyword)
+          course.slug?.toLowerCase().includes(keyword)
         );
       });
     }
+
+    //----------------------------------------------------
+    // Response
+    //----------------------------------------------------
 
     return NextResponse.json({
       pricing,
@@ -151,7 +152,7 @@ export async function GET(req) {
       }),
     });
   } catch (error) {
-    console.error(error);
+    console.error("GET course pricing error:", error);
 
     return NextResponse.json(
       {
@@ -176,6 +177,10 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (session.user.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const {
@@ -187,10 +192,18 @@ export async function POST(req) {
       active,
     } = body;
 
+    //----------------------------------------------------
+    // Validation
+    //----------------------------------------------------
+
     if (!course_id) {
       return NextResponse.json(
-        { error: "Course is required." },
-        { status: 400 },
+        {
+          error: "Course is required.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
@@ -199,39 +212,94 @@ export async function POST(req) {
         {
           error: "Learning mode is required.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
 
-    if (!duration_months) {
+    const parsedDuration = Number(duration_months);
+
+    if (!Number.isInteger(parsedDuration) || parsedDuration <= 0) {
       return NextResponse.json(
         {
-          error: "Duration is required.",
+          error: "Duration must be a positive whole number.",
         },
-        { status: 400 },
+        {
+          status: 400,
+        },
       );
     }
 
-    if (price === undefined || price === null) {
+    const parsedPrice = Number(price);
+
+    if (
+      price === undefined ||
+      price === null ||
+      price === "" ||
+      !Number.isFinite(parsedPrice) ||
+      parsedPrice < 0
+    ) {
       return NextResponse.json(
-        { error: "Price is required." },
-        { status: 400 },
+        {
+          error: "Price must be a valid non-negative number.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
     const supabase = createSupabaseAdmin();
 
     //----------------------------------------------------
+    // Verify Course Exists
+    //----------------------------------------------------
+
+    const { data: course, error: courseError } = await supabase
+      .from("academy_courses")
+      .select(
+        `
+          id,
+          title,
+          slug,
+          status,
+          sort_order
+        `,
+      )
+      .eq("id", course_id)
+      .maybeSingle();
+
+    if (courseError) {
+      throw courseError;
+    }
+
+    if (!course) {
+      return NextResponse.json(
+        {
+          error: "The selected academy course does not exist.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    //----------------------------------------------------
     // Duplicate Check
     //----------------------------------------------------
 
-    const { data: existing } = await supabase
+    const { data: existing, error: duplicateError } = await supabase
       .from("academy_course_pricing")
       .select("id")
       .eq("course_id", course_id)
       .eq("learning_mode", learning_mode)
-      .eq("duration_months", Number(duration_months))
+      .eq("duration_months", parsedDuration)
       .maybeSingle();
+
+    if (duplicateError) {
+      throw duplicateError;
+    }
 
     if (existing) {
       return NextResponse.json(
@@ -246,7 +314,7 @@ export async function POST(req) {
     }
 
     //----------------------------------------------------
-    // Insert
+    // Insert Pricing
     //----------------------------------------------------
 
     const { data, error } = await supabase
@@ -254,33 +322,39 @@ export async function POST(req) {
       .insert({
         course_id,
         learning_mode,
-        duration_months: Number(duration_months),
-        price: Number(price),
+        duration_months: parsedDuration,
+        price: parsedPrice,
         currency: currency || "NGN",
-        active: active ?? true,
+        active: active === undefined ? true : Boolean(active),
       })
       .select(
         `
-        *,
-        course:academy_courses(
-          id,
-          title,
-          slug,
-          level,
-          active
-        )
-      `,
+          *,
+          course:academy_courses(
+            id,
+            title,
+            slug,
+            status,
+            sort_order
+          )
+        `,
       )
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
+
+    //----------------------------------------------------
+    // Response
+    //----------------------------------------------------
 
     return NextResponse.json({
       success: true,
       pricing: data,
     });
   } catch (error) {
-    console.error(error);
+    console.error("POST course pricing error:", error);
 
     return NextResponse.json(
       {

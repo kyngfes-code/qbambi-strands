@@ -1,10 +1,4 @@
-import {
-  CheckCheckIcon,
-  ChevronDown,
-  GraduationCap,
-  Sparkles,
-  Star,
-} from "lucide-react";
+import { CheckCheckIcon, GraduationCap, Sparkles, Star } from "lucide-react";
 
 import AcadamyPageCard from "@/components/AcadamyPageCard";
 import AcademyEnrollmentForm from "@/components/academy/AcademyEnrollmentForm";

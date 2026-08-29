@@ -45,7 +45,9 @@ export default function BankTransferPayment({
       const endpoint =
         entityType === "appointment"
           ? "/api/appointments/upload-receipt"
-          : "/api/orders/receipt";
+          : entityType === "academy_enrollment"
+            ? "/api/academy/enroll/upload-receipt"
+            : "/api/orders/receipt";
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -66,7 +68,7 @@ export default function BankTransferPayment({
 
       // Success
       setError("");
-      alert("Receipt submitted successfully.");
+      alert("Receipt submitted successfully and is now awaiting verification.");
 
       onUploadReceipt?.();
     } catch (err) {

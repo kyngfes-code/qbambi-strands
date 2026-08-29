@@ -7,16 +7,16 @@ import { Label } from "@/components/ui/label";
 
 export default function TrainingInformation({ courses = [], pricing }) {
   const {
-    register,
     setValue,
+    register,
     formState: { errors },
   } = useFormContext();
 
   const {
-    learningMode,
-    learningModeFilter,
+    learningMode = "",
+    learningModeFilter = "all",
     setLearningModeFilter,
-    visibleCourses,
+    visibleCourses = [],
     updateLearningMode,
     toggleCourse,
     updateDuration,
@@ -25,9 +25,9 @@ export default function TrainingInformation({ courses = [], pricing }) {
     getAvailableDurations,
   } = pricing;
 
-  //------------------------------------------------------
-  // Currency
-  //------------------------------------------------------
+  // ======================================================
+  // CURRENCY
+  // ======================================================
 
   const currencySymbols = {
     NGN: "₦",
@@ -36,19 +36,12 @@ export default function TrainingInformation({ courses = [], pricing }) {
     EUR: "€",
   };
 
-  const currency = pricing.currency ?? "NGN";
-  const symbol = currencySymbols[currency] ?? "₦";
+  const currency = pricing?.currency ?? "NGN";
+  const symbol = currencySymbols[currency] ?? currency;
 
-  //------------------------------------------------------
+  // ======================================================
   // ACTUAL ENROLLMENT MODE
-  //
-  // This is the real value submitted with the enrollment.
-  //
-  // It can ONLY be:
-  // physical
-  // online
-  // hybrid
-  //------------------------------------------------------
+  // ======================================================
 
   function handleLearningModeChange(event) {
     const mode = event.target.value;
@@ -61,11 +54,9 @@ export default function TrainingInformation({ courses = [], pricing }) {
     });
   }
 
-  //------------------------------------------------------
+  // ======================================================
   // UI-ONLY COURSE FILTER
-  //
-  // This does NOT change the enrollment mode.
-  //------------------------------------------------------
+  // ======================================================
 
   function handleFilterChange(event) {
     setLearningModeFilter(event.target.value);
@@ -73,9 +64,9 @@ export default function TrainingInformation({ courses = [], pricing }) {
 
   return (
     <section className="space-y-8">
-      {/* ================================================= */}
-      {/* Header */}
-      {/* ================================================= */}
+      {/* ================================================== */}
+      {/* HEADER */}
+      {/* ================================================== */}
 
       <div>
         <h2 className="text-2xl font-bold text-neutral-900">
@@ -87,9 +78,9 @@ export default function TrainingInformation({ courses = [], pricing }) {
         </p>
       </div>
 
-      {/* ================================================= */}
-      {/* Preferred Date + Actual Enrollment Mode */}
-      {/* ================================================= */}
+      {/* ================================================== */}
+      {/* DATE + ACTUAL LEARNING MODE */}
+      {/* ================================================== */}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Preferred Start Date */}
@@ -112,14 +103,14 @@ export default function TrainingInformation({ courses = [], pricing }) {
           )}
         </div>
 
-        {/* ACTUAL Enrollment Mode */}
+        {/* Actual Enrollment Mode */}
 
         <div className="space-y-2">
           <Label htmlFor="learning_mode">Learning Mode *</Label>
 
           <select
             id="learning_mode"
-            value={learningMode}
+            value={learningMode ?? ""}
             onChange={handleLearningModeChange}
             className="h-12 w-full rounded-xl border border-neutral-300 bg-white px-4 text-sm outline-none transition focus:border-[#C6A667] focus:ring-2 focus:ring-[#C6A667]/20"
           >
@@ -132,8 +123,6 @@ export default function TrainingInformation({ courses = [], pricing }) {
             <option value="hybrid">Hybrid Training</option>
           </select>
 
-          {/* RHF registration */}
-
           <input type="hidden" {...register("learning_mode")} />
 
           {errors.learning_mode && (
@@ -144,9 +133,9 @@ export default function TrainingInformation({ courses = [], pricing }) {
         </div>
       </div>
 
-      {/* ================================================= */}
-      {/* UI-ONLY COURSE FILTER */}
-      {/* ================================================= */}
+      {/* ================================================== */}
+      {/* COURSE FILTER */}
+      {/* ================================================== */}
 
       <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
         <div className="space-y-2">
@@ -154,7 +143,7 @@ export default function TrainingInformation({ courses = [], pricing }) {
 
           <select
             id="learning_mode_filter"
-            value={learningModeFilter}
+            value={learningModeFilter ?? "all"}
             onChange={handleFilterChange}
             className="h-12 w-full rounded-xl border border-neutral-300 bg-white px-4 text-sm outline-none transition focus:border-[#C6A667] focus:ring-2 focus:ring-[#C6A667]/20"
           >
@@ -174,9 +163,9 @@ export default function TrainingInformation({ courses = [], pricing }) {
         </div>
       </div>
 
-      {/* ================================================= */}
-      {/* Actual Mode Required */}
-      {/* ================================================= */}
+      {/* ================================================== */}
+      {/* MODE REQUIRED */}
+      {/* ================================================== */}
 
       {!learningMode && (
         <div className="rounded-2xl border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-700">
@@ -184,9 +173,9 @@ export default function TrainingInformation({ courses = [], pricing }) {
         </div>
       )}
 
-      {/* ================================================= */}
-      {/* Courses */}
-      {/* ================================================= */}
+      {/* ================================================== */}
+      {/* COURSES */}
+      {/* ================================================== */}
 
       <div className="space-y-6">
         {visibleCourses.length === 0 ? (
@@ -199,11 +188,17 @@ export default function TrainingInformation({ courses = [], pricing }) {
           </div>
         ) : (
           visibleCourses.map((course) => {
-            const selected = isSelected(course.id);
+            // IMPORTANT:
+            // Always convert this to a real boolean.
+            const selected = Boolean(isSelected(course.id));
 
-            const selectedCourse = getSelectedCourse(course.id);
+            const selectedCourse = selected
+              ? getSelectedCourse(course.id)
+              : null;
 
-            const durations = getAvailableDurations(course.id);
+            const durations = learningMode
+              ? getAvailableDurations(course.id, learningMode)
+              : [];
 
             return (
               <div
@@ -212,6 +207,10 @@ export default function TrainingInformation({ courses = [], pricing }) {
               >
                 <div className="p-6 lg:p-8">
                   <label className="flex items-start gap-4">
+                    {/* ================================================= */}
+                    {/* COURSE CHECKBOX */}
+                    {/* ================================================= */}
+
                     <input
                       type="checkbox"
                       checked={selected}
@@ -221,6 +220,10 @@ export default function TrainingInformation({ courses = [], pricing }) {
                     />
 
                     <div className="min-w-0 flex-1">
+                      {/* ================================================= */}
+                      {/* COURSE TITLE */}
+                      {/* ================================================= */}
+
                       <h3 className="text-xl font-semibold text-neutral-900">
                         {course.title}
                       </h3>
@@ -231,7 +234,9 @@ export default function TrainingInformation({ courses = [], pricing }) {
                         </p>
                       )}
 
-                      {/* Course Mode Badges */}
+                      {/* ================================================= */}
+                      {/* COURSE MODE BADGES */}
+                      {/* ================================================= */}
 
                       <div className="mt-5 flex flex-wrap gap-2">
                         {course.level && (
@@ -270,27 +275,40 @@ export default function TrainingInformation({ courses = [], pricing }) {
                       </div>
 
                       {/* ================================================= */}
-                      {/* Selected Course */}
+                      {/* SELECTED COURSE */}
                       {/* ================================================= */}
 
-                      {selected && selectedCourse && (
+                      {selected && (
                         <div className="mt-8 border-t border-neutral-200 pt-6">
                           <div className="space-y-6">
-                            {/* Duration */}
+                            {/* ========================================= */}
+                            {/* DURATION */}
+                            {/* ========================================= */}
 
                             <div className="space-y-2">
-                              <Label>Course Duration</Label>
+                              <Label htmlFor={`course-duration-${course.id}`}>
+                                Course Duration
+                              </Label>
 
                               <select
-                                value={selectedCourse.duration}
-                                onChange={(event) =>
-                                  updateDuration(
-                                    course.id,
-                                    Number(event.target.value),
-                                  )
-                                }
-                                className="h-12 w-full rounded-xl border border-neutral-300 bg-white px-4 text-sm outline-none transition focus:border-[#C6A667] focus:ring-2 focus:ring-[#C6A667]/20"
+                                id={`course-duration-${course.id}`}
+                                value={selectedCourse?.duration ?? ""}
+                                disabled={!durations.length}
+                                onChange={(event) => {
+                                  const value = event.target.value;
+
+                                  if (!value) return;
+
+                                  updateDuration(course.id, Number(value));
+                                }}
+                                className="h-12 w-full rounded-xl border border-neutral-300 bg-white px-4 text-sm outline-none transition focus:border-[#C6A667] focus:ring-2 focus:ring-[#C6A667]/20 disabled:cursor-not-allowed disabled:bg-neutral-100"
                               >
+                                <option value="">
+                                  {durations.length
+                                    ? "Choose Duration"
+                                    : "No duration available"}
+                                </option>
+
                                 {durations.map((duration) => (
                                   <option key={duration} value={duration}>
                                     {duration} Month
@@ -300,7 +318,9 @@ export default function TrainingInformation({ courses = [], pricing }) {
                               </select>
                             </div>
 
-                            {/* Fee */}
+                            {/* ========================================= */}
+                            {/* FEE */}
+                            {/* ========================================= */}
 
                             <div className="rounded-2xl bg-[#C6A667]/10 p-5">
                               <p className="text-xs uppercase tracking-wide text-neutral-500">
@@ -310,7 +330,7 @@ export default function TrainingInformation({ courses = [], pricing }) {
                               <h3 className="mt-3 text-3xl font-bold text-[#b48a5a]">
                                 {symbol}
                                 {Number(
-                                  selectedCourse.price ?? 0,
+                                  selectedCourse?.price ?? 0,
                                 ).toLocaleString()}
                               </h3>
                             </div>

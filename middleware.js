@@ -100,7 +100,7 @@ export async function middleware(req) {
       return NextResponse.redirect(new URL("/academy/login", req.url));
     }
 
-    if (session.user.role !== "academy") {
+    if (session.user.role !== "student") {
       return NextResponse.redirect(new URL("/", req.url));
     }
   }

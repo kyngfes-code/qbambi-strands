@@ -1,44 +1,81 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { sendAcademyInviteEmail } from "@/lib/email/send-academy-invite";
 
 //////////////////////////////////////////////////////////////
 // POST
 // Approve Academy Enrollment
+//
+// Architecture:
+//
+// API
+//   ↓
+// approve_academy_enrollment RPC
+//   ↓
+// DB transaction
+//   ├─ Confirm enrollment
+//   ├─ Create/find student
+//   ├─ Create invite
+//   ├─ Queue email
+//   ├─ Save notes
+//   └─ Save timeline
+//   ↓
+// COMMIT
+//   ↓
+// Email Worker
+//   ↓
+// Resend
 //////////////////////////////////////////////////////////////
 
 export async function POST(req, { params }) {
   try {
     //------------------------------------------------------
-    // Authentication
+    // 1. Authentication
     //------------------------------------------------------
 
     const session = await auth();
 
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+        },
+        {
+          status: 401,
+        },
+      );
     }
 
     if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: "Forbidden",
+        },
+        {
+          status: 403,
+        },
+      );
     }
 
     //------------------------------------------------------
-    // Params
+    // 2. Params
     //------------------------------------------------------
 
     const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
-        { error: "Enrollment ID is required." },
-        { status: 400 },
+        {
+          error: "Enrollment ID is required.",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
     //------------------------------------------------------
-    // Request body
+    // 3. Request body
     //------------------------------------------------------
 
     const body = await req.json().catch(() => ({}));
@@ -47,20 +84,54 @@ export async function POST(req, { params }) {
       typeof body.admin_note === "string" ? body.admin_note.trim() : "";
 
     //------------------------------------------------------
-    // Supabase
+    // 4. Application URL
+    //
+    // The RPC uses this to create the invite URL that gets
+    // stored inside email_outbox.payload.
+    //------------------------------------------------------
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+    if (!appUrl) {
+      console.error("NEXT_PUBLIC_APP_URL is not configured.");
+
+      return NextResponse.json(
+        {
+          error: "Application URL is not configured.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+    //------------------------------------------------------
+    // 5. Supabase
     //------------------------------------------------------
 
     const supabase = createSupabaseAdmin();
 
     //------------------------------------------------------
-    // Approval RPC
+    // 6. Approval RPC
+    //
+    // IMPORTANT:
+    //
+    // The RPC now performs the COMPLETE database transaction,
+    // including inserting the email into email_outbox.
+    //
+    // No Resend call happens here.
     //------------------------------------------------------
 
     const { data, error } = await supabase.rpc("approve_academy_enrollment", {
       p_enrollment_id: id,
       p_admin_id: session.user.id,
       p_admin_note: adminNote || null,
+      p_app_url: appUrl,
     });
+
+    //------------------------------------------------------
+    // 7. RPC error
+    //------------------------------------------------------
 
     if (error) {
       console.error("Approve Academy Enrollment RPC:", error);
@@ -69,18 +140,41 @@ export async function POST(req, { params }) {
         {
           error: error.message || "Unable to approve enrollment.",
         },
-        { status: 500 },
+        {
+          status: 500,
+        },
       );
     }
 
     //------------------------------------------------------
-    // Normalize RPC result
+    // 8. Normalize RPC result
     //------------------------------------------------------
 
-    const result = typeof data === "string" ? JSON.parse(data) : data;
+    let result = data;
+
+    if (typeof data === "string") {
+      try {
+        result = JSON.parse(data);
+      } catch (parseError) {
+        console.error(
+          "Unable to parse academy approval RPC result:",
+          parseError,
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "Enrollment was processed, but the server returned an invalid response.",
+          },
+          {
+            status: 500,
+          },
+        );
+      }
+    }
 
     //------------------------------------------------------
-    // Validate result
+    // 9. Validate RPC result
     //------------------------------------------------------
 
     if (!result?.success) {
@@ -88,107 +182,33 @@ export async function POST(req, { params }) {
         {
           error: result?.error || "Unable to approve enrollment.",
         },
-        { status: 500 },
-      );
-    }
-
-    if (!result.email) {
-      return NextResponse.json(
         {
-          error: "Enrollment was approved, but no student email was returned.",
+          status: 500,
         },
-        { status: 500 },
-      );
-    }
-
-    if (!result.invite_token) {
-      return NextResponse.json(
-        {
-          error:
-            "Enrollment was approved, but no invitation token was generated.",
-        },
-        { status: 500 },
       );
     }
 
     //------------------------------------------------------
-    // Application URL
-    //------------------------------------------------------
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
-
-    if (!appUrl) {
-      throw new Error("NEXT_PUBLIC_APP_URL is not configured.");
-    }
-
-    //------------------------------------------------------
-    // Build invitation URL
-    //------------------------------------------------------
-
-    const inviteUrl = `${appUrl}/set-password?token=${result.invite_token}`;
-
-    //------------------------------------------------------
-    // Send Academy invitation
+    // 10. Success
     //
-    // Email HTML/template is handled entirely by:
+    // At this point:
     //
-    // /lib/email/send-academy-invite.js
+    // ✓ Enrollment confirmed
+    // ✓ Student account created/found
+    // ✓ Invite created
+    // ✓ Email queued
+    // ✓ Notes saved
+    // ✓ Timeline saved
+    // ✓ Transaction committed
     //
-    //------------------------------------------------------
-
-    let emailResult;
-
-    try {
-      emailResult = await sendAcademyInviteEmail({
-        email: result.email,
-        studentNumber: result.student_number || result.enrollment_number || "—",
-        inviteUrl,
-      });
-    } catch (emailError) {
-      console.error("Academy Invitation Email:", emailError);
-
-      //----------------------------------------------------
-      // IMPORTANT:
-      //
-      // The approval transaction has already completed.
-      // Do NOT change confirmed back to pending.
-      //
-      // The database state remains:
-      //
-      // pending -> confirmed
-      // user -> student
-      // invite -> created
-      //
-      // Email failure should be retried separately.
-      //----------------------------------------------------
-
-      return NextResponse.json(
-        {
-          success: true,
-
-          warning:
-            "Enrollment was approved, but the student invitation email could not be sent.",
-
-          emailSent: false,
-
-          enrollmentId: result.enrollment_id || id,
-
-          userId: result.user_id || null,
-
-          status: result.status || "confirmed",
-        },
-        { status: 200 },
-      );
-    }
-
-    //------------------------------------------------------
-    // Success
+    // Resend has NOT been called yet.
     //------------------------------------------------------
 
     return NextResponse.json({
       success: true,
 
-      message: "Enrollment approved successfully and student invitation sent.",
+      message:
+        "Enrollment approved successfully. Student invitation has been queued for delivery.",
 
       enrollmentId: result.enrollment_id || id,
 
@@ -196,18 +216,30 @@ export async function POST(req, { params }) {
 
       status: result.status || "confirmed",
 
-      emailSent: true,
+      emailQueued: true,
 
-      emailId: emailResult?.id || null,
+      emailOutboxId: result.email_outbox_id || null,
+
+      payment: {
+        plan: result.payment_plan || null,
+
+        amountRequired: Number(result.initial_payment_amount || 0),
+
+        totalPayable: Number(result.total_payable || 0),
+
+        balanceDue: Number(result.balance_due || 0),
+      },
     });
   } catch (error) {
     console.error("Approve Academy Enrollment:", error);
 
     return NextResponse.json(
       {
-        error: error.message || "Unable to approve enrollment.",
+        error: error?.message || "Unable to approve academy enrollment.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }

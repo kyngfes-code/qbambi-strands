@@ -29,6 +29,10 @@ export default function useAdminAcademyEnrollments() {
 
   const [search, setSearch] = useState("");
 
+  //-------------------------------------------------------
+  // Filters
+  //-------------------------------------------------------
+
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
   //-------------------------------------------------------
@@ -37,7 +41,7 @@ export default function useAdminAcademyEnrollments() {
 
   const [page, setPage] = useState(1);
 
-  const [pageSize] = useState(20);
+  const pageSize = 20;
 
   const [pagination, setPagination] = useState({
     page: 1,
@@ -47,7 +51,7 @@ export default function useAdminAcademyEnrollments() {
   });
 
   //-------------------------------------------------------
-  // Dialogs
+  // Dialog
   //-------------------------------------------------------
 
   const [selectedEnrollment, setSelectedEnrollment] = useState(null);
@@ -61,9 +65,8 @@ export default function useAdminAcademyEnrollments() {
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
 
-    params.set("page", page);
-
-    params.set("pageSize", pageSize);
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
 
     if (search.trim()) {
       params.set("search", search.trim());
@@ -93,39 +96,46 @@ export default function useAdminAcademyEnrollments() {
   }, [page, pageSize, search, filters]);
 
   //-------------------------------------------------------
-  // Fetch
+  // Fetch Enrollments
   //-------------------------------------------------------
 
   const fetchEnrollments = useCallback(async () => {
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/admin/academy/enrollments?${queryString}`);
+      const res = await fetch(`/api/admin/academy/enrollments?${queryString}`, {
+        method: "GET",
+        cache: "no-store",
+      });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to load enrollments.");
+        throw new Error(data.error || "Failed to load academy enrollments.");
       }
 
-      setEnrollments(data.enrollments ?? []);
+      setEnrollments(Array.isArray(data.enrollments) ? data.enrollments : []);
 
       setPagination(
-        data.pagination ?? {
-          page: 1,
+        data.pagination || {
+          page,
           pageSize,
           total: 0,
           totalPages: 1,
         },
       );
     } catch (error) {
-      console.error(error);
+      console.error("Academy enrollments fetch error:", error);
 
-      alert(error.message);
+      alert(error?.message || "Failed to load academy enrollments.");
     } finally {
       setLoading(false);
     }
-  }, [queryString, pageSize]);
+  }, [queryString, page, pageSize]);
+
+  //-------------------------------------------------------
+  // Initial / Query Change Fetch
+  //-------------------------------------------------------
 
   useEffect(() => {
     fetchEnrollments();
@@ -135,154 +145,238 @@ export default function useAdminAcademyEnrollments() {
   // Search
   //-------------------------------------------------------
 
-  function updateSearch(value) {
+  const updateSearch = useCallback((value) => {
     setPage(1);
-
-    setSearch(value);
-  }
+    setSearch(value ?? "");
+  }, []);
 
   //-------------------------------------------------------
   // Filters
   //-------------------------------------------------------
 
-  function updateFilters(values) {
+  const updateFilters = useCallback((values) => {
     setPage(1);
 
-    setFilters(values);
-  }
+    setFilters({
+      ...DEFAULT_FILTERS,
+      ...(values || {}),
+    });
+  }, []);
 
-  function resetFilters() {
+  //-------------------------------------------------------
+  // Reset Filters
+  //-------------------------------------------------------
+
+  const resetFilters = useCallback(() => {
     setPage(1);
-
-    setFilters(DEFAULT_FILTERS);
-  }
+    setFilters({
+      ...DEFAULT_FILTERS,
+    });
+  }, []);
 
   //-------------------------------------------------------
   // Pagination
   //-------------------------------------------------------
 
-  function changePage(nextPage) {
-    setPage(nextPage);
-  }
+  const changePage = useCallback(
+    (nextPage) => {
+      const requestedPage = Number(nextPage);
+
+      if (!Number.isInteger(requestedPage)) {
+        return;
+      }
+
+      if (requestedPage < 1) {
+        return;
+      }
+
+      if (pagination.totalPages > 0 && requestedPage > pagination.totalPages) {
+        return;
+      }
+
+      setPage(requestedPage);
+    },
+    [pagination.totalPages],
+  );
 
   //-------------------------------------------------------
   // Approve
   //-------------------------------------------------------
 
-  async function approveEnrollment(id) {
-    try {
-      setSaving(true);
-
-      const res = await fetch(`/api/admin/academy/enrollments/${id}/approve`, {
-        method: "POST",
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error);
+  const approveEnrollment = useCallback(
+    async (id, payload = {}) => {
+      if (!id) {
+        alert("Enrollment ID is required.");
+        return false;
       }
 
-      await fetchEnrollments();
+      try {
+        setSaving(true);
 
-      return true;
-    } catch (error) {
-      alert(error.message);
+        const res = await fetch(
+          `/api/admin/academy/enrollments/${id}/approve`,
+          {
+            method: "POST",
 
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }
+            headers: {
+              "Content-Type": "application/json",
+            },
+
+            body: JSON.stringify(payload),
+          },
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Unable to approve enrollment.");
+        }
+
+        await fetchEnrollments();
+
+        return true;
+      } catch (error) {
+        console.error("Approve academy enrollment error:", error);
+
+        alert(error?.message || "Unable to approve enrollment.");
+
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [fetchEnrollments],
+  );
 
   //-------------------------------------------------------
-  // Reject
+  // Reject Enrollment
   //-------------------------------------------------------
 
-  async function rejectEnrollment(id, reason = "") {
-    try {
-      setSaving(true);
-
-      const res = await fetch(`/api/admin/academy/enrollments/${id}/reject`, {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          reason,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error);
+  const rejectEnrollment = useCallback(
+    async (id, rejectionReason = "", adminNote = "") => {
+      if (!id) {
+        alert("Enrollment ID is required.");
+        return false;
       }
 
-      await fetchEnrollments();
+      const cleanReason = String(rejectionReason || "").trim();
+      const cleanAdminNote = String(adminNote || "").trim();
 
-      return true;
-    } catch (error) {
-      alert(error.message);
+      if (!cleanReason) {
+        alert("Rejection reason is required.");
+        return false;
+      }
 
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }
+      try {
+        setSaving(true);
 
+        const res = await fetch(`/api/admin/academy/enrollments/${id}/reject`, {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            rejection_reason: cleanReason,
+            admin_note: cleanAdminNote || null,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Unable to reject enrollment.");
+        }
+
+        await fetchEnrollments();
+
+        return true;
+      } catch (error) {
+        console.error("Reject academy enrollment error:", error);
+
+        alert(error?.message || "Unable to reject enrollment.");
+
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [fetchEnrollments],
+  );
   //-------------------------------------------------------
   // Delete
   //-------------------------------------------------------
 
-  async function deleteEnrollment(id) {
-    try {
-      setDeleting(true);
-
-      const res = await fetch(`/api/admin/academy/enrollments/${id}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error);
+  const deleteEnrollment = useCallback(
+    async (id) => {
+      if (!id) {
+        alert("Enrollment ID is required.");
+        return false;
       }
 
-      setDeleteDialogOpen(false);
+      try {
+        setDeleting(true);
 
-      setSelectedEnrollment(null);
+        const res = await fetch(`/api/admin/academy/enrollments/${id}`, {
+          method: "DELETE",
+        });
 
-      await fetchEnrollments();
+        const data = await res.json();
 
-      return true;
-    } catch (error) {
-      alert(error.message);
+        if (!res.ok) {
+          throw new Error(data.error || "Unable to delete enrollment.");
+        }
 
-      return false;
-    } finally {
-      setDeleting(false);
+        setDeleteDialogOpen(false);
+
+        setSelectedEnrollment(null);
+
+        await fetchEnrollments();
+
+        return true;
+      } catch (error) {
+        console.error("Delete academy enrollment error:", error);
+
+        alert(error?.message || "Unable to delete enrollment.");
+
+        return false;
+      } finally {
+        setDeleting(false);
+      }
+    },
+    [fetchEnrollments],
+  );
+
+  //-------------------------------------------------------
+  // Delete Dialog
+  //-------------------------------------------------------
+
+  const openDeleteDialog = useCallback((enrollment) => {
+    if (!enrollment?.id) {
+      alert("Enrollment ID is missing.");
+      return;
     }
-  }
 
-  //-------------------------------------------------------
-  // Dialog Helpers
-  //-------------------------------------------------------
-
-  function openDeleteDialog(enrollment) {
     setSelectedEnrollment(enrollment);
-
     setDeleteDialogOpen(true);
-  }
+  }, []);
 
-  function closeDeleteDialog() {
+  //-------------------------------------------------------
+  // Close Delete Dialog
+  //-------------------------------------------------------
+
+  const closeDeleteDialog = useCallback(() => {
+    if (deleting) {
+      return;
+    }
+
     setDeleteDialogOpen(false);
-
     setSelectedEnrollment(null);
-  }
+  }, [deleting]);
 
+  //-------------------------------------------------------
+  // Return
   //-------------------------------------------------------
 
   return {
@@ -304,6 +398,8 @@ export default function useAdminAcademyEnrollments() {
 
     search,
 
+    setSearch: updateSearch,
+
     updateSearch,
 
     //---------------------------------------------------
@@ -311,6 +407,8 @@ export default function useAdminAcademyEnrollments() {
     //---------------------------------------------------
 
     filters,
+
+    updateFilter: updateFilters,
 
     updateFilters,
 
@@ -326,6 +424,8 @@ export default function useAdminAcademyEnrollments() {
 
     pagination,
 
+    goToPage: changePage,
+
     changePage,
 
     //---------------------------------------------------
@@ -337,10 +437,12 @@ export default function useAdminAcademyEnrollments() {
     setSelectedEnrollment,
 
     //---------------------------------------------------
-    // Dialogs
+    // Dialog
     //---------------------------------------------------
 
     deleteDialogOpen,
+
+    setDeleteDialogOpen,
 
     openDeleteDialog,
 
@@ -349,6 +451,8 @@ export default function useAdminAcademyEnrollments() {
     //---------------------------------------------------
     // CRUD
     //---------------------------------------------------
+
+    refreshEnrollments: fetchEnrollments,
 
     fetchEnrollments,
 
