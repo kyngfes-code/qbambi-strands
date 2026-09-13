@@ -8,7 +8,11 @@ import PersonalInformation from "../sections/PersonalInformation";
 import TrainingInformation from "../sections/TrainingInformation";
 import WizardReview from "../wizard/WizardReview";
 
-const academyWizardSteps = [
+// ==========================================================
+// NEW STUDENT STEPS
+// ==========================================================
+
+const newStudentSteps = [
   {
     id: "personal",
     title: "Personal Information",
@@ -67,7 +71,13 @@ const academyWizardSteps = [
     title: "Additional Information",
     description: "Almost finished.",
     component: AdditionalInformation,
-    fields: ["occupation", "education_level", "referral_source", "terms"],
+    fields: [
+      "occupation",
+      "education_level",
+      "referral_source",
+      "notes",
+      "terms",
+    ],
   },
 
   {
@@ -79,4 +89,55 @@ const academyWizardSteps = [
   },
 ];
 
-export default academyWizardSteps;
+// ==========================================================
+// EXISTING STUDENT STEPS
+//
+// Existing academy students already have:
+//
+// - Personal information
+// - Address information
+// - Emergency contact
+// - Additional information
+//
+// They only need to complete:
+//
+// 1. Training
+// 2. Payment
+// 3. Review
+// ==========================================================
+
+const existingStudentSteps = [
+  {
+    id: "training",
+    title: "Training",
+    description: "Select the courses you would like to add.",
+    component: TrainingInformation,
+    fields: ["preferred_start_date", "learning_mode"],
+  },
+
+  {
+    id: "payment",
+    title: "Payment",
+    description: "Choose a payment option for your new courses.",
+    component: PaymentInformation,
+    fields: ["payment_plan_id"],
+  },
+
+  {
+    id: "review",
+    title: "Review",
+    description: "Review your course selection and payment details.",
+    component: WizardReview,
+    fields: [],
+  },
+];
+
+// ==========================================================
+// STEP BUILDER
+// ==========================================================
+
+export default function getAcademyWizardSteps({
+  isExistingStudent = false,
+} = {}) {
+  return isExistingStudent ? existingStudentSteps : newStudentSteps;
+}

@@ -433,6 +433,55 @@ export async function GET(request, { params }) {
     }
 
     // ==========================================================
+    // LOAD VIDEO PROGRESS
+    // ==========================================================
+
+    const { data: videoProgressRows, error: videoProgressError } =
+      await supabase
+        .from("academy_student_video_progress")
+        .select(
+          `
+      id,
+      enrollment_id,
+      course_id,
+      video_id,
+      watched_seconds,
+      duration_seconds,
+      watch_percentage,
+      reached_end,
+      completed,
+      confirmed_good,
+      completed_at,
+      confirmed_at,
+      last_watched_at,
+      created_at,
+      updated_at
+      `,
+        )
+        .eq("enrollment_id", enrollment.id)
+        .eq("course_id", courseId);
+
+    if (videoProgressError) {
+      console.error(
+        "Academy video progress lookup failed:",
+        videoProgressError,
+      );
+
+      return NextResponse.json(
+        {
+          error: "Unable to load video progress.",
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+    const videoProgressMap = new Map(
+      (videoProgressRows ?? []).map((item) => [item.video_id, item]),
+    );
+
+    // ==========================================================
     // 13. CREATE SECURE BUNNY EMBED URLS
     //
     // IMPORTANT:
@@ -460,6 +509,8 @@ export async function GET(request, { params }) {
         }
       }
 
+      const studentProgress = videoProgressMap.get(video.id) ?? null;
+
       return {
         id: video.id,
         module_id: video.module_id,
@@ -473,8 +524,36 @@ export async function GET(request, { params }) {
         bunny_video_id: video.bunny_video_id,
         thumbnail_url: video.thumbnail_url,
 
-        // Secure signed Bunny player URL
         bunnyEmbedUrl: embedUrl,
+
+        // ==========================================
+        // STUDENT VIDEO PROGRESS
+        // ==========================================
+
+        progress: studentProgress
+          ? {
+              id: studentProgress.id,
+
+              watchedSeconds: studentProgress.watched_seconds ?? 0,
+
+              durationSeconds:
+                studentProgress.duration_seconds ?? video.duration_seconds ?? 0,
+
+              watchPercentage: studentProgress.watch_percentage ?? 0,
+
+              reachedEnd: studentProgress.reached_end === true,
+
+              completed: studentProgress.completed === true,
+
+              confirmedGood: studentProgress.confirmed_good === true,
+
+              completedAt: studentProgress.completed_at ?? null,
+
+              confirmedAt: studentProgress.confirmed_at ?? null,
+
+              lastWatchedAt: studentProgress.last_watched_at ?? null,
+            }
+          : null,
       };
     });
 

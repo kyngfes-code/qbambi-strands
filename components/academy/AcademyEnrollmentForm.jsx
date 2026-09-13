@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,74 +8,107 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import academyEnrollmentSchema from "@/lib/validations/academyEnrollmentSchema";
 import useAcademyPricing from "@/hooks/useAcademyPricing";
 import useWizard from "@/hooks/useWizard";
-import AcademyEnrollmentWizard from "./wizard/AcademyEnrollmentWizard";
-import academyWizardSteps from "./config/academyWizardSteps";
 
-export default function AcademyEnrollmentForm({ courses = [] }) {
+import AcademyEnrollmentWizard from "./wizard/AcademyEnrollmentWizard";
+import getAcademyWizardSteps from "./config/academyWizardSteps";
+
+export default function AcademyEnrollmentForm({
+  courses = [],
+  isExistingStudent = false,
+  student = null,
+}) {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
 
-  //-----------------------------------------
-  // Pricing
-  //-----------------------------------------
+  // ==========================================================
+  // PRICING
+  // ==========================================================
 
   const pricing = useAcademyPricing(courses);
 
-  //-----------------------------------------
-  // Form
-  //-----------------------------------------
+  // ==========================================================
+  // ACTIVE WIZARD STEPS
+  // ==========================================================
+
+  const activeSteps = useMemo(() => {
+    return getAcademyWizardSteps({
+      isExistingStudent,
+    });
+  }, [isExistingStudent]);
+
+  // ==========================================================
+  // FORM
+  // ==========================================================
 
   const methods = useForm({
     resolver: zodResolver(academyEnrollmentSchema),
 
     defaultValues: {
-      first_name: "",
-      last_name: "",
-      other_name: "",
-      gender: "",
-      date_of_birth: "",
+      // PERSONAL INFORMATION
 
-      email: "",
-      phone: "",
-      whatsapp: "",
+      first_name: student?.first_name ?? "",
+      last_name: student?.last_name ?? "",
+      other_name: student?.other_name ?? "",
+      gender: student?.gender ?? "",
+      date_of_birth: student?.date_of_birth ?? "",
 
-      country: "",
-      state: "",
-      city: "",
-      street_address: "",
-      postal_code: "",
+      email: student?.email ?? "",
+      phone: student?.phone ?? "",
+      whatsapp: student?.whatsapp ?? "",
+
+      // ADDRESS
+
+      country: student?.country ?? "",
+      state: student?.state ?? "",
+      city: student?.city ?? "",
+      street_address: student?.street_address ?? "",
+      postal_code: student?.postal_code ?? "",
+
+      // TRAINING
 
       preferred_start_date: "",
       learning_mode: "",
       payment_plan_id: "",
 
-      emergency_contact_name: "",
-      emergency_contact_phone: "",
-      emergency_contact_relationship: "",
+      // EMERGENCY CONTACT
 
-      occupation: "",
-      education_level: "",
-      referral_source: "",
-      notes: "",
+      emergency_contact_name: student?.emergency_contact_name ?? "",
+
+      emergency_contact_phone: student?.emergency_contact_phone ?? "",
+
+      emergency_contact_relationship:
+        student?.emergency_contact_relationship ?? "",
+
+      // ADDITIONAL INFORMATION
+
+      occupation: student?.occupation ?? "",
+      education_level: student?.education_level ?? "",
+      referral_source: student?.referral_source ?? "",
+      notes: student?.notes ?? "",
+
+      // TERMS
+      terms: isExistingStudent ? true : false,
+
+      // SYSTEM
 
       total_course_fee: 0,
       courses: [],
     },
   });
 
-  //-----------------------------------------
-  // Wizard
-  //-----------------------------------------
+  // ==========================================================
+  // WIZARD
+  // ==========================================================
 
   const wizard = useWizard({
-    steps: academyWizardSteps,
+    steps: activeSteps,
     methods,
   });
 
-  //-----------------------------------------
-  // RHF Sync
-  //-----------------------------------------
+  // ==========================================================
+  // REACT HOOK FORM
+  // ==========================================================
 
   const {
     handleSubmit,
@@ -86,15 +119,25 @@ export default function AcademyEnrollmentForm({ courses = [] }) {
     formState: { errors },
   } = methods;
 
+  // ==========================================================
+  // DEBUG VALIDATION
+  // ==========================================================
+
   useEffect(() => {
     if (Object.keys(errors).length) {
-      console.log("Validation Errors", errors);
+      console.log("[ACADEMY ENROLLMENT] Validation Errors", errors);
     }
   }, [errors]);
 
+  // ==========================================================
+  // SYNC PRICING WITH FORM
+  // ==========================================================
+
   useEffect(() => {
     setValue("learning_mode", pricing.learningMode);
+
     setValue("total_course_fee", pricing.totalFee);
+
     setValue("courses", pricing.enrollmentCourses);
   }, [
     pricing.learningMode,
@@ -103,12 +146,16 @@ export default function AcademyEnrollmentForm({ courses = [] }) {
     setValue,
   ]);
 
-  //-----------------------------------------
-  // Submit
-  //-----------------------------------------
+  // ==========================================================
+  // SUBMIT
+  // ==========================================================
 
   async function onSubmit(values) {
     clearErrors("root");
+
+    // --------------------------------------------------------
+    // VALIDATE COURSE SELECTION
+    // --------------------------------------------------------
 
     if (!pricing.enrollmentCourses.length) {
       setError("root", {
@@ -124,6 +171,9 @@ export default function AcademyEnrollmentForm({ courses = [] }) {
 
       const payload = {
         ...values,
+
+        is_existing_student: isExistingStudent,
+
         learning_mode: pricing.learningMode,
 
         payment_plan_id: values.payment_plan_id,
@@ -135,9 +185,11 @@ export default function AcademyEnrollmentForm({ courses = [] }) {
 
       const res = await fetch("/api/academy/enroll", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify(payload),
       });
 
@@ -147,6 +199,10 @@ export default function AcademyEnrollmentForm({ courses = [] }) {
         throw new Error(data.error || "Unable to submit enrollment.");
       }
 
+      // ------------------------------------------------------
+      // RESET
+      // ------------------------------------------------------
+
       reset();
 
       pricing.resetPricing();
@@ -155,7 +211,7 @@ export default function AcademyEnrollmentForm({ courses = [] }) {
 
       router.push("/academy/enrollment-success");
     } catch (error) {
-      console.error(error);
+      console.error("[ACADEMY ENROLLMENT] Submit failed", error);
 
       setError("root", {
         type: "manual",
@@ -165,10 +221,10 @@ export default function AcademyEnrollmentForm({ courses = [] }) {
       setLoading(false);
     }
   }
-  useEffect(() => {
-    console.log("Validation Errors", methods.formState.errors);
-  }, [methods.formState.errors]);
-  //-----------------------------------------
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <FormProvider {...methods}>
@@ -176,14 +232,39 @@ export default function AcademyEnrollmentForm({ courses = [] }) {
         onSubmit={handleSubmit(onSubmit)}
         className="mx-auto w-full max-w-5xl"
       >
+        {/* ================================================== */}
+        {/* EXISTING STUDENT NOTICE */}
+        {/* ================================================== */}
+
+        {isExistingStudent && (
+          <div className="mb-6 rounded-2xl border border-[#C6A667]/30 bg-[#C6A667]/10 p-5">
+            <p className="font-semibold text-neutral-900">Welcome back!</p>
+
+            <p className="mt-1 text-sm leading-6 text-neutral-600">
+              Your student information is already on file. You only need to
+              select your new courses, choose your training preferences, select
+              a payment plan, and review your enrollment.
+            </p>
+          </div>
+        )}
+
+        {/* ================================================== */}
+        {/* WIZARD */}
+        {/* ================================================== */}
+
         <AcademyEnrollmentWizard
-          steps={academyWizardSteps}
+          steps={activeSteps}
           wizard={wizard}
           pricing={pricing}
           courses={courses}
           loading={loading}
-          onSubmit={handleSubmit(onSubmit)}
+          isExistingStudent={isExistingStudent}
+          student={student}
         />
+
+        {/* ================================================== */}
+        {/* ROOT ERROR */}
+        {/* ================================================== */}
 
         {errors.root && (
           <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">

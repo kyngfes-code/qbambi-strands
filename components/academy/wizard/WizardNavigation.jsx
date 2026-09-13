@@ -4,11 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-export default function WizardNavigation({
-  wizard,
-  onSubmit,
-  loading = false,
-}) {
+export default function WizardNavigation({ wizard, loading = false }) {
   async function handleNext() {
     await wizard.next();
   }
@@ -17,10 +13,12 @@ export default function WizardNavigation({
     <div className="rounded-3xl border bg-white p-5 shadow-lg">
       <div className="flex flex-col gap-5">
         {/* ================================================= */}
-        {/* RIGHT / ACTION BUTTONS */}
+        {/* ACTION BUTTONS */}
         {/* ================================================= */}
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          {/* PREVIOUS */}
+
           <Button
             type="button"
             variant="outline"
@@ -31,6 +29,8 @@ export default function WizardNavigation({
             <ArrowLeft className="mr-2 h-4 w-4" />
             Previous
           </Button>
+
+          {/* NEXT */}
 
           {!wizard.isLastStep ? (
             <Button
@@ -43,9 +43,10 @@ export default function WizardNavigation({
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
+            /* SUBMIT */
+
             <Button
-              type="button"
-              onClick={onSubmit}
+              type="submit"
               disabled={loading}
               className="h-12 min-w-[190px]"
             >

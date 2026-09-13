@@ -3,6 +3,7 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import buildAcademyConfirmationEmail from "@/lib/email/templates/AcademyConfirmationEmail";
 import buildAcademyRejectionEmail from "@/lib/email/templates/AcademyRejectionEmail";
 import buildAcademyStudentActivationEmail from "@/lib/email/templates/AcademyStudentActivationEmail";
+import buildAcademyExistingStudentEnrollmentEmail from "@/lib/email/templates/AcademyExistingStudentEnrollmentEmail";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -591,19 +592,50 @@ async function sendEmailWithResend(email) {
 async function buildEmailTemplate(emailType, payload) {
   switch (emailType) {
     // ========================================================
-    // ACADEMY CONFIRMATION
+    // ACADEMY FIRST ENROLLMENT CONFIRMATION
     // ========================================================
 
     case "academy_enrollment_confirmation":
       return buildAcademyConfirmationEmail({
         ...payload,
 
-        // Current academy table uses enrollment_number.
+        // Academy uses enrollment_number.
         enrollmentNumber:
           payload.enrollment_number ||
           payload.enrollmentNumber ||
           payload.student_number ||
           "—",
+      });
+
+    // ========================================================
+    // ACADEMY ADDITIONAL ENROLLMENT APPROVED
+    //
+    // Used when an existing Academy student applies for
+    // another enrollment.
+    //
+    // IMPORTANT:
+    // This must NOT create another password setup flow.
+    // The student already has an Academy account.
+    // ========================================================
+
+    case "academy_additional_enrollment_approved":
+      return buildAcademyExistingStudentEnrollmentEmail({
+        ...payload,
+
+        // Each enrollment has its own enrollment number.
+        enrollment_number:
+          payload.enrollment_number || payload.enrollmentNumber || "—",
+
+        // Existing student already has login credentials.
+        login_url:
+          payload.login_url ||
+          payload.loginUrl ||
+          `${process.env.NEXT_PUBLIC_SITE_URL || ""}/account`,
+
+        academy_url:
+          payload.academy_url ||
+          payload.academyUrl ||
+          `${process.env.NEXT_PUBLIC_SITE_URL || ""}/academy`,
       });
 
     // ========================================================

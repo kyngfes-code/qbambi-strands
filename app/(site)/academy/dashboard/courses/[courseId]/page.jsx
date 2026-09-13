@@ -11,6 +11,7 @@ import {
   Clock3,
   GraduationCap,
   Loader2,
+  Lock,
   PlayCircle,
 } from "lucide-react";
 
@@ -27,6 +28,10 @@ export default function AcademyCoursePage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // ==========================================================
+  // LOAD COURSE
+  // ==========================================================
 
   useEffect(() => {
     if (!courseId) return;
@@ -60,6 +65,10 @@ export default function AcademyCoursePage() {
     loadCourse();
   }, [courseId]);
 
+  // ==========================================================
+  // LOADING
+  // ==========================================================
+
   if (loading) {
     return (
       <main className="min-h-screen bg-neutral-50">
@@ -72,6 +81,10 @@ export default function AcademyCoursePage() {
       </main>
     );
   }
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
 
   if (error || !data) {
     return (
@@ -99,16 +112,105 @@ export default function AcademyCoursePage() {
     );
   }
 
+  // ==========================================================
+  // DATA
+  // ==========================================================
+
   const course = data.course;
+
   const enrollment = data.enrollment?.enrollment;
-  const modules = data.modules ?? [];
+
+  const modules = Array.isArray(data.modules) ? data.modules : [];
+
   const progress = data.progress ?? {};
+
   const currentModule = data.currentModule;
+
+  // ==========================================================
+  // HELPERS
+  // ==========================================================
+
+  const getModuleHref = (moduleId) => {
+    return `/academy/dashboard/courses/${course.id}/modules/${moduleId}`;
+  };
+
+  // ==========================================================
+  // DETERMINE MODULE ACCESS
+  //
+  // Priority:
+  //
+  // 1. Completed modules are always reviewable.
+  // 2. Current module is available.
+  // 3. Explicit unlocked modules are available.
+  // 4. First module is always available.
+  // 5. Everything else is locked.
+  // ==========================================================
+
+  const isModuleCompleted = (module) => {
+    return module?.progress?.completed === true;
+  };
+
+  const isModuleCurrent = (module) => {
+    return currentModule?.id === module?.id;
+  };
+
+  const isModuleExplicitlyUnlocked = (module) => {
+    return module?.progress?.unlocked === true;
+  };
+
+  const isModuleLocked = (module, index) => {
+    if (isModuleCompleted(module)) {
+      return false;
+    }
+
+    if (isModuleCurrent(module)) {
+      return false;
+    }
+
+    if (isModuleExplicitlyUnlocked(module)) {
+      return false;
+    }
+
+    if (index === 0) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // ==========================================================
+  // OPEN MODULE
+  // ==========================================================
+
+  const handleOpenModule = (module, index) => {
+    if (isModuleLocked(module, index)) {
+      return;
+    }
+
+    router.push(getModuleHref(module.id));
+  };
+
+  // ==========================================================
+  // MODULE PROGRESS
+  // ==========================================================
+
+  const getModuleProgressPercentage = (module) => {
+    const value =
+      module?.progress?.progressPercentage ?? module?.progress?.percentage ?? 0;
+
+    return Math.min(Math.max(Number(value) || 0, 0), 100);
+  };
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <main className="min-h-screen bg-neutral-50">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* BACK */}
+        {/* ======================================================
+            BACK
+        ====================================================== */}
 
         <Button
           variant="ghost"
@@ -119,10 +221,14 @@ export default function AcademyCoursePage() {
           My Courses
         </Button>
 
-        {/* COURSE HERO */}
+        {/* ======================================================
+            COURSE HERO
+        ====================================================== */}
 
         <Card className="overflow-hidden rounded-3xl border bg-white shadow-sm">
           <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
+            {/* IMAGE */}
+
             <div className="relative min-h-[280px] bg-neutral-100">
               {course?.thumbnail_path ? (
                 <img
@@ -136,6 +242,8 @@ export default function AcademyCoursePage() {
                 </div>
               )}
             </div>
+
+            {/* INFO */}
 
             <div className="p-7 sm:p-9">
               <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#C6A667]">
@@ -166,7 +274,7 @@ export default function AcademyCoursePage() {
                 )}
               </div>
 
-              {/* PROGRESS */}
+              {/* COURSE PROGRESS */}
 
               <div className="mt-7">
                 <div className="mb-2 flex items-center justify-between">
@@ -181,7 +289,7 @@ export default function AcademyCoursePage() {
 
                 <div className="h-3 overflow-hidden rounded-full bg-neutral-100">
                   <div
-                    className="h-full rounded-full bg-[#C6A667]"
+                    className="h-full rounded-full bg-[#C6A667] transition-all duration-500"
                     style={{
                       width: `${Math.min(
                         Math.max(Number(progress.progressPercentage ?? 0), 0),
@@ -197,14 +305,17 @@ export default function AcademyCoursePage() {
                 </div>
               </div>
 
+              {/* CONTINUE */}
+
               {currentModule && (
                 <Button
                   className="mt-7 w-full sm:w-auto"
-                  onClick={() => {
-                    router.push(
-                      `/academy/dashboard/courses/${course.id}/modules/${currentModule.id}`,
-                    );
-                  }}
+                  onClick={() =>
+                    handleOpenModule(
+                      currentModule,
+                      modules.findIndex((item) => item.id === currentModule.id),
+                    )
+                  }
                 >
                   <PlayCircle className="mr-2 h-4 w-4" />
                   Continue Learning
@@ -214,7 +325,9 @@ export default function AcademyCoursePage() {
           </div>
         </Card>
 
-        {/* MODULES */}
+        {/* ======================================================
+            MODULES
+        ====================================================== */}
 
         <div className="mt-8">
           <div className="mb-5">
@@ -223,9 +336,11 @@ export default function AcademyCoursePage() {
             </h2>
 
             <p className="mt-1 text-sm text-neutral-500">
-              Work through each module in order.
+              Complete each module to unlock the next one.
             </p>
           </div>
+
+          {/* NO MODULES */}
 
           {!modules.length ? (
             <Card className="rounded-3xl border bg-white p-8 text-center">
@@ -241,19 +356,48 @@ export default function AcademyCoursePage() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {modules.map((module) => {
-                const completed = module.progress?.completed === true;
+              {modules.map((module, index) => {
+                const completed = isModuleCompleted(module);
 
-                const isCurrent = currentModule?.id === module.id;
+                const isCurrent = isModuleCurrent(module);
+
+                const locked = isModuleLocked(module, index);
+
+                const moduleProgress = getModuleProgressPercentage(module);
+
+                const title =
+                  module.title ??
+                  module.name ??
+                  `Module ${module.moduleIndex ?? index + 1}`;
 
                 return (
                   <Card
                     key={module.id}
-                    className={`rounded-2xl border bg-white p-5 shadow-sm transition ${
+                    role={locked ? undefined : "button"}
+                    tabIndex={locked ? -1 : 0}
+                    onClick={() => {
+                      if (!locked) {
+                        handleOpenModule(module, index);
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (locked) return;
+
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+
+                        handleOpenModule(module, index);
+                      }
+                    }}
+                    className={`rounded-2xl border bg-white p-5 shadow-sm transition-all ${
+                      locked
+                        ? "cursor-not-allowed opacity-60"
+                        : "cursor-pointer hover:-translate-y-0.5 hover:border-[#C6A667]/60 hover:shadow-md"
+                    } ${
                       isCurrent
                         ? "border-[#C6A667] ring-2 ring-[#C6A667]/10"
                         : ""
-                    }`}
+                    } ${completed ? "border-green-200" : ""}`}
                   >
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
                       {/* NUMBER */}
@@ -262,16 +406,20 @@ export default function AcademyCoursePage() {
                         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
                           completed
                             ? "bg-green-100 text-green-700"
-                            : isCurrent
-                              ? "bg-[#C6A667]/10 text-[#C6A667]"
-                              : "bg-neutral-100 text-neutral-500"
+                            : locked
+                              ? "bg-neutral-100 text-neutral-400"
+                              : isCurrent
+                                ? "bg-[#C6A667]/10 text-[#C6A667]"
+                                : "bg-neutral-100 text-neutral-500"
                         }`}
                       >
                         {completed ? (
                           <CheckCircle2 className="h-6 w-6" />
+                        ) : locked ? (
+                          <Lock className="h-5 w-5" />
                         ) : (
                           <span className="font-semibold">
-                            {module.moduleIndex}
+                            {module.moduleIndex ?? index + 1}
                           </span>
                         )}
                       </div>
@@ -281,9 +429,7 @@ export default function AcademyCoursePage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-semibold text-neutral-900">
-                            {module.title ??
-                              module.name ??
-                              `Module ${module.moduleIndex}`}
+                            {title}
                           </h3>
 
                           {completed && (
@@ -295,6 +441,16 @@ export default function AcademyCoursePage() {
                           {isCurrent && !completed && (
                             <Badge variant="secondary">Current</Badge>
                           )}
+
+                          {locked && (
+                            <Badge
+                              variant="outline"
+                              className="gap-1 text-neutral-500"
+                            >
+                              <Lock className="h-3 w-3" />
+                              Locked
+                            </Badge>
+                          )}
                         </div>
 
                         {module.description && (
@@ -303,39 +459,89 @@ export default function AcademyCoursePage() {
                           </p>
                         )}
 
-                        {module.duration_minutes && (
-                          <div className="mt-2 flex items-center gap-1 text-xs text-neutral-400">
-                            <Clock3 className="h-3.5 w-3.5" />
-                            {module.duration_minutes} minutes
+                        <div className="mt-3 flex flex-wrap items-center gap-4">
+                          {module.duration_minutes && (
+                            <div className="flex items-center gap-1 text-xs text-neutral-400">
+                              <Clock3 className="h-3.5 w-3.5" />
+                              {module.duration_minutes} minutes
+                            </div>
+                          )}
+
+                          {!locked && !completed && moduleProgress > 0 && (
+                            <span className="text-xs text-neutral-500">
+                              {moduleProgress}% complete
+                            </span>
+                          )}
+                        </div>
+
+                        {/* MODULE PROGRESS BAR */}
+
+                        {!locked && (
+                          <div className="mt-4">
+                            <div className="mb-1.5 flex items-center justify-between text-xs">
+                              <span className="text-neutral-400">
+                                Module progress
+                              </span>
+
+                              <span className="font-medium text-neutral-600">
+                                {completed ? 100 : moduleProgress}%
+                              </span>
+                            </div>
+
+                            <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  completed ? "bg-green-500" : "bg-[#C6A667]"
+                                }`}
+                                style={{
+                                  width: `${completed ? 100 : moduleProgress}%`,
+                                }}
+                              />
+                            </div>
                           </div>
+                        )}
+
+                        {locked && (
+                          <p className="mt-3 text-xs text-neutral-400">
+                            Complete the previous module to unlock this module.
+                          </p>
                         )}
                       </div>
 
                       {/* ACTION */}
 
-                      <Button
-                        variant={
-                          completed
-                            ? "outline"
-                            : isCurrent
-                              ? "default"
-                              : "secondary"
-                        }
-                        className="shrink-0"
-                        onClick={() =>
-                          router.push(
-                            `/academy/dashboard/courses/${course.id}/modules/${module.id}`,
-                          )
-                        }
-                      >
-                        {completed
-                          ? "Review"
-                          : isCurrent
-                            ? "Continue"
-                            : "Start"}
+                      <div className="shrink-0">
+                        {locked ? (
+                          <Button type="button" variant="secondary" disabled>
+                            <Lock className="mr-2 h-4 w-4" />
+                            Locked
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant={
+                              completed
+                                ? "outline"
+                                : isCurrent
+                                  ? "default"
+                                  : "secondary"
+                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
 
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
+                              handleOpenModule(module, index);
+                            }}
+                          >
+                            {completed
+                              ? "Review"
+                              : isCurrent
+                                ? "Continue"
+                                : "Start"}
+
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </Card>
                 );

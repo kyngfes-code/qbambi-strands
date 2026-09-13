@@ -5,14 +5,19 @@ import { CheckCircle2, Edit3 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-export default function WizardReview({ pricing, wizard }) {
+export default function WizardReview({
+  pricing,
+  wizard,
+  steps = [],
+  isExistingStudent = false,
+}) {
   const { getValues } = useFormContext();
 
   const values = getValues();
 
-  // ------------------------------------------------------
-  // Pricing State
-  // ------------------------------------------------------
+  // ==========================================================
+  // PRICING
+  // ==========================================================
 
   const selectedPaymentPlan = pricing?.selectedPaymentPlan ?? null;
 
@@ -20,9 +25,9 @@ export default function WizardReview({ pricing, wizard }) {
 
   const selectedCourses = pricing?.selectedCourses ?? [];
 
-  // ------------------------------------------------------
-  // Currency
-  // ------------------------------------------------------
+  // ==========================================================
+  // CURRENCY
+  // ==========================================================
 
   const currencySymbols = {
     NGN: "₦",
@@ -35,9 +40,9 @@ export default function WizardReview({ pricing, wizard }) {
 
   const symbol = currencySymbols[currency] ?? currency;
 
-  // ------------------------------------------------------
-  // Helpers
-  // ------------------------------------------------------
+  // ==========================================================
+  // FORMAT AMOUNT
+  // ==========================================================
 
   function formatAmount(value) {
     return `${symbol}${Number(value ?? 0).toLocaleString(undefined, {
@@ -46,181 +51,298 @@ export default function WizardReview({ pricing, wizard }) {
     })}`;
   }
 
-  // ------------------------------------------------------
-  // Review Sections
-  // ------------------------------------------------------
+  // ==========================================================
+  // GO TO STEP
+  // ==========================================================
 
-  const sections = [
-    {
-      title: "Personal Information",
-      step: 0,
-      items: [
-        {
-          label: "Full Name",
-          value: [values.first_name, values.last_name, values.other_name]
-            .filter(Boolean)
-            .join(" "),
-        },
-        {
-          label: "Gender",
-          value: values.gender,
-        },
-        {
-          label: "Date of Birth",
-          value: values.date_of_birth,
-        },
-        {
-          label: "Email",
-          value: values.email,
-        },
-        {
-          label: "Phone",
-          value: values.phone,
-        },
-        {
-          label: "WhatsApp",
-          value: values.whatsapp,
-        },
-      ],
-    },
+  function goToStep(stepId) {
+    const stepIndex = steps.findIndex((step) => step.id === stepId);
 
-    {
-      title: "Address",
-      step: 1,
-      items: [
-        {
-          label: "Country",
-          value: values.country,
-        },
-        {
-          label: "State",
-          value: values.state,
-        },
-        {
-          label: "City",
-          value: values.city,
-        },
-        {
-          label: "Street",
-          value: values.street_address,
-        },
-        {
-          label: "Postal Code",
-          value: values.postal_code,
-        },
-      ],
-    },
+    if (stepIndex === -1) {
+      console.warn(`[ACADEMY REVIEW] Step "${stepId}" was not found.`);
 
-    {
-      title: "Training",
-      step: 2,
-      items: [
-        {
-          label: "Learning Mode",
-          value: values.learning_mode,
-        },
-        {
-          label: "Preferred Start",
-          value: values.preferred_start_date,
-        },
-      ],
-    },
+      return;
+    }
 
-    {
-      title: "Payment",
-      step: 3,
-      items: [
-        {
-          label: "Payment Plan",
-          value: selectedPaymentPlan?.name,
-        },
-        {
-          label: "Course Fee",
-          value: paymentBreakdown
-            ? formatAmount(paymentBreakdown.courseFee)
-            : "-",
-        },
-        {
-          label: "Administrative Charge",
-          value: paymentBreakdown
-            ? `${Number(
-                paymentBreakdown.extraPercentage ?? 0,
-              )}% (${formatAmount(paymentBreakdown.extraAmount)})`
-            : "-",
-        },
-        {
-          label: "Total Payable",
-          value: paymentBreakdown
-            ? formatAmount(paymentBreakdown.adjustedTotal)
-            : "-",
-        },
-        {
-          label: "Deposit Due Today",
-          value: paymentBreakdown
-            ? formatAmount(paymentBreakdown.deposit)
-            : "-",
-        },
-        {
-          label: "Remaining Balance",
-          value: paymentBreakdown
-            ? formatAmount(paymentBreakdown.remaining)
-            : "-",
-        },
-      ],
-    },
+    console.log(`[ACADEMY REVIEW] Navigating to step: ${stepId}`, stepIndex);
 
-    {
-      title: "Emergency Contact",
-      step: 4,
-      items: [
-        {
-          label: "Name",
-          value: values.emergency_contact_name,
-        },
-        {
-          label: "Phone",
-          value: values.emergency_contact_phone,
-        },
-        {
-          label: "Relationship",
-          value: values.emergency_contact_relationship,
-        },
-      ],
-    },
+    // Try the navigation methods supported by useWizard
+    if (typeof wizard?.goTo === "function") {
+      wizard.goTo(stepIndex);
+      return;
+    }
 
-    {
-      title: "Additional Information",
-      step: 5,
-      items: [
-        {
-          label: "Occupation",
-          value: values.occupation,
-        },
-        {
-          label: "Education",
-          value: values.education_level,
-        },
-        {
-          label: "Referral",
-          value: values.referral_source,
-        },
-        {
-          label: "Notes",
-          value: values.notes,
-        },
-      ],
-    },
-  ];
+    if (typeof wizard?.setCurrentStep === "function") {
+      wizard.setCurrentStep(stepIndex);
+      return;
+    }
 
-  // ------------------------------------------------------
-  // Render
-  // ------------------------------------------------------
+    if (typeof wizard?.goToStep === "function") {
+      wizard.goToStep(stepIndex);
+      return;
+    }
+
+    console.error(
+      "[ACADEMY REVIEW] No valid wizard navigation method found.",
+      wizard,
+    );
+  }
+
+  // ==========================================================
+  // REVIEW SECTIONS
+  // ==========================================================
+
+  const sections = [];
+
+  // ----------------------------------------------------------
+  // PERSONAL + ADDRESS
+  // ----------------------------------------------------------
+
+  if (!isExistingStudent) {
+    sections.push(
+      {
+        title: "Personal Information",
+
+        stepId: "personal",
+
+        items: [
+          {
+            label: "Full Name",
+
+            value: [values.first_name, values.last_name, values.other_name]
+              .filter(Boolean)
+              .join(" "),
+          },
+
+          {
+            label: "Gender",
+
+            value: values.gender,
+          },
+
+          {
+            label: "Date of Birth",
+
+            value: values.date_of_birth,
+          },
+
+          {
+            label: "Email",
+
+            value: values.email,
+          },
+
+          {
+            label: "Phone",
+
+            value: values.phone,
+          },
+
+          {
+            label: "WhatsApp",
+
+            value: values.whatsapp,
+          },
+        ],
+      },
+
+      {
+        title: "Address",
+
+        stepId: "address",
+
+        items: [
+          {
+            label: "Country",
+
+            value: values.country,
+          },
+
+          {
+            label: "State",
+
+            value: values.state,
+          },
+
+          {
+            label: "City",
+
+            value: values.city,
+          },
+
+          {
+            label: "Street Address",
+
+            value: values.street_address,
+          },
+
+          {
+            label: "Postal Code",
+
+            value: values.postal_code,
+          },
+        ],
+      },
+    );
+  }
+
+  // ----------------------------------------------------------
+  // TRAINING
+  // ----------------------------------------------------------
+
+  sections.push({
+    title: "Training",
+
+    stepId: "training",
+
+    items: [
+      {
+        label: "Learning Mode",
+
+        value: values.learning_mode,
+      },
+
+      {
+        label: "Preferred Start Date",
+
+        value: values.preferred_start_date,
+      },
+    ],
+  });
+
+  // ----------------------------------------------------------
+  // PAYMENT
+  // ----------------------------------------------------------
+
+  sections.push({
+    title: "Payment",
+
+    stepId: "payment",
+
+    items: [
+      {
+        label: "Payment Plan",
+
+        value: selectedPaymentPlan?.name ?? values.payment_plan_id,
+      },
+
+      {
+        label: "Course Fee",
+
+        value: paymentBreakdown
+          ? formatAmount(paymentBreakdown.courseFee)
+          : "-",
+      },
+
+      {
+        label: "Administrative Charge",
+
+        value: paymentBreakdown
+          ? `${Number(paymentBreakdown.extraPercentage ?? 0)}% (${formatAmount(
+              paymentBreakdown.extraAmount,
+            )})`
+          : "-",
+      },
+
+      {
+        label: "Total Payable",
+
+        value: paymentBreakdown
+          ? formatAmount(paymentBreakdown.adjustedTotal)
+          : "-",
+      },
+
+      {
+        label: "Deposit Due Today",
+
+        value: paymentBreakdown ? formatAmount(paymentBreakdown.deposit) : "-",
+      },
+
+      {
+        label: "Remaining Balance",
+
+        value: paymentBreakdown
+          ? formatAmount(paymentBreakdown.remaining)
+          : "-",
+      },
+    ],
+  });
+
+  // ----------------------------------------------------------
+  // EMERGENCY + ADDITIONAL
+  // ----------------------------------------------------------
+
+  if (!isExistingStudent) {
+    sections.push(
+      {
+        title: "Emergency Contact",
+
+        stepId: "emergency",
+
+        items: [
+          {
+            label: "Name",
+
+            value: values.emergency_contact_name,
+          },
+
+          {
+            label: "Phone",
+
+            value: values.emergency_contact_phone,
+          },
+
+          {
+            label: "Relationship",
+
+            value: values.emergency_contact_relationship,
+          },
+        ],
+      },
+
+      {
+        title: "Additional Information",
+
+        stepId: "additional",
+
+        items: [
+          {
+            label: "Occupation",
+
+            value: values.occupation,
+          },
+
+          {
+            label: "Education",
+
+            value: values.education_level,
+          },
+
+          {
+            label: "Referral Source",
+
+            value: values.referral_source,
+          },
+
+          {
+            label: "Notes",
+
+            value: values.notes,
+          },
+        ],
+      },
+    );
+  }
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <section className="space-y-8">
-      {/* ================================================= */}
-      {/* Review Header */}
-      {/* ================================================= */}
+      {/* ================================================== */}
+      {/* REVIEW HEADER */}
+      {/* ================================================== */}
 
       <div className="rounded-3xl border border-green-200 bg-green-50 p-6">
         <div className="flex items-start gap-4">
@@ -230,30 +352,29 @@ export default function WizardReview({ pricing, wizard }) {
 
           <div>
             <h3 className="text-xl font-bold text-green-700">
-              Review Your Application
+              {isExistingStudent
+                ? "Review Your Course Enrollment"
+                : "Review Your Application"}
             </h3>
 
             <p className="mt-2 leading-7 text-neutral-700">
-              Please carefully review all the information below before
-              submitting your enrollment. If you notice anything incorrect,
-              click the <strong>Edit</strong> button beside the relevant
-              section.
+              {isExistingStudent
+                ? "Your student information is already on file. Please review your course selection and payment details before submitting."
+                : "Please carefully review all your information before submitting your enrollment."}
             </p>
           </div>
         </div>
       </div>
 
-      {/* ================================================= */}
-      {/* Information Sections */}
-      {/* ================================================= */}
+      {/* ================================================== */}
+      {/* INFORMATION SECTIONS */}
+      {/* ================================================== */}
 
       {sections.map((section) => (
         <div
           key={section.title}
           className="rounded-3xl border bg-white shadow-sm"
         >
-          {/* Section Header */}
-
           <div className="flex flex-col gap-4 border-b p-6 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-xl font-semibold text-neutral-900">
               {section.title}
@@ -262,14 +383,12 @@ export default function WizardReview({ pricing, wizard }) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => wizard?.goTo(section.step)}
+              onClick={() => goToStep(section.stepId)}
             >
               <Edit3 className="mr-2 h-4 w-4" />
               Edit
             </Button>
           </div>
-
-          {/* Section Values */}
 
           <div className="grid gap-6 p-6 sm:grid-cols-2 xl:grid-cols-3">
             {section.items.map((item) => (
@@ -287,9 +406,9 @@ export default function WizardReview({ pricing, wizard }) {
         </div>
       ))}
 
-      {/* ================================================= */}
-      {/* Selected Courses */}
-      {/* ================================================= */}
+      {/* ================================================== */}
+      {/* SELECTED COURSES */}
+      {/* ================================================== */}
 
       <div className="rounded-3xl border bg-[#C6A667]/10 p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -299,14 +418,14 @@ export default function WizardReview({ pricing, wizard }) {
             </h3>
 
             <p className="mt-1 text-sm text-neutral-500">
-              Courses included in your academy enrollment.
+              Courses included in this enrollment.
             </p>
           </div>
 
           <Button
             type="button"
             variant="outline"
-            onClick={() => wizard?.goTo(2)}
+            onClick={() => goToStep("training")}
           >
             <Edit3 className="mr-2 h-4 w-4" />
             Edit Courses
@@ -334,7 +453,7 @@ export default function WizardReview({ pricing, wizard }) {
 
                     <p className="mt-1 text-sm text-neutral-500">
                       {course.duration} Month
-                      {Number(course.duration) > 1 ? "s" : ""}
+                      {Number(course.duration) !== 1 ? "s" : ""}
                     </p>
                   </div>
 
@@ -348,9 +467,9 @@ export default function WizardReview({ pricing, wizard }) {
         </div>
       </div>
 
-      {/* ================================================= */}
-      {/* Final Payment Summary */}
-      {/* ================================================= */}
+      {/* ================================================== */}
+      {/* FINAL PAYMENT SUMMARY */}
+      {/* ================================================== */}
 
       <div className="rounded-3xl border border-[#C6A667]/30 bg-white p-6 shadow-md">
         <div className="border-b pb-5">
@@ -359,7 +478,7 @@ export default function WizardReview({ pricing, wizard }) {
           </h3>
 
           <p className="mt-1 text-sm text-neutral-500">
-            This is the amount that will be used for your enrollment payment.
+            This is the amount that will be used for this enrollment.
           </p>
         </div>
 
@@ -375,8 +494,6 @@ export default function WizardReview({ pricing, wizard }) {
           </div>
         ) : (
           <div className="mt-6 space-y-5">
-            {/* Payment Plan */}
-
             <div className="flex items-center justify-between gap-4">
               <span className="text-neutral-500">Payment Plan</span>
 
@@ -385,28 +502,11 @@ export default function WizardReview({ pricing, wizard }) {
               </strong>
             </div>
 
-            {/* Course Fee */}
-
             <div className="flex items-center justify-between gap-4">
               <span className="text-neutral-500">Course Fee</span>
 
               <strong>{formatAmount(paymentBreakdown.courseFee)}</strong>
             </div>
-
-            {/* Administrative Charge */}
-
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-neutral-500">Administrative Charge</span>
-
-              <strong className="text-right">
-                {Number(paymentBreakdown.extraPercentage ?? 0)}%{" "}
-                <span className="text-neutral-500">
-                  ({formatAmount(paymentBreakdown.extraAmount)})
-                </span>
-              </strong>
-            </div>
-
-            {/* Total Payable */}
 
             <div className="flex items-center justify-between gap-4 border-t pt-5">
               <span className="text-lg font-semibold text-neutral-900">
@@ -418,8 +518,6 @@ export default function WizardReview({ pricing, wizard }) {
               </span>
             </div>
 
-            {/* Deposit */}
-
             <div className="rounded-2xl bg-green-50 p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
                 Deposit Due Today
@@ -430,43 +528,15 @@ export default function WizardReview({ pricing, wizard }) {
               </p>
 
               <p className="mt-1 text-sm text-green-600">
-                This is the amount required to secure your enrollment.
+                This amount is required to secure your enrollment.
               </p>
             </div>
-
-            {/* Remaining */}
 
             <div className="flex items-center justify-between gap-4">
               <span className="text-neutral-500">Remaining Balance</span>
 
               <strong>{formatAmount(paymentBreakdown.remaining)}</strong>
             </div>
-
-            {/* Future Payments */}
-
-            {Number(paymentBreakdown.remainingPayments ?? 0) > 0 && (
-              <div className="flex items-start justify-between gap-4">
-                <span className="text-neutral-500">Future Payments</span>
-
-                <div className="text-right">
-                  <strong>
-                    {paymentBreakdown.remainingPayments} Payment
-                    {Number(paymentBreakdown.remainingPayments) > 1
-                      ? "s"
-                      : ""}{" "}
-                    × {formatAmount(paymentBreakdown.installmentAmount)}
-                  </strong>
-
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Every {selectedPaymentPlan?.payment_interval_months ?? 1}{" "}
-                    month
-                    {(selectedPaymentPlan?.payment_interval_months ?? 1) > 1
-                      ? "s"
-                      : ""}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>

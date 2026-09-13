@@ -1,36 +1,13 @@
-// app/academy/dashboard/page.jsx
-
 import AcademyDashboardClient from "@/components/academy/studentDashBoard/AcademyDashboardClient";
+
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-/**
- * ==========================================================
- * GET ACADEMY DASHBOARD
- * ==========================================================
- *
- * The API returns:
- *
- * {
- *   student,
- *   courses: [
- *     {
- *       enrollment,
- *       course,
- *       paymentPlan,
- *       paymentSummary,
- *       nextPayment,
- *       upcomingPayments,
- *       recentPayments,
- *       timeline
- *     }
- *   ]
- * }
- *
- * A student can have multiple enrolled courses.
- */
+// ==========================================================
+// GET DASHBOARD DATA
+// ==========================================================
 
 async function getDashboard() {
   const requestHeaders = await headers();
@@ -44,7 +21,7 @@ async function getDashboard() {
   }
 
   try {
-    const res = await fetch(
+    const response = await fetch(
       `${process.env.NEXTAUTH_URL}/api/academy/dashboard`,
       {
         method: "GET",
@@ -57,15 +34,19 @@ async function getDashboard() {
       },
     );
 
-    if (!res.ok) {
-      const errorText = await res.text();
+    if (!response.ok) {
+      const errorText = await response.text();
 
-      console.error("Academy dashboard API returned:", res.status, errorText);
+      console.error(
+        "Academy dashboard API returned:",
+        response.status,
+        errorText,
+      );
 
       return null;
     }
 
-    return await res.json();
+    return await response.json();
   } catch (error) {
     console.error("Academy dashboard fetch error:", error);
 
@@ -73,12 +54,16 @@ async function getDashboard() {
   }
 }
 
-export default async function AcademyDashboardPage() {
-  const dashboard = await getDashboard();
+// ==========================================================
+// ACADEMY DASHBOARD PAGE
+// ==========================================================
 
+export default async function AcademyDashboardPage() {
   // ==========================================================
-  // 1. DASHBOARD DATA
+  // 1. LOAD DASHBOARD
   // ==========================================================
+
+  const dashboard = await getDashboard();
 
   if (!dashboard) {
     redirect("/account");
@@ -107,24 +92,93 @@ export default async function AcademyDashboardPage() {
   }
 
   // ==========================================================
-  // 4. COURSES
+  // 4. ALL ENROLLMENTS
   //
-  // A student may have multiple enrolled courses.
+  // The API is enrollment-centric and can return:
+  //
+  // pending
+  // confirmed
+  // payment_verified
+  // enrolled
+  // completed
+  //
+  // The learning dashboard should only expose enrolled
+  // records.
   // ==========================================================
 
-  const courses = Array.isArray(dashboard.courses) ? dashboard.courses : [];
+  const enrollments = Array.isArray(dashboard.enrollments)
+    ? dashboard.enrollments
+    : [];
 
   // ==========================================================
-  // 5. MUST HAVE AT LEAST ONE ACTIVE COURSE
+  // 5. ACTIVE / ENROLLED ENROLLMENTS
+  //
+  // Only "enrolled" enrollments have learning access.
+  //
+  // Courses remain children of each enrollment.
   // ==========================================================
 
-  if (!courses.length) {
+  const activeEnrollments = enrollments.filter(
+    (item) =>
+      item?.enrollment?.status === "enrolled" &&
+      Array.isArray(item?.courses) &&
+      item.courses.length > 0,
+  );
+
+  // ==========================================================
+  // 6. NO ACTIVE ENROLLMENTS
+  //
+  // A student may still have another enrollment that is:
+  //
+  // - pending
+  // - confirmed
+  // - payment_verified
+  //
+  // Those should be handled by the account/payment flow,
+  // not presented as active learning courses.
+  // ==========================================================
+
+  if (!activeEnrollments.length) {
     redirect("/account");
   }
 
   // ==========================================================
-  // 6. RENDER CLIENT DASHBOARD
+  // 7. NORMALIZE GLOBAL DATA
   // ==========================================================
 
-  return <AcademyDashboardClient student={student} courses={courses} />;
+  const summary = dashboard.summary ?? null;
+
+  const recentPayments = Array.isArray(dashboard.recentPayments)
+    ? dashboard.recentPayments
+    : [];
+
+  const recentActivity = Array.isArray(dashboard.recentActivity)
+    ? dashboard.recentActivity
+    : [];
+
+  // ==========================================================
+  // 8. RENDER ENROLLMENT-CENTRIC DASHBOARD
+  //
+  // IMPORTANT:
+  //
+  // Do NOT pass dashboard.courses as the primary prop.
+  //
+  // The client receives:
+  //
+  // student
+  // enrollments
+  // summary
+  // recentPayments
+  // recentActivity
+  // ==========================================================
+
+  return (
+    <AcademyDashboardClient
+      student={student}
+      enrollments={activeEnrollments}
+      summary={summary}
+      recentPayments={recentPayments}
+      recentActivity={recentActivity}
+    />
+  );
 }

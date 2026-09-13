@@ -2,16 +2,131 @@ import { CheckCheckIcon, GraduationCap, Sparkles, Star } from "lucide-react";
 
 import AcadamyPageCard from "@/components/AcadamyPageCard";
 import AcademyEnrollmentForm from "@/components/academy/AcademyEnrollmentForm";
-import { getAcademyCourses } from "@/lib/data-service";
 import AcademyProgramsAccordion from "@/components/academy/AcademyProgramsAccordion";
 
+import { getAcademyCourses } from "@/lib/data-service";
+import { auth } from "@/lib/auth";
+import { createSupabaseAdmin } from "@/lib/supabase-admin";
+
 export const metadata = {
-  title: "Qbambi Academy",
+  title: "Q-bambi Academy",
 };
 
-const courses = await getAcademyCourses();
+// =====================================================
+// PAGE
+// =====================================================
 
-export default function Page() {
+export default async function Page() {
+  const courses = await getAcademyCourses();
+
+  const session = await auth();
+
+  let student = null;
+
+  if (session?.user?.id) {
+    const supabase = createSupabaseAdmin();
+
+    const { data, error } = await supabase
+      .from("academy_students")
+      .select(
+        `
+        id,
+        user_id,
+        enrollment_id,
+        student_number,
+        status,
+        is_active,
+        first_name,
+        last_name,
+        other_name,
+        email,
+        phone,
+        whatsapp,
+
+        enrollment:academy_enrollments!academy_students_enrollment_id_fkey (
+          id,
+          enrollment_number,
+          gender,
+          date_of_birth,
+          country,
+          state,
+          city,
+          street_address,
+          postal_code,
+          occupation,
+          education_level,
+          emergency_contact_name,
+          emergency_contact_phone,
+          emergency_contact_relationship,
+          referral_source,
+          notes
+        )
+      `,
+      )
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[ACADEMY PAGE] Unable to load existing student", error);
+    } else {
+      student = data;
+    }
+  }
+
+  // =====================================================
+  // NORMALIZE EXISTING STUDENT DATA
+  // =====================================================
+
+  const existingStudent = student
+    ? {
+        // Academy student
+        id: student.id,
+        student_number: student.student_number,
+        status: student.status,
+        is_active: student.is_active,
+
+        // Student identity
+        first_name: student.first_name ?? "",
+        last_name: student.last_name ?? "",
+        other_name: student.other_name ?? "",
+        email: student.email ?? "",
+        phone: student.phone ?? "",
+        whatsapp: student.whatsapp ?? "",
+
+        // Original enrollment
+        gender: student.enrollment?.gender ?? "",
+        date_of_birth: student.enrollment?.date_of_birth ?? "",
+
+        country: student.enrollment?.country ?? "",
+        state: student.enrollment?.state ?? "",
+        city: student.enrollment?.city ?? "",
+        street_address: student.enrollment?.street_address ?? "",
+        postal_code: student.enrollment?.postal_code ?? "",
+
+        occupation: student.enrollment?.occupation ?? "",
+        education_level: student.enrollment?.education_level ?? "",
+
+        emergency_contact_name:
+          student.enrollment?.emergency_contact_name ?? "",
+
+        emergency_contact_phone:
+          student.enrollment?.emergency_contact_phone ?? "",
+
+        emergency_contact_relationship:
+          student.enrollment?.emergency_contact_relationship ?? "",
+
+        referral_source: student.enrollment?.referral_source ?? "",
+
+        notes: student.enrollment?.notes ?? "",
+      }
+    : null;
+
+  // =====================================================
+  // EXISTING STUDENT CHECK
+  // =====================================================
+
+  const isExistingStudent = Boolean(existingStudent?.id);
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#fbf8f2] via-white to-[#f4ece0]">
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -44,11 +159,15 @@ export default function Page() {
               launch a successful beauty career.
             </p>
 
-            {/* Courses */}
+            {/* ================================= */}
+            {/* COURSES */}
+            {/* ================================= */}
 
             <AcademyProgramsAccordion courses={courses} />
 
-            {/* Why Choose */}
+            {/* ================================= */}
+            {/* WHY CHOOSE */}
+            {/* ================================= */}
 
             <div className="mt-12">
               <h3 className="text-2xl font-bold text-neutral-900">
@@ -90,7 +209,9 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Graduate With */}
+            {/* ================================= */}
+            {/* GRADUATE WITH */}
+            {/* ================================= */}
 
             <div className="mt-12 rounded-3xl border bg-white p-8 shadow-md">
               <h3 className="text-2xl font-bold">What You'll Graduate With</h3>
@@ -113,7 +234,9 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Stats */}
+            {/* ================================= */}
+            {/* STATS */}
+            {/* ================================= */}
 
             <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-2xl bg-white p-5 shadow-md">
@@ -148,21 +271,34 @@ export default function Page() {
 
           <aside className="min-w-0 xl:sticky xl:top-24 xl:self-start">
             <div className="overflow-hidden rounded-3xl border border-[#C6A667]/20 bg-white shadow-2xl">
+              {/* HEADER */}
+
               <div className="bg-gradient-to-r from-[#C6A667] to-[#9d7740] p-6 text-white">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5" />
 
-                  <h2 className="text-2xl font-bold">Academy Enrollment</h2>
+                  <h2 className="text-2xl font-bold">
+                    {isExistingStudent
+                      ? "Add Another Course"
+                      : "Academy Enrollment"}
+                  </h2>
                 </div>
 
                 <p className="mt-2 text-sm leading-6 text-white/90">
-                  Complete the form below to begin your professional beauty
-                  journey.
+                  {isExistingStudent
+                    ? "Select another course and complete your training and payment preferences."
+                    : "Complete the form below to begin your professional beauty journey."}
                 </p>
               </div>
 
+              {/* FORM */}
+
               <div className="p-4 sm:p-6">
-                <AcademyEnrollmentForm courses={courses} />
+                <AcademyEnrollmentForm
+                  courses={courses}
+                  isExistingStudent={isExistingStudent}
+                  student={existingStudent}
+                />
               </div>
             </div>
           </aside>
@@ -221,9 +357,9 @@ export default function Page() {
                 review:
                   "Joining Qbambi Academy completely transformed my career. I now own my own beauty brand.",
               },
-            ].map((student) => (
+            ].map((testimonial) => (
               <div
-                key={student.name}
+                key={testimonial.name}
                 className="rounded-3xl border bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-2 hover:shadow-xl"
               >
                 <div className="mb-5 flex gap-1">
@@ -235,10 +371,12 @@ export default function Page() {
                   ))}
                 </div>
 
-                <p className="leading-7 text-neutral-600">"{student.review}"</p>
+                <p className="leading-7 text-neutral-600">
+                  "{testimonial.review}"
+                </p>
 
                 <div className="mt-6 border-t pt-4">
-                  <h4 className="font-semibold">{student.name}</h4>
+                  <h4 className="font-semibold">{testimonial.name}</h4>
 
                   <p className="text-sm text-neutral-500">Academy Graduate</p>
                 </div>
